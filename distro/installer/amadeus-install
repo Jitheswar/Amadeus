@@ -40,7 +40,7 @@ ask TIMEZONE "Time zone" "$(curl -fsm5 https://ipapi.co/timezone 2>/dev/null || 
 [[ -f /usr/share/zoneinfo/$TIMEZONE ]] || die "unknown time zone $TIMEZONE"
 ask LOCALE "Locale" en_US.UTF-8
 ask KEYMAP "Console keymap" us
-ask EXTRAS "Install Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend from a third-party repository (yes/no)" yes
+ask EXTRAS "Install Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend and ProtonPlus (yes/no)" yes
 NVIDIA=${NVIDIA:-auto}
 if [[ $NVIDIA == auto ]]; then lspci -n | grep -qE ' 03[0-9a-f]{2}: 10de:' && NVIDIA=yes || NVIDIA=no; fi
 
@@ -95,7 +95,12 @@ CONF=$(mktemp)
   printf '[amadeus]\nSigLevel = Optional TrustAll\nServer = file:///opt/amadeus-repo\n'
 } >"$CONF"
 LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps) amadeus amadeus-desktop"
-compgen -G "/opt/amadeus-repo/protonplus-*.pkg.tar.zst" >/dev/null && LIST+=" protonplus"
+if [[ $EXTRAS == yes ]]; then
+  # Applications that are not in the Arch repositories, packaged into the repository on this medium.
+  for p in $(pkgs $SHARE/packages.aur); do
+    compgen -G "/opt/amadeus-repo/$p-[0-9]*.pkg.tar.zst" >/dev/null && LIST+=" $p" || echo "  ($p is not on this medium; skipped)"
+  done
+fi
 [[ $NVIDIA == yes ]] && LIST+=" $(pkgs $SHARE/packages.nvidia)"
 # shellcheck disable=SC2086
 pacstrap -C "$CONF" -K $T $LIST
@@ -186,7 +191,7 @@ H
 sed 's/^When = PreTransaction/When = PostTransaction/' $T/etc/pacman.d/hooks/04-boot-backup.hook >$T/etc/pacman.d/hooks/95-boot-backup.hook
 rsync -a --delete $T/boot/ $T/.bootbackup/
 
-# ---- snapshots, services, third-party apps ------------------------------------
+# ---- snapshots and services --------------------------------------------------
 say "Snapshots and services"
 ch snapper --no-dbus -c root create-config /
 sed -i 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE="no"/; s/^NUMBER_LIMIT=.*/NUMBER_LIMIT="20"/; s/^NUMBER_LIMIT_IMPORTANT=.*/NUMBER_LIMIT_IMPORTANT="5"/' $T/etc/snapper/configs/root
@@ -195,18 +200,6 @@ for s in NetworkManager greetd bluetooth power-profiles-daemon thermald systemd-
 done
 ln -sf ../run/systemd/resolve/stub-resolv.conf $T/etc/resolv.conf
 ch systemctl --global enable amadeusd.service pipewire-pulse.socket wireplumber.service >/dev/null 2>&1 || true
-install -Dm644 /usr/share/pacman/keyrings/omarchy* -t $T/usr/share/pacman/keyrings/ 2>/dev/null || true
-
-if [[ $EXTRAS == yes ]]; then
-  say "Third-party applications"
-  if [[ -f $T/usr/share/pacman/keyrings/omarchy.gpg ]] && ch pacman-key --populate omarchy >/dev/null 2>&1; then
-    printf '\n# Third-party applications only. Listed last, so it never replaces an Arch package.\n[omarchy]\nServer = https://pkgs.omarchy.org/stable/$arch\n' >>$T/etc/pacman.conf
-    # shellcheck disable=SC2046
-    ch pacman -Sy --noconfirm --needed $(pkgs $SHARE/packages.extras) || echo "  Some third-party applications could not be installed; the system is otherwise complete."
-  else
-    echo "  Third-party repository key unavailable; skipped."
-  fi
-fi
 
 ch snapper --no-dbus -c root create --description "fresh install" --cleanup-algorithm number >/dev/null || true
 [[ -n ${POST_HOOK:-} && -x ${POST_HOOK:-} ]] && "$POST_HOOK" $T "$USERNAME"

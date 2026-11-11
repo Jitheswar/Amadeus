@@ -87,8 +87,7 @@ t "privileged tools refused (root mode off)"   bash -c "as ama tool pkg_manage '
 t "root helper is root-owned"                  bash -c '[[ $(stat -c %U /usr/lib/amadeus/amadeus-priv) == root ]]'
 t "audit log chain intact"                     as ama audit verify
 echo "--- applications outside the Arch repositories"
-t "protonplus installed"                       pacman -Q protonplus
-for p in brave-origin-bin claude-desktop claude-code herdr localsend; do t "$p installed" pacman -Q $p; done
+for p in protonplus brave-origin-bin claude-desktop claude-code herdr-bin localsend-bin; do t "$p installed" pacman -Q $p; done
 echo "--- ama doctor"
 as ama doctor || true
 echo "--- resources"

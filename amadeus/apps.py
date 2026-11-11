@@ -180,8 +180,8 @@ def _desktop_entry(m):
 
 def theme_env():
     env = {}
-    # ~/.config/amadeus/theme.toml wins; an omarchy theme is used when present.
-    f = next((p for p in (config.CONFIG / "theme.toml", Path.home() / ".local/state/omarchy/current/theme/colors.toml") if p.exists()), None)
+    f = config.CONFIG / "theme.toml"
+    f = f if f.exists() else None
     try:
         c = tomllib.loads(f.read_text()) if f else {}
         pairs = {"AMA_BG": "background", "AMA_FG": "foreground", "AMA_ACCENT": "accent", "AMA_GOOD": "color2", "AMA_WARN": "color3", "AMA_BAD": "color1"}

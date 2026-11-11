@@ -29,8 +29,8 @@ Packages are downloaded during the install, so it needs an internet connection.
 | Graphics | Intel renders the desktop; `nvidia-open` with full runtime power-down, installed only if an NVIDIA card is present; 32-bit Vulkan for Proton |
 | Desktop | Hyprland (uwsm), a Quickshell bar whose layout is a JSON file, fuzzel, mako, hyprlock/hypridle, foot, greetd |
 | AI | `amadeus` (daemon, `ama`, root-mode helper) and `amadeus-desktop`, from a package repository on the ISO |
-| Apps | Steam, ProtonPlus (built from its AUR recipe into the ISO repository), Discord, Telegram, Nautilus, Papers, imv, LibreOffice, mpv, Snapshot, git, GitHub CLI |
-| Third-party (optional) | Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend from the signed omarchy repository, listed last so it never replaces an Arch package |
+| Apps | Steam, Discord, Telegram, Nautilus, Papers, imv, LibreOffice, mpv, Snapshot, git, GitHub CLI |
+| Outside the Arch repositories (optional) | Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend, ProtonPlus. Each is built from its AUR recipe, which downloads the publisher's own release, into the repository on the ISO. No third-party package repository is added to the system; `amadeus-update` keeps them current |
 
 About 20 package names are chosen by hand; everything else is a dependency. See `installer/packages.*`.
 
@@ -53,7 +53,7 @@ on the USB stick opens a root shell inside the installed system.
 installer/   amadeus-install and the package lists
 desktop/     the amadeus-desktop package: Hyprland defaults, bar, user skeleton
 live/        additions to the live ISO (unattended-install unit, welcome text)
-aur-build.sh builds one AUR package (ProtonPlus) in the container
+aur-build.sh builds one AUR package in the container (list: installer/packages.aur)
 mkiso.sh     profile assembly on top of archiso's releng, run in the container
 test/        VM harness: install, first boot, rollback from the system, rollback from the ISO
 ```

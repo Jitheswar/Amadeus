@@ -11,8 +11,10 @@ for d in packaging distro/desktop; do
   (cd /tmp/pkgsrc/$d && sudo -u build env PKGDEST=$REPO makepkg -f --nodeps >/dev/null)
 done
 
-echo "==> Packaging ProtonPlus (not in the Arch repositories; built from its AUR recipe)"
-bash /src/distro/aur-build.sh protonplus $REPO $OUT/pkgcache || echo "   WARNING: ProtonPlus could not be built; the ISO will not include it"
+echo "==> Packaging applications that are not in the Arch repositories (from their AUR recipes)"
+for p in $(grep -hv '^#' $SRC/distro/installer/packages.aur); do
+  bash /src/distro/aur-build.sh $p $REPO $OUT/pkgcache || echo "   WARNING: $p could not be built; the ISO will not include it"
+done
 repo-add -q $REPO/amadeus.db.tar.gz $REPO/*.pkg.tar.zst
 ls $REPO/*.pkg.tar.zst
 
@@ -25,7 +27,6 @@ install -m755 $SRC/distro/installer/amadeus-install $SRC/distro/live/amadeus-aut
 install -m644 $SRC/distro/installer/packages.* $A/usr/share/amadeus-install/
 install -m644 $SRC/distro/live/amadeus-autoinstall.service $A/etc/systemd/system/
 ln -sf ../amadeus-autoinstall.service $A/etc/systemd/system/multi-user.target.wants/
-install -Dm644 /keyrings/omarchy* -t $A/usr/share/pacman/keyrings/ 2>/dev/null || echo "   (no third-party keyring supplied; extras will be skipped at install time)"
 cp $SRC/distro/live/motd $A/etc/motd
 echo amadeus-live >$A/etc/hostname
 printf 'pciutils\nrsync\n' >>$P/packages.x86_64

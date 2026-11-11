@@ -7,7 +7,9 @@
 from the Arch repositories (rolling release, pacman), because Steam, Proton, the NVIDIA
 stack and the listed applications are best supported there, and adds two packages of
 its own: `amadeus` (the AI layer) and `amadeus-desktop` (the desktop configuration).
-It does not build on Omarchy, which supports many machines this one is not.
+It uses no other distribution's packages, repositories or tooling. Applications that Arch
+does not carry are built from their publishers' own releases into the repository on the
+ISO, and `amadeus-update` keeps them current afterwards.
 
 **Stability under rolling updates comes from snapshots, not pinning.** Every package
 change is bracketed by btrfs snapshots (snap-pac), and `/boot` is copied into the root

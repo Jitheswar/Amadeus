@@ -217,45 +217,6 @@ def desktop_bar(a, ctx):
     return {"layout": new}
 
 
-SHELL_GROUPS = {"bar", "theme", "font", "brightness", "audio", "display", "hyprland", "toggle", "capture", "clipboard", "battery", "bluetooth", "menu", "launch"}
-_catalog = None
-
-
-def catalog():
-    global _catalog
-    if _catalog is None:
-        p = sh(["omarchy", "commands", "--json"], timeout=30)
-        _catalog = json.loads(p.stdout).get("commands", []) if p.returncode == 0 else []
-    return _catalog
-
-
-# The next two tools exist only on systems that ship the omarchy shell.
-if shutil.which("omarchy"):
-  @tool("desktop_shell_commands", "Search the desktop shell's command catalog (bar layout and widgets, themes, fonts, brightness, audio, display, toggles).",
-        {"query": {"type": "string"}}, cap="desktop.read")
-  def desktop_shell_commands(a, ctx):
-      q = a.get("query", "").lower()
-      return [{"route": c["route"], "args": c.get("args"), "summary": c.get("summary"), "examples": c.get("examples", [])[:2]}
-              for c in catalog() if c.get("group") in SHELL_GROUPS and not c.get("requires_sudo") and (q in c["route"] or q in (c.get("summary") or "").lower())][:40]
-
-
-  @tool("desktop_shell", "Run one desktop shell command from the catalog, e.g. ['bar','put','omarchy.weather','--after','omarchy.clock'] "
-        "or ['theme','set','Tokyo Night']. This is how panels, widgets, themes and fonts are changed.",
-        {"argv": {"type": "array", "items": {"type": "string"}}}, required=("argv",), cap="desktop.control", risk="modify")
-  def desktop_shell(a, ctx):
-      argv = [str(x) for x in a["argv"]]
-      if argv and argv[0] == "omarchy":
-          argv = argv[1:]
-      if not argv or argv[0] not in SHELL_GROUPS:
-          raise ToolError(f"group must be one of {sorted(SHELL_GROUPS)}")
-      line = "omarchy " + " ".join(argv)
-      match = [c for c in catalog() if line.startswith(c["route"])]
-      if any(c.get("requires_sudo") for c in match):
-          raise ToolError("that command needs root and is not available here")
-      p = sh(["omarchy"] + argv, timeout=60)
-      return clip(f"exit {p.returncode}\n{p.stdout}{p.stderr}")
-
-
 @tool("desktop_notify", "Show a desktop notification.", {"title": {"type": "string"}, "body": {"type": "string"}}, required=("title",), cap="desktop.control", risk="read")
 def desktop_notify(a, ctx):
     sh(["notify-send", "-a", "Amadeus", a["title"], a.get("body", "")])

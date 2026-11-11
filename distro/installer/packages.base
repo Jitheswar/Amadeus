@@ -5,4 +5,4 @@ networkmanager wpa_supplicant openssh
 snapper snap-pac zram-generator pacman-contrib rsync arch-install-scripts
 power-profiles-daemon thermald bluez bluez-utils
 pipewire pipewire-pulse pipewire-alsa wireplumber rtkit upower
-polkit bubblewrap python git github-cli pciutils usbutils
+polkit bubblewrap python git github-cli base-devel pciutils usbutils
