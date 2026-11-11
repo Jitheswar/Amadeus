@@ -23,3 +23,6 @@ Read `AGENTS.md` first, section "Documentation layout".
 - **Claims of verification are dated by the commit.** Write what was tested and where
   (container, VM, real machine). Never write "works" for something that has not run.
 - Plain words. Write for someone reading this for the first time.
+- The official line of the distribution is "El Psy Kongroo". It appears at the top of
+  `README.md`, on the login screen, and where the installer greets and finishes. Keep it
+  exactly as written; do not translate, restyle or explain it.

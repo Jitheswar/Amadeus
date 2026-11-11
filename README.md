@@ -1,5 +1,7 @@
 # Amadeus OS
 
+*El Psy Kongroo.*
+
 A minimal, rolling Linux distribution in which the AI is part of the operating system:
 it reads real system state, acts through permission-checked tools, rearranges the
 desktop, and builds sandboxed applications on demand. The system underneath is complete

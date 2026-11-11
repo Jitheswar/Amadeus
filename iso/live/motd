@@ -1,5 +1,6 @@
 
   Amadeus OS installer
+  El Psy Kongroo.
 
   Connect to the internet if you are on Wi-Fi:
       iwctl station wlan0 connect "NETWORK NAME"

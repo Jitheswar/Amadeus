@@ -148,7 +148,7 @@ cat >$T/etc/greetd/config.toml <<G
 [terminal]
 vt = 1
 [default_session]
-command = "tuigreet --time --remember --asterisks --greeting 'Amadeus OS' --cmd niri-session"
+command = "tuigreet --time --remember --asterisks --greeting 'Amadeus OS · El Psy Kongroo' --cmd niri-session"
 user = "greeter"
 G
 
@@ -221,3 +221,4 @@ sync
 umount -R $T
 [[ $ENCRYPT == yes ]] && cryptsetup close root
 say "Amadeus OS is installed on $DISK. Remove the USB stick and restart."
+echo "    El Psy Kongroo."

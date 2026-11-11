@@ -21,6 +21,7 @@ ID=amadeus
 ID_LIKE=arch
 BUILD_ID=rolling
 ANSI_COLOR="38;2;139;203;177"
+AMADEUS_LINE="El Psy Kongroo"
 OS
   # Keep the system identifying as Amadeus OS when Arch updates its own os-release.
   install -Dm644 /dev/stdin "$pkgdir/usr/share/libalpm/hooks/amadeus-os-release.hook" <<'HOOK'

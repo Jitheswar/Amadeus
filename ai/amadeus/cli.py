@@ -2,7 +2,7 @@
 import json, os, re, socket, subprocess, sys, time
 from . import config
 
-HELP = """ama — talk to and control Amadeus
+HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
 
   ama <request...>            do something ("free up disk space", "put a clock widget after the workspaces")
   ama chat                    interactive session
