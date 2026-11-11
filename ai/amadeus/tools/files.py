@@ -1,5 +1,5 @@
 """Files. Every write keeps the previous version so `ama undo` can restore it."""
-import os, json, shutil, time, fnmatch
+import os, json, shutil, time, fnmatch, threading
 from pathlib import Path
 from . import tool, sh, clip, ToolError
 from .. import config
@@ -12,11 +12,14 @@ def _journal():
     return d
 
 
+current = threading.local()     # .session is set by the daemon around each tool call
+
+
 def remember(path):
     """Save the current version of path before changing it."""
     path = Path(path)
     stamp = f"{time.time_ns()}"
-    entry = {"path": str(path), "existed": path.exists(), "ts": time.time()}
+    entry = {"path": str(path), "existed": path.exists(), "ts": time.time(), "session": getattr(current, "session", None)}
     if path.is_file():
         shutil.copy2(path, _journal() / f"{stamp}.bak")
     (_journal() / f"{stamp}.json").write_text(json.dumps(entry))
@@ -27,11 +30,7 @@ def remember(path):
     return stamp
 
 
-def undo_last():
-    entries = sorted(_journal().glob("*.json"))
-    if not entries:
-        return "nothing to undo"
-    j = entries[-1]
+def _restore(j):
     e = json.loads(j.read_text())
     bak = j.with_suffix(".bak")
     if bak.exists():
@@ -45,6 +44,21 @@ def undo_last():
         msg = f"no saved copy for {e['path']}"
     j.unlink()
     return msg
+
+
+def undo_last():
+    entries = sorted(_journal().glob("*.json"))
+    return _restore(entries[-1]) if entries else "nothing to undo"
+
+
+def undo_session(session):
+    """Put back every file one task changed, newest change first."""
+    mine = [j for j in sorted(_journal().glob("*.json"), reverse=True) if json.loads(j.read_text()).get("session") == session]
+    return [_restore(j) for j in mine]
+
+
+def changed_by(session):
+    return sum(1 for j in _journal().glob("*.json") if json.loads(j.read_text()).get("session") == session)
 
 
 P = {"path": {"type": "string", "description": "absolute or ~ path"}}

@@ -41,8 +41,14 @@ How the pieces fit: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ama "why is the fan loud?"          inspects the system, then answers or fixes it
 ama "set up a workspace for writing"  arranges windows, panels and shortcuts
 ama "build me a habit tracker"      generates a sandboxed application
-SUPER+Z                             the same, from anywhere on the desktop
 ```
+
+**The Amadeus panel** (Super+Z) docks to the right edge of the screen and stays there
+while you work. Each request is a task: tasks run side by side, each can show its steps,
+be stopped, and have everything it changed undone together. **Super+A** opens the panel
+pointed at the window you are looking at, so "summarise this" or "make this half width"
+means that window.
+
 
 | | |
 |---|---|
@@ -54,6 +60,7 @@ SUPER+Z                             the same, from anywhere on the desktop
 | `ama doctor` | check drivers, GPU, sandbox, providers and applications |
 | `ama discover` | a live map of the system: commands, files, tools, permissions |
 | `Super+Space` | the Amadeus menu: Apps, Install, Remove, Update, Defaults |
+| `Super+Z` · `Super+A` | the Amadeus panel · the panel, about the focused window |
 | `amadeus-update` | update the system and the applications from outside the Arch repositories |
 | `amadeus-rollback` | list snapshots, or go back to one |
 
@@ -93,7 +100,7 @@ build.sh     entry point
 |---|---|
 | Verified in a VM (tag `v0-arch`, the earlier Hyprland desktop) | UEFI boot, unattended encrypted install, first boot into the desktop, snapshots, sandbox, policy, audit log; 35 of 35 checks |
 | Built and checked in the build container, not yet run in a VM | The niri desktop (configuration validates; the AI's config tool rejects a bad change and keeps the old one), `amadeus-rollback`, `amadeus-update`, the six applications built from publisher releases |
-| Decided, not yet built | Launcher and notifications inside the shell (fuzzel and mako are used today) |
+| Decided, not yet built | Launcher and notifications inside the shell (fuzzel and mako are used today); a mark on windows the AI is working in |
 | Never tested | Real hardware: the NVIDIA power path, Wi-Fi, suspend, the interactive installer |
 
 Next steps are in [docs/ROADMAP.md](docs/ROADMAP.md).

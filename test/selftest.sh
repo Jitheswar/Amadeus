@@ -92,6 +92,8 @@ t "privileged tools refused (root mode off)"   bash -c "as ama tool pkg_manage '
 t "root helper is root-owned"                  bash -c '[[ $(stat -c %U /usr/lib/amadeus/amadeus-priv) == root ]]'
 t "system describes itself (ama discover)"     bash -c "as ama discover --json | python3 -c 'import json,sys; m=json.load(sys.stdin); assert m[\"commands\"][\"amadeus-rollback\"] and len(m[\"tools\"]) > 30 and m[\"system\"][\"packages\"][\"amadeus\"]'"
 t "agent skill installed for Claude Code"      test -f /home/$U/.claude/skills/amadeus/SKILL.md
+t "Amadeus panel opens and reaches the daemon" bash -c 'as ama panel show; sleep 2; as ama panel state | grep -q "\"open\":true.*\"connected\":true"'
+t "panel takes a window as context"            bash -c 'as ama panel window; as ama panel state | grep -q open; as ama panel hide'
 t "audit log chain intact"                     as ama audit verify
 echo "--- applications outside the Arch repositories"
 for p in protonplus brave-origin-bin claude-desktop claude-code herdr-bin localsend-bin; do t "$p installed" pacman -Q $p; done

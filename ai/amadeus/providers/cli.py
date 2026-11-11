@@ -47,6 +47,7 @@ class ClaudeCLI:
         try:
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                  env=_env(session), cwd=config.WORKSPACE, stdin=subprocess.DEVNULL)
+            emit("_proc", p)
             final, said = "", []
             for line in p.stdout:
                 try:

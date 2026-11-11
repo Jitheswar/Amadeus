@@ -6,7 +6,7 @@ the parts work together.
 ## Components
 
 ```
- palette (SUPER+Z)   ama CLI   Claude Code / Desktop / Codex      generated apps
+ panel (SUPER+Z)     ama CLI   Claude Code / Desktop / Codex      generated apps
         \              |              | MCP (ama mcp)                  | per-app socket,
          \             |              |                                | manifest tools only
           +------------+--------------+--------------------------------+
@@ -18,6 +18,13 @@ the parts work together.
                     root mode off: stops here      root mode on: /run/amadeus/priv.sock
                                                    amadeus-priv (transient root unit)
 ```
+
+The panel is one long-running Quickshell process. Each request it sends is a task with
+its own session id, so tasks run in parallel on one connection. The daemon tags every
+file it saves for undo with the session that changed it, which is what lets the panel
+undo one task as a whole; stopping a task sets a flag that `Daemon.execute` checks before
+running any further tool, and ends a subscription provider's process. Only file changes
+can be undone this way: window actions and package changes are not in the undo journal.
 
 `Daemon.execute` is the single enforcement point. Nothing reaches a tool except
 through it, whichever model, client or app made the request.

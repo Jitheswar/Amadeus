@@ -11,12 +11,14 @@ HELP = """ama — talk to and control Amadeus
   ama root on [--full] [--ttl MIN] | off | status
   ama app list | run ID | history ID | rollback ID [N] | remove ID
   ama audit [N] | audit verify
-  ama undo                    restore the last file the AI changed
+  ama undo                    restore the last file the AI changed (the panel can undo a whole task)
   ama tool NAME [JSON]        call one tool directly (same policy as the AI)
   ama doctor                  verify drivers, GPU, sandbox and providers
   ama discover [--json]       a live map of this system: commands, files, tools, policy
   ama skill                   print the built-in guide that teaches an AI agent to manage this system
-  ama reload | daemon | mcp | palette
+  ama panel [toggle | show | hide | window | state]
+                              the docked panel; `window` makes the next request about the focused window
+  ama reload | daemon | mcp
 """
 C = {"dim": "\033[2m", "b": "\033[1m", "y": "\033[33m", "r": "\033[31m", "g": "\033[32m", "0": "\033[0m"} if sys.stdout.isatty() else dict.fromkeys(["dim", "b", "y", "r", "g", "0"], "")
 
@@ -158,6 +160,45 @@ def root_cmd(args):
     sys.exit(HELP)
 
 
+def panel_cmd(args):
+    """Drive the docked Amadeus panel, starting it on first use."""
+    from . import apps
+    qml = str(config.SHARE / "shell" / "panel.qml")
+    action = args[0] if args else "toggle"
+    extra = []
+    if action == "window":          # the next request is about the window that has focus right now
+        from .tools import desktop
+        try:
+            w = desktop.nj("focused-window") or {}
+        except Exception:
+            w = {}
+        if w:
+            extra = [json.dumps({"id": w.get("id"), "app": w.get("app_id") or "", "title": (w.get("title") or "")[:120]})]
+        else:
+            action = "show"
+    if action not in ("toggle", "show", "hide", "window", "state"):
+        sys.exit(HELP)
+
+    def call(fn, *a):
+        return subprocess.run(["quickshell", "ipc", "-p", qml, "call", "panel", fn, *a], capture_output=True, text=True)
+    p = call(action, *extra)
+    if p.returncode:                # not running yet
+        if action == "hide":
+            return
+        subprocess.Popen(["quickshell", "-p", qml], env=dict(os.environ, **apps.theme_env()), stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        first = "show" if action == "toggle" else action
+        for _ in range(50):
+            time.sleep(0.1)
+            p = call(first, *extra)
+            if not p.returncode:
+                break
+        else:
+            sys.exit("the Amadeus panel could not be started")
+    if p.stdout.strip():
+        print(p.stdout.strip())
+
+
 def provider_cmd(c, args):
     cfg = config.load()
     if not args:
@@ -204,9 +245,8 @@ def main(argv=None):
     if cmd == "doctor":
         from .doctor import main as doc
         return doc()
-    if cmd == "palette":
-        from . import apps
-        return os.execvpe("quickshell", ["quickshell", "-p", str(config.SHARE / "shell" / "palette.qml")], dict(os.environ, **apps.theme_env()))
+    if cmd == "panel":
+        return panel_cmd(rest)
     c = Client()
     if cmd == "status":
         r = c.call("status")

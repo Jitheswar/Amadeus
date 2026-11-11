@@ -97,7 +97,7 @@ ShellRoot {
     Component { id: wAmadeus
         Rectangle { width: lbl.implicitWidth + 18; height: 20; radius: 5; color: root.accent
             Label { id: lbl; anchors.centerIn: parent; text: "Amadeus"; color: root.bg }
-            Click { run: "ama palette" } } }
+            Click { run: "ama panel" } } }
     readonly property var widgets: ({ workspaces: wWorkspaces, title: wTitle, clock: wClock, gpu: wGpu, network: wNetwork, volume: wVolume, battery: wBattery, amadeus: wAmadeus })
 
     component Section: Row {

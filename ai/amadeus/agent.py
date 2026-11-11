@@ -31,11 +31,13 @@ def render(result):
     return result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, default=str)
 
 
-def run_chat(provider, history, execute, emit, max_steps=40):
+def run_chat(provider, history, execute, emit, max_steps=40, stopped=lambda: False):
     """Drive a chat provider until it stops calling tools. `execute(name, args)`
     returns (content, is_error) after policy and approval."""
     specs = T.specs()
     for _ in range(max_steps):
+        if stopped():
+            return "[stopped]"
         turn = provider.chat(system_prompt(), history, specs)
         if turn["text"]:
             emit("text", {"text": turn["text"]})

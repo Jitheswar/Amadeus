@@ -61,7 +61,10 @@ class Daemon:
         if decision == "deny":
             audit.record("denied", tool=name, args=args, cap=cap, risk=risk, reason=reason, session=session, origin=origin)
             return f"Not done: {reason}.", True
+        if self.sessions.get(session, {}).get("cancel", threading.Event()).is_set():
+            return "Not done: the user stopped this task.", True
         t0 = time.time()
+        F.current.session = session
         try:
             result = t["fn"](args, Ctx(self, session, origin))
             if isinstance(result, dict) and result.get("ok") is False:      # root helper refusal
@@ -82,10 +85,11 @@ class Daemon:
         ev = threading.Event()
         self.pending[aid] = {"event": ev, "decision": "no"}
         data = {"aid": aid, "tool": name, "args": args, "capability": cap, "risk": risk, "reason": reason, "origin": origin}
-        conn = self.sessions.get(session, {}).get("conn")
+        s = self.sessions.get(session, {})
+        conn = s.get("conn")
         try:
             if conn and conn.alive and conn.interactive:
-                conn.event(conn.ask_id, "approval", data)
+                conn.event(s.get("rid"), "approval", data)
             else:
                 threading.Thread(target=self._dialog, args=(aid, data), daemon=True).start()
             ev.wait(timeout=300)
@@ -116,12 +120,20 @@ class Daemon:
     # ---- conversations -----------------------------------------------------
     def ask(self, conn, rid, prompt, session=None, provider=None):
         session = session or uuid.uuid4().hex[:10]
-        s = self.sessions.setdefault(session, {"history": [], "conn": None})
-        s["conn"], conn.ask_id = conn, rid
+        s = self.sessions.setdefault(session, {"history": [], "conn": None, "cancel": threading.Event(), "proc": None})
+        if s.get("running"):
+            raise RuntimeError("this task is still running")
+        s.update(conn=conn, rid=rid, running=True, proc=None)
+        s["cancel"].clear()
         s["history"].append({"role": "user", "text": prompt})
         pname = provider or self.cfg["ai"]["provider"]
         audit.record("request", session=session, provider=pname, prompt=prompt)
-        emit = lambda kind, data: conn.event(rid, kind, data)
+
+        def emit(kind, data):
+            if kind == "_proc":          # a subscription provider's process, kept so the task can be stopped
+                s["proc"] = data
+            else:
+                conn.event(rid, kind, data)
 
         def execute(name, args):
             emit("tool", {"name": name, "args": args})
@@ -129,14 +141,32 @@ class Daemon:
         try:
             prov = providers.make(pname, self.cfg)
             if prov.kind == "chat":
-                text = agent.run_chat(prov, s["history"], execute, emit, int(self.cfg["ai"].get("max_steps", 40)))
+                text = agent.run_chat(prov, s["history"], execute, emit, int(self.cfg["ai"].get("max_steps", 40)), stopped=s["cancel"].is_set)
             else:
                 text = prov.run(agent.system_prompt(), s["history"], session, emit)
                 s["history"].append({"role": "assistant", "text": text, "calls": []})
-            return {"session": session, "provider": pname, "text": text}
+            return {"session": session, "provider": pname, "text": text, "stopped": s["cancel"].is_set(), "changed": F.changed_by(session)}
         except providers.ProviderError as e:
+            if s["cancel"].is_set():
+                return {"session": session, "provider": pname, "text": "", "stopped": True, "changed": F.changed_by(session)}
             s["history"].pop()
             raise RuntimeError(str(e))
+        finally:
+            s["running"] = False
+
+    def stop(self, session):
+        """Stop a running task: no further tool runs for it, and its provider process ends."""
+        s = self.sessions.get(session)
+        if not s or not s.get("running"):
+            return False
+        s["cancel"].set()
+        audit.record("stopped", session=session)
+        if s.get("proc"):
+            try:
+                s["proc"].terminate()
+            except OSError:
+                pass
+        return True
 
     # ---- generated apps ----------------------------------------------------
     def run_app(self, app_id):
@@ -226,9 +256,10 @@ def make_handler(d, app=None):
                 return d.resolve(p["aid"], p["decision"])
             if m == "tool":      # MCP bridge and `ama tool`: same policy path as the built-in loop
                 s = p.get("session") or "-"
-                owner = d.sessions.get(s, {}).get("conn")
+                sess = d.sessions.get(s, {})
+                owner = sess.get("conn")
                 if owner and owner.alive:
-                    owner.event(owner.ask_id, "tool", {"name": p["name"], "args": p.get("args") or {}})
+                    owner.event(sess.get("rid"), "tool", {"name": p["name"], "args": p.get("args") or {}})
                 content, err = d.execute(p["name"], p.get("args") or {}, session=s, origin=p.get("origin", "ai"))
                 return {"content": content, "is_error": err}
             if m == "tools":
@@ -242,9 +273,11 @@ def make_handler(d, app=None):
             if m == "audit_verify":
                 return audit.verify()
             if m == "undo":
-                msg = F.undo_last()
-                audit.record("undo", result=msg)
+                msg = F.undo_session(p["session"]) if p.get("session") else F.undo_last()
+                audit.record("undo", result=msg, session=p.get("session"))
                 return msg
+            if m == "stop":
+                return d.stop(p.get("session"))
             if m == "app_run":
                 return d.run_app(p["id"])
             if m == "new_session":

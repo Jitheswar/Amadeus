@@ -286,6 +286,39 @@ class DaemonTest(unittest.TestCase):
         self.assertFalse(self.d.execute("sys_status", {}, origin="app:x", allowed={"sys_status"})[1])
 
 
+class TaskTest(unittest.TestCase):
+    """Whole-task undo and stopping, as the side panel uses them."""
+    def test_undo_restores_everything_one_task_changed(self):
+        from amadeus.tools import files as F
+        a, b, other = (Path(TMP) / n for n in ("task-a.txt", "task-b.txt", "task-other.txt"))
+        a.write_text("a0"); other.write_text("o0")
+        F.current.session = "task1"
+        F.remember(a); a.write_text("a1")
+        F.remember(b); b.write_text("b-new")
+        F.remember(a); a.write_text("a2")
+        F.current.session = "task2"
+        F.remember(other); other.write_text("o1")
+        self.assertEqual(F.changed_by("task1"), 3)
+        self.assertEqual(len(F.undo_session("task1")), 3)
+        self.assertEqual(a.read_text(), "a0")
+        self.assertFalse(b.exists())
+        self.assertEqual(other.read_text(), "o1")          # another task's change is untouched
+        self.assertEqual(F.changed_by("task1"), 0)
+        F.current.session = None
+
+    def test_stopped_task_runs_no_more_tools(self):
+        import threading
+        from amadeus.daemon import Daemon
+        d = Daemon()
+        d.sessions["s1"] = {"history": [], "conn": None, "cancel": threading.Event(), "proc": None, "running": True}
+        self.assertFalse(d.execute("sys_status", {}, session="s1")[1])
+        self.assertTrue(d.stop("s1"))
+        out, err = d.execute("sys_status", {}, session="s1")
+        self.assertTrue(err)
+        self.assertIn("stopped", out)
+        self.assertFalse(d.stop("nope"))
+
+
 class HelperTest(unittest.TestCase):
     """The root helper, run unprivileged: validation must refuse before anything executes."""
     @classmethod

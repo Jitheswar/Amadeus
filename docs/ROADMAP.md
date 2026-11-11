@@ -8,6 +8,7 @@
 - Installer: encrypted btrfs, snapshots on every package change, NVIDIA only when present
 - ISO build and VM test harness, both in a container
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
+- Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
 - Amadeus menu (Super+Space): Apps, Install, Remove, Update, Defaults
 - Desktop on niri: defaults, bar driven by the compositor's event stream, AI-managed include file that is validated before it is applied
 - Applications outside the Arch repositories built from publisher releases; no third-party repository
