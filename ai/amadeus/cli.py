@@ -204,7 +204,7 @@ def panel_cmd(args):
             action = "show"
     if action == "state":
         return print(json.dumps(state()))
-    call(action, *extra)
+    call({"show": "reveal", "hide": "conceal"}.get(action, action), *extra)
 
 
 def provider_cmd(c, args):

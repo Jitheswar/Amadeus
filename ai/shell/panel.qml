@@ -94,8 +94,9 @@ ShellRoot {
     IpcHandler {
         target: "panel"
         function toggle(): void { root.open = !root.open; if (root.open) input.input.forceActiveFocus() }
-        function show(): void { root.open = true; input.input.forceActiveFocus() }
-        function hide(): void { root.open = false }
+        // Not named show/hide: "show" is also a subcommand of the IPC command line and would be taken as one.
+        function reveal(): void { root.open = true; input.input.forceActiveFocus() }
+        function conceal(): void { root.open = false }
         function window(json: string): void {
             try { root.about = JSON.parse(json) } catch (e) { root.about = null }
             root.open = true; input.input.forceActiveFocus()
