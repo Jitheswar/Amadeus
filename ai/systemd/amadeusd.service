@@ -6,6 +6,8 @@ After=graphical-session.target
 
 [Service]
 ExecStart=@AMA@ daemon
+# Harnesses installed through mise (claude, codex) are found here.
+Environment=PATH=%h/.local/share/mise/shims:/usr/local/bin:/usr/bin
 Restart=on-failure
 RestartSec=2
 # The AI layer yields to the desktop. No memory cap here: subscription CLIs

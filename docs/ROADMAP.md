@@ -10,6 +10,7 @@
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
 - End-to-end AI request test on the installed system with a scripted model
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
+- AI coding harnesses through mise (install, remove, update, run); defaults for terminal, editor and harness
 - Own visual identity and motion system from one theme file; headless preview of the shell
 - Launcher, menus and notifications drawn by the shell; text in the launcher that matches no application goes to Amadeus
 - Install menu for Arch packages and the AUR with a details pane; `amadeus-aur` with recipe review

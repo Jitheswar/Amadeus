@@ -29,6 +29,8 @@ user starts with in `desktop/skel/`.
 - **Look at what you changed.** `./build.sh preview` draws the shell, picker,
   notifications and panel headless into `out/preview/`. Read the pictures before you
   commit a visual change.
+- **Never name a terminal, editor or harness in code.** Call `amadeus-terminal`,
+  `amadeus-editor` or `amadeus-harness run`; the user chooses what they are.
 - **One picker.** Every list a user chooses from goes through `desktop/bin/amadeus-pick`,
   which the shell draws. Do not add another menu program.
 - **State comes from events.** The bar reads the compositor's event stream. Do not add a

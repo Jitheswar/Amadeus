@@ -121,6 +121,31 @@ read by the shell, the Amadeus panel and every generated app.
 - GTK applications are told to use dark mode, the same accent and the same fonts through
   system defaults; a user's own settings still win.
 
+## AI coding harnesses: mise
+
+Claude Code, Codex, opencode, Antigravity CLI and the like are installed per user
+through mise, not as system packages.
+
+- They release several times a week; mise installs the publisher's build directly and
+  `mise upgrade` moves them all at once, with no recipe in between to wait for.
+- They live in the user's home, so installing or updating one needs no administrator
+  password and cannot break the system.
+- One tool covers all of them, and the same menu reaches anything else mise can install.
+- The list offered in the menu is a short file of names; only names mise's registry
+  still knows are shown, and the program each one provides is asked from mise, so no
+  command names or sources are written down in this repository.
+
+Over AUR packages (a second maintainer between the publisher and the user, root to
+install), npm installed globally (needs a system Node and root) and each tool's own
+installer script (a different updater per tool).
+
+## Defaults: terminal, editor, harness
+
+The user's choice of terminal, editor and harness is one small file, read by three
+wrappers: `amadeus-terminal`, `amadeus-editor` and `amadeus-harness run`. Every shortcut,
+menu, `EDITOR`, and "open with" for text files points at a wrapper, never at a program,
+so changing a default takes effect everywhere at once without logging out.
+
 ## AI layer: Python standard library
 
 A daemon in the user session with no third-party packages, so a system update cannot

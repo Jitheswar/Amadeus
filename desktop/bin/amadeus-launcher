@@ -28,7 +28,7 @@ def entries():
 def start(e):
     argv = [t for t in shlex.split(e["Exec"]) if not re.fullmatch(r"%[a-zA-Z]", t)]
     if e.get("Terminal") == "true":
-        argv = ["foot", "-e"] + argv
+        argv = ["amadeus-terminal", "-e"] + argv
     dedicated = e.get("PrefersNonDefaultGPU") == "true" or e.get("X-KDE-RunOnDiscreteGpu") == "true" or "Game" in e.get("Categories", "").split(";")
     has_nvidia = any(Path(p).read_text().strip() == "0x10de" for p in map(str, Path("/sys/bus/pci/devices").glob("*/vendor")))
     env = dict(os.environ, **NVIDIA) if dedicated and has_nvidia else None

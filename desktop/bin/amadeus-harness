@@ -1,0 +1,76 @@
+#!/bin/bash
+# AI coding harnesses (Claude Code, Codex, opencode and others), installed and kept current through mise.
+#   amadeus-harness list              harnesses mise can install; installed ones are marked
+#   amadeus-harness tools             every tool mise can install
+#   amadeus-harness info NAME         where it comes from, what is installed, what is newest
+#   amadeus-harness install NAME...   install the newest version for your user
+#   amadeus-harness remove NAME...    remove
+#   amadeus-harness update            update everything mise manages
+#   amadeus-harness run [NAME]        start your default harness (or NAME) in the current folder
+# Run as your user. Nothing here needs the administrator password.
+set -euo pipefail
+(( EUID != 0 )) || { echo "Run amadeus-harness as your user."; exit 1; }
+command -v mise >/dev/null || { echo "mise is not installed."; exit 1; }
+LIST=${AMADEUS_HARNESS_LIST:-/usr/share/amadeus-os/harnesses.list}
+export MISE_YES=1
+
+known()     { mise registry 2>/dev/null | awk '{print $1}'; }
+installed() { mise ls --global 2>/dev/null | awk '{print $1}' | sort -u; }
+label()     { awk -F'\t' -v n="$1" '$1==n {print $2; f=1} END {if (!f) print n}' <(grep -v '^#' "$LIST"); }
+
+# The program a tool provides: asked from mise, so no command names are written down here.
+program() {
+  local tool=$1 dir f best=""
+  while read -r dir; do
+    for f in "$dir"/*; do
+      [[ -x $f && -f $f ]] || continue
+      [[ $(basename "$f") == "$tool" ]] && { echo "$f"; return; }
+      [[ -z $best || $tool == *"$(basename "$f")"* ]] && best=$f
+    done
+  done < <(mise bin-paths "$tool" 2>/dev/null)
+  [[ -n $best ]] && echo "$best"
+}
+
+case ${1:-} in
+  list)
+    have=$(installed)
+    all=$(known)
+    grep -v '^#' "$LIST" | while IFS=$'\t' read -r name title; do
+      grep -qx "$name" <<<"$all" || continue
+      grep -qx "$name" <<<"$have" && printf '%s  (installed)\t%s\n' "$title" "$name" || printf '%s\t%s\n' "$title" "$name"
+    done ;;
+  tools) known ;;
+  installed) installed ;;
+  info)
+    name=${2:?name needed}; name=${name##*$'\t'}
+    printf '%-12s: %s\n' "Name" "$(label "$name")" "mise tool" "$name" "Source" "$(mise registry "$name" 2>/dev/null | head -1)"
+    printf '%-12s: %s\n' "Installed" "$(mise ls --global "$name" 2>/dev/null | awk '{print $2}' | paste -sd' ' | grep . || echo no)"
+    printf '%-12s: %s\n' "Newest" "$(timeout 15 mise latest "$name" 2>/dev/null || echo "could not check")"
+    printf '\nInstalled for your user only, in your home folder. No administrator password.\n' ;;
+  install)
+    shift; (( $# )) || { sed -n 3,10p "$0"; exit 1; }
+    for name in "$@"; do
+      name=${name##*$'\t'}
+      echo "==> $(label "$name")"
+      # Tools published as npm packages need Node, which mise also provides.
+      if mise registry "$name" 2>/dev/null | head -1 | grep -q '^npm:' && ! mise which node >/dev/null 2>&1; then
+        mise use --global node@lts
+      fi
+      mise use --global "$name@latest" || echo "    $name could not be installed."
+    done ;;
+  remove)
+    shift
+    for name in "$@"; do
+      name=${name##*$'\t'}
+      mise unuse --global "$name" 2>/dev/null || true
+      mise uninstall --all "$name" && echo "Removed $(label "$name")."
+    done ;;
+  update) mise upgrade ;;
+  run)
+    name=${2:-$(amadeus-default harness)}
+    [[ -n $name ]] || { echo "No default harness is set. Choose one: Super+Space, Defaults, Harness."; exit 1; }
+    exe=$(program "$name")
+    [[ -n $exe ]] || { echo "$(label "$name") is not installed. Install it: Super+Space, Install, Harness."; exit 1; }
+    exec "$exe" "${@:3}" ;;
+  *) sed -n 2,10p "$0"; exit 1 ;;
+esac

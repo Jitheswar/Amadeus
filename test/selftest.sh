@@ -86,6 +86,11 @@ t "AUR lookup works"                           bash -c 'as amadeus-aur info prot
 t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/niri/default.kdl'
 t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
 t "system look applies to applications"        bash -c 'as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark && fc-match sans-serif | grep -qi inter && test -f /usr/share/amadeus-os/theme.json'
+t "Claude Code installed through mise"         bash -c 'as bash -lc "mise ls --global" | grep -q "^claude" && as bash -lc "claude --version"'
+t "harness list comes from mise"               bash -c 'out=$(as bash -lc "amadeus-harness list"); echo "$out" | grep -q "Claude Code  (installed)" && echo "$out" | grep -q "^Codex"'
+t "defaults: terminal, editor, harness"        bash -c 'out=$(as amadeus-default); echo "$out"; echo "$out" | grep -q "terminal *foot" && echo "$out" | grep -q "harness *claude" && as amadeus-default editor nano | grep -q "Default editor: nano"'
+t "default harness resolves to a program"      bash -c 'as bash -lc "amadeus-harness run claude --version"'
+t "text files open with the default editor"    bash -c 'as xdg-mime query default text/plain | grep -q amadeus-editor'
 t "desktop config is valid"                    as niri validate -c /home/$U/.config/niri/config.kdl
 t "compositor answers over IPC"                bash -c 'out=$(as niri msg --json workspaces 2>&1); echo "$out" | grep -q idx || { echo "sock=$(ls $R/niri.*.sock 2>&1) out=$out"; false; }'
 t "X11 applications supported"                 bash -c 'ls /tmp/.X11-unix/ | grep -q "^X"'
@@ -110,7 +115,7 @@ while read -r line; do
   case $line in PASS*) pass=$((pass+1)) ;; FAIL*) fail=$((fail+1)) ;; esac
 done < <(as python3 /usr/local/bin/amadeus-e2e 2>&1)
 echo "--- applications outside the Arch repositories"
-for p in protonplus brave-origin-bin claude-desktop claude-code herdr-bin localsend-bin; do t "$p installed" pacman -Q $p; done
+for p in protonplus brave-origin-bin claude-desktop herdr-bin localsend-bin; do t "$p installed" pacman -Q $p; done
 echo "--- ama doctor"
 as ama doctor || true
 echo "--- resources"

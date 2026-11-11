@@ -1,0 +1,17 @@
+#!/bin/bash
+# Open your default terminal:  amadeus-terminal [--title TEXT] [-e COMMAND...]
+# The terminal is the one chosen under Defaults; every shortcut and menu that needs a terminal goes through here.
+term=$(amadeus-default terminal)
+command -v "$term" >/dev/null || term=foot
+title=()
+if [[ ${1:-} == --title ]]; then
+  case $term in foot|kitty|alacritty|wezterm) title=(--title "$2") ;; ghostty) title=("--title=$2") ;; esac
+  shift 2
+fi
+[[ ${1:-} == -e ]] && shift
+(( $# )) || exec "$term" "${title[@]}"
+case $term in
+  wezterm) exec wezterm start "${title[@]}" -- "$@" ;;
+  gnome-terminal|ptyxis|kgx) exec "$term" -- "$@" ;;
+  *) exec "$term" "${title[@]}" -e "$@" ;;
+esac

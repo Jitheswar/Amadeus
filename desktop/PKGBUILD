@@ -4,7 +4,7 @@ pkgrel=1
 pkgdesc="Amadeus OS desktop: niri defaults, shell (bar, picker, notifications), system tools and user skeleton"
 arch=(any)
 license=(MIT)
-depends=(niri xwayland-satellite quickshell foot swaylock swayidle polkit-gnome wl-clipboard brightnessctl networkmanager wireplumber xdg-utils libnotify inter-font ttf-jetbrains-mono dconf)
+depends=(niri xwayland-satellite quickshell foot swaylock swayidle polkit-gnome wl-clipboard brightnessctl networkmanager wireplumber xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
 options=(!debug)
 install=amadeus-desktop.install
 
@@ -13,7 +13,28 @@ package() {
   install -Dm644 "$src/niri/default.kdl" -t "$pkgdir/usr/share/amadeus-os/niri/"
   install -Dm644 "$src"/shell/*.qml -t "$pkgdir/usr/share/amadeus-os/shell/"
   install -Dm755 "$src"/bin/* -t "$pkgdir/usr/bin/"
-  install -Dm644 "$src/theme/theme.json" -t "$pkgdir/usr/share/amadeus-os/"
+  install -Dm644 "$src/theme/theme.json" "$src/harnesses.list" -t "$pkgdir/usr/share/amadeus-os/"
+  # Programs installed through mise are on everyone's PATH, and EDITOR follows the chosen default.
+  install -Dm644 /dev/stdin "$pkgdir/etc/profile.d/amadeus.sh" <<'P'
+export PATH="$HOME/.local/share/mise/shims:$PATH"
+export EDITOR=amadeus-editor VISUAL=amadeus-editor
+P
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/amadeus-editor.desktop" <<'D'
+[Desktop Entry]
+Type=Application
+Name=Text Editor
+Comment=Opens files in your default editor
+Exec=amadeus-editor %F
+Icon=accessories-text-editor
+MimeType=text/plain;text/markdown;text/x-shellscript;application/json;application/toml;application/x-yaml;
+NoDisplay=true
+D
+  install -Dm644 /dev/stdin "$pkgdir/etc/skel/.config/mimeapps.list" <<'M'
+[Default Applications]
+text/plain=amadeus-editor.desktop
+text/markdown=amadeus-editor.desktop
+M
+  printf 'TERMINAL=foot\nEDITOR=nano\nHARNESS=claude\n' | install -Dm644 /dev/stdin "$pkgdir/etc/skel/.config/amadeus/defaults"
   # Other applications follow the same look: dark, the accent colour, the same fonts.
   install -Dm644 "$src/theme/dconf-profile" "$pkgdir/etc/dconf/profile/user"
   install -Dm644 "$src/theme/dconf-defaults" "$pkgdir/etc/dconf/db/local.d/00-amadeus"

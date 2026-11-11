@@ -38,6 +38,8 @@ environment {
     QT_WAYLAND_DISABLE_WINDOWDECORATION "1"
     ELECTRON_OZONE_PLATFORM_HINT "auto"
     XCURSOR_SIZE "24"
+    EDITOR "amadeus-editor"
+    VISUAL "amadeus-editor"
 }
 
 prefer-no-csd
@@ -69,7 +71,8 @@ binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
 
     // Applications
-    Mod+Return hotkey-overlay-title="Terminal" { spawn "foot"; }
+    Mod+Return hotkey-overlay-title="Terminal" { spawn "amadeus-terminal"; }
+    Mod+Shift+Return hotkey-overlay-title="AI coding harness" { spawn "amadeus-terminal" "-e" "amadeus-harness" "run"; }
     Mod+Space hotkey-overlay-title="Amadeus menu" { spawn "amadeus-menu"; }
     Mod+Z hotkey-overlay-title="Amadeus panel" { spawn "ama" "panel"; }
     Mod+A hotkey-overlay-title="Ask Amadeus about this window" { spawn "ama" "panel" "window"; }

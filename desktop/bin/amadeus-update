@@ -1,7 +1,8 @@
 #!/bin/bash
-# Update the whole system: Arch packages first (snapshotted before and after), then the applications from the AUR.
+# Update the whole system: Arch packages first (snapshotted before and after), then applications from the AUR, then harnesses.
 # Run as your user, not as root.
 set -euo pipefail
 (( EUID != 0 )) || { echo "Run amadeus-update as your user; it asks for the password when needed."; exit 1; }
 sudo pacman -Syu
 amadeus-aur update
+amadeus-harness update

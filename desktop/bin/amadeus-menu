@@ -1,14 +1,23 @@
 #!/bin/bash
 # The Amadeus menu (Super+Space): Apps, Install, Remove, Update, Defaults.
+# Install and Remove cover Arch packages, the AUR and AI coding harnesses; Defaults covers the
+# terminal, editor and harness as well as which application opens each kind of file.
 # Usage: amadeus-menu [apps|install|remove|update|defaults]
 pick()  { amadeus-pick "$@"; }
-term()  { foot --title "Amadeus: $1" -e bash -c "$2; echo; read -rsn1 -p 'Press any key to close.'"; }
+term()  { amadeus-terminal --title "Amadeus: $1" -e bash -c "$2; echo; read -rsn1 -p 'Press any key to close.'"; }
 quoted() { local out; out=$(xargs -d '\n' printf '%q ' <<<"$1"); printf '%s' "$out"; }
 
 install_menu() {
   local where pkgs
-  where=$(printf 'Packages\nAUR' | pick "Install from") || exit 0
-  if [[ $where == AUR ]]; then
+  where=$(printf 'Packages\nAUR\nHarness' | pick "Install") || exit 0
+  if [[ $where == Harness ]]; then
+    # AI coding harnesses, installed for this user through mise. The last line opens everything mise offers.
+    pkgs=$( { amadeus-harness list; printf 'More tools…\tmore\n'; } | pick --multi --preview 'amadeus-harness info "$1"' "Install harness") || exit 0
+    if grep -q $'\tmore$' <<<"$pkgs"; then
+      pkgs=$(amadeus-harness tools | pick --multi --preview 'amadeus-harness info "$1"' "Install tool") || exit 0
+    fi
+    [[ -n $pkgs ]] && term "install harness" "amadeus-harness install $(quoted "$(cut -f2 <<<"$pkgs" | grep -vx more)")"
+  elif [[ $where == AUR ]]; then
     # User-written recipes: the details pane shows who maintains each, Alt+B shows the recipe itself.
     pkgs=$(amadeus-aur list | pick --multi --preview 'amadeus-aur info "$1"' --preview2 'amadeus-aur recipe "$1"' --hint recipe "Install from AUR") || exit 0
     [[ -n $pkgs ]] && term "install from AUR" "amadeus-aur install $(quoted "$pkgs")"
@@ -19,8 +28,15 @@ install_menu() {
 }
 
 remove_menu() {
+  local where pkgs
+  where=$(printf 'Packages\nHarness' | pick "Remove") || exit 0
+  if [[ $where == Harness ]]; then
+    pkgs=$(amadeus-harness installed | pick --multi --preview 'amadeus-harness info "$1"' "Remove harness") || exit 0
+    [[ -n $pkgs ]] && term "remove harness" "amadeus-harness remove $(quoted "$pkgs")"
+    return
+  fi
   # Only what was installed on purpose is offered; dependencies go with it.
-  local pkgs; pkgs=$(pacman -Qqe | pick --multi --preview 'pacman -Qi "$1"' "Remove") || exit 0
+  pkgs=$(pacman -Qqe | pick --multi --preview 'pacman -Qi "$1"' "Remove") || exit 0
   [[ -n $pkgs ]] && term "remove" "sudo pacman -Rns -- $(quoted "$pkgs")"
 }
 
@@ -32,12 +48,19 @@ declare -A KINDS=(
   [Video]="video/mp4 video/x-matroska video/webm"
   [Music]="audio/mpeg audio/flac audio/ogg"
   [Documents]="application/pdf"
-  [Text]="text/plain"
   [Mail]="x-scheme-handler/mailto"
 )
 
 defaults_menu() {
-  local kind; kind=$(printf '%s\n' Browser Files Images Video Music Documents Text Mail | pick "Default for") || exit 0
+  local kind; kind=$(printf '%s\n' Terminal Editor Harness Browser Files Images Video Music Documents Mail | pick "Default for") || exit 0
+  case $kind in
+    Terminal|Editor|Harness)
+      local what=${kind,,} now choice
+      now=$(amadeus-default "$what")
+      choice=$(amadeus-default "$what" --choices | pick "Default $what${now:+ (now $now)}") || exit 0
+      [[ -n $choice ]] && notify-send -a Amadeus "$(amadeus-default "$what" "$choice")" "Was: ${now:-not set}"
+      exit 0 ;;
+  esac
   local types=${KINDS[$kind]} first; [[ -n $types ]] || exit 0
   first=${types%% *}
   local -A byname=(); local f name
@@ -61,6 +84,8 @@ case ${1:-$(printf 'Apps\nInstall\nRemove\nUpdate\nDefaults' | pick "Amadeus")} 
   Apps|apps)         exec amadeus-launcher ;;
   Install|install)   install_menu ;;
   Remove|remove)     remove_menu ;;
-  Update|update)     term "update" "amadeus-update" ;;
+  Update|update)
+    what=$(printf 'Everything\nHarnesses only' | pick "Update") || exit 0
+    [[ $what == Everything ]] && term "update" "amadeus-update" || term "update harnesses" "amadeus-harness update" ;;
   Defaults|defaults) defaults_menu ;;
 esac

@@ -158,7 +158,7 @@ def desktop_launch(a, ctx):
         raise ToolError(f"no installed application matches {a['app']!r}; see desktop_apps")
     argv = [t for t in shlex.split(e["Exec"]) if not re.fullmatch(r"%[a-zA-Z]", t)] + list(a.get("args", []))
     if e.get("Terminal") == "true":
-        argv = ["xdg-terminal-exec"] + argv if shutil.which("xdg-terminal-exec") else ["foot"] + argv
+        argv = (["amadeus-terminal", "-e"] if shutil.which("amadeus-terminal") else ["foot", "-e"]) + argv
     gpu = a.get("gpu", "auto")
     dg = gpu == "dedicated" or (gpu == "auto" and wants_dgpu(e))
     spawn(argv, NV_ENV if dg else None)

@@ -13,6 +13,8 @@ Read `AGENTS.md` first.
   Removing a package is as welcome as adding one.
 - **Lists, not script bodies.** The script reads the lists. It does not name packages,
   except where a package is conditional on detected hardware.
+- **AI coding harnesses are not packages.** They are installed per user through mise
+  (`desktop/bin/amadeus-harness`); do not add one to a package list.
 - **Applications outside the Arch repositories** go in the list for those. Each must have
   a recipe that downloads the publisher's own release; read the recipe before adding it.
   No third-party package repository is ever added to the installed system.

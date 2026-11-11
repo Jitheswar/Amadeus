@@ -1,0 +1,15 @@
+# AI coding harnesses offered in the Install menu: the name mise knows each by, then what to call it.
+# Only names that mise's registry still lists are shown, so a removed tool disappears by itself.
+# Anything else mise can install is under "More tools" in the same menu.
+claude	Claude Code
+codex	Codex
+opencode	opencode
+antigravity-cli	Antigravity CLI
+gemini	Gemini CLI
+copilot	GitHub Copilot CLI
+cursor-agent	Cursor Agent
+amp	Amp
+crush	Crush
+goose-agent	Goose
+qwen	Qwen Code
+pi	Pi

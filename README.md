@@ -24,7 +24,7 @@ It is built for one machine: Core i5-13450HX, RTX 3050 6 GB with Intel UHD graph
 | **Root mode** | The AI has no root access by default. `ama root on` grants it; it ends at shutdown at the latest and must be turned on again. |
 | **Generated apps** | The AI writes small applications from a shared component library. Each runs in its own sandbox with only the permissions its manifest declares, and keeps a version history. |
 | **Look** | Its own identity: warm black with a single amber accent, floating rounded surfaces, and short, decisive motion. One theme file drives the shell, the panel and every generated app. |
-| **Applications** | Steam, ProtonPlus, Brave Origin, Claude Desktop, Claude Code, Discord, Telegram, herdr, LocalSend, LibreOffice, mpv, plus a terminal, file manager, document viewer, image viewer and camera. Nothing else. |
+| **Applications** | Steam, ProtonPlus, Brave Origin, Claude Desktop, Claude Code (through mise, like every AI coding harness), Discord, Telegram, herdr, LocalSend, LibreOffice, mpv, plus a terminal, file manager, document viewer, image viewer and camera. Nothing else. |
 
 ### For AI agents
 
@@ -63,10 +63,13 @@ means that window.
 | `ama doctor` | check drivers, GPU, sandbox, providers and applications |
 | `ama discover` | a live map of the system: commands, files, tools, permissions |
 | `Super+K` | every keyboard shortcut and system command, searchable |
-| `Super+Space` | the Amadeus menu: Apps, Install (Arch packages or AUR, with details beside the list), Remove, Update, Defaults |
+| `Super+Space` | the Amadeus menu: Apps, Install (Arch packages, AUR or AI coding harnesses, with details beside the list), Remove, Update, Defaults (terminal, editor, harness, and what opens each kind of file) |
+| `Super+Shift+Enter` | your default AI coding harness, in a terminal |
 | `Super+Z` · `Super+A` | the Amadeus panel · the panel, about the focused window |
 | `amadeus-update` | update the system and the applications from the AUR |
 | `amadeus-aur` | look up, review, build and install applications from the AUR |
+| `amadeus-harness` | install, remove, update and run AI coding harnesses (Claude Code, Codex, opencode, Antigravity CLI and others) through mise |
+| `amadeus-default` | show or set your default terminal, editor and harness |
 | `amadeus-rollback` | list snapshots, or go back to one |
 
 ## Build

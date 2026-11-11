@@ -213,6 +213,13 @@ done
 ln -sf ../run/systemd/resolve/stub-resolv.conf $T/etc/resolv.conf
 ch systemctl --global enable amadeusd.service pipewire-pulse.socket wireplumber.service >/dev/null 2>&1 || true
 
+if [[ $EXTRAS == yes ]]; then
+  # AI coding harnesses live in the user's home, managed by mise. Claude Code is the default one.
+  say "Claude Code"
+  ch runuser -u "$USERNAME" -- env HOME="/home/$USERNAME" MISE_YES=1 mise use --global claude@latest \
+    || echo "  Claude Code could not be installed now. Later: Super+Space, Install, Harness."
+fi
+
 ch snapper --no-dbus -c root create --description "fresh install" --cleanup-algorithm number >/dev/null || true
 [[ -n ${POST_HOOK:-} && -x ${POST_HOOK:-} ]] && "$POST_HOOK" $T "$USERNAME"
 

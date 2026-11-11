@@ -1,0 +1,11 @@
+#!/bin/bash
+# Open files in your default editor:  amadeus-editor [FILE...]
+# The editor is the one chosen under Defaults. EDITOR and "open with" for text files both point here,
+# so changing the default takes effect everywhere at once. Editors that live in a terminal get one when needed.
+editor=$(amadeus-default editor)
+command -v "$editor" >/dev/null || editor=nano
+case $editor in
+  code|codium|zed|zeditor|gnome-text-editor|kate|gedit) exec "$editor" "$@" ;;
+esac
+if [[ -t 0 && -t 1 ]]; then exec "$editor" "$@"; fi
+exec amadeus-terminal -e "$editor" "$@"
