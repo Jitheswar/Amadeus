@@ -15,6 +15,15 @@ echo "==> Packaging applications that are not in the Arch repositories (from the
 for p in $(grep -hv '^#' $SRC/installer/packages.aur); do
   bash /src/iso/aur-build.sh $p $REPO $OUT/pkgcache || echo "   WARNING: $p could not be built; the ISO will not include it"
 done
+
+echo "==> Fetching the CachyOS signing key and mirror lists"
+# The installer needs these before it can use the CachyOS repositories. They are looked up in
+# the repository's own index, so no version is written down here.
+curl -fsSL -o /tmp/cachyos.db https://mirror.cachyos.org/repo/x86_64/cachyos/cachyos.db
+for p in cachyos-keyring cachyos-mirrorlist cachyos-v3-mirrorlist; do
+  f=$(tar -xOf /tmp/cachyos.db --wildcards "$p-[0-9]*/desc" | awk '/%FILENAME%/{getline; print; exit}')
+  curl -fsSL -o "$REPO/$f" "https://mirror.cachyos.org/repo/x86_64/cachyos/$f" && echo "   $f"
+done
 repo-add -q $REPO/amadeus.db.tar.gz $REPO/*.pkg.tar.zst
 ls $REPO/*.pkg.tar.zst
 

@@ -70,7 +70,7 @@ TIMEZONE=UTC
 LOCALE=en_US.UTF-8
 KEYMAP=us
 EXTRAS={extras}
-CACHE_DIR=/mnt/hostcache
+CACHE_DIR="/mnt/vmcache /mnt/hostcache"
 EXTRA_CMDLINE="console=tty0 console=ttyS0,115200"
 POST_HOOK=/run/amadeus-auto/posthook.sh
 """
@@ -78,6 +78,9 @@ POST_HOOK=/run/amadeus-auto/posthook.sh
     for src in (f"{VM}/answers.conf", f"{SRC}/posthook.sh", f"{SRC}/selftest.sh", f"{SRC}/e2e.py"):
         subprocess.run(["mcopy", "-i", auto, src, "::"], check=True)
     cmd = BASE + ["-cdrom", iso]
+    # Downloads from this run are kept for the next one.
+    os.makedirs(f"{OUT}/vmcache", exist_ok=True)
+    cmd += ["-virtfs", f"local,path={OUT}/vmcache,mount_tag=vmcache,security_model=none"]
     if os.path.isdir("/hostcache"):
         cmd += ["-virtfs", "local,path=/hostcache,mount_tag=hostcache,security_model=none,readonly=on"]
     print(f"phase 1: installing from {os.path.basename(iso)} ...", flush=True)

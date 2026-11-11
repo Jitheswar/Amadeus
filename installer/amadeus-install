@@ -86,11 +86,24 @@ mount -o umask=0077 "$ESP" $T/boot
 
 # ---- packages ----------------------------------------------------------------
 say "Installing packages (this is the long part)"
+# The CachyOS repositories: their signing key and mirror lists are on this medium.
+pacman -U --noconfirm --needed /opt/amadeus-repo/cachyos-keyring-*.pkg.tar.zst /opt/amadeus-repo/cachyos-mirrorlist-*.pkg.tar.zst \
+  /opt/amadeus-repo/cachyos-v3-mirrorlist-*.pkg.tar.zst >/dev/null
+pacman-key --populate cachyos >/dev/null 2>&1
+# Packages built for newer processors are used when this processor can run them.
+ARCH="x86_64" REPOS=""
+if /lib/ld-linux-x86-64.so.2 --help | grep -q 'x86-64-v3 (supported'; then
+  ARCH="x86_64 x86_64_v3"
+  REPOS=$(for r in cachyos-v3 cachyos-core-v3 cachyos-extra-v3; do printf '[%s]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n' "$r"; done)
+fi
+REPOS+=$(printf '\n[cachyos]\nInclude = /etc/pacman.d/cachyos-mirrorlist\n')
 CONF=$(mktemp)
 {
-  echo "[options]"; echo "Architecture = auto"; echo "ParallelDownloads = 8"; echo "SigLevel = Required DatabaseOptional"; echo "LocalFileSigLevel = Optional"
+  echo "[options]"; echo "Architecture = $ARCH"; echo "ParallelDownloads = 8"; echo "SigLevel = Required DatabaseOptional"; echo "LocalFileSigLevel = Optional"
+  # A cache that outlives this run comes first, so what is downloaded once is kept.
+  for c in ${CACHE_DIR:-}; do [[ -d $c ]] && echo "CacheDir = $c/"; done
   echo "CacheDir = $T/var/cache/pacman/pkg/"
-  [[ -n ${CACHE_DIR:-} && -d ${CACHE_DIR:-} ]] && echo "CacheDir = $CACHE_DIR/"
+  echo "$REPOS"
   for r in core extra multilib; do printf '[%s]\nInclude = /etc/pacman.d/mirrorlist\n' "$r"; done
 } >"$CONF"
 LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps)"
@@ -98,7 +111,7 @@ LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps)"
 # A stalled download should not end the install: what was fetched is kept, so retry.
 for try in 1 2 3; do
   # shellcheck disable=SC2086
-  pacstrap -C "$CONF" -K $T $LIST && break
+  pacstrap -C "$CONF" $T $LIST && break
   (( try < 3 )) || die "packages could not be downloaded; check the connection and run amadeus-install again"
   echo "  Download interrupted; trying again ($try of 2)."; sleep 5
 done
@@ -121,6 +134,17 @@ genfstab -U $T >>$T/etc/fstab
 sed -i -E 's/subvolid=[0-9]+,?//' $T/etc/fstab
 ch() { arch-chroot $T "$@"; }
 sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' $T/etc/pacman.conf
+# The same repositories on the installed system, above the Arch ones so their builds are preferred.
+sed -i "s/^Architecture = .*/Architecture = $ARCH/" $T/etc/pacman.conf
+printf '%s\n' "$REPOS" >/tmp/cachyos-repos
+python3 - $T/etc/pacman.conf <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read(); repos = open("/tmp/cachyos-repos").read().strip() + "\n\n"
+if "[cachyos]" not in s:            # the pacman.conf that was installed may already list them
+    i = s.index("[core]")
+    s = s[:i] + repos + s[i:]
+open(p, "w").write(s)
+PY
 sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 8/; s/^#Color/Color/' $T/etc/pacman.conf
 cp /etc/pacman.d/mirrorlist $T/etc/pacman.d/mirrorlist
 ln -sf ../usr/lib/os-release.amadeus $T/etc/os-release
@@ -178,9 +202,10 @@ CMD+=" rootflags=subvol=@ rw quiet loglevel=3 nowatchdog ${EXTRA_CMDLINE:-}"
 ch mkinitcpio -P >/dev/null 2>&1 || ch mkinitcpio -P
 ch bootctl install --no-variables >/dev/null 2>&1 || ch bootctl install
 printf 'default amadeus.conf\ntimeout 2\nconsole-mode keep\neditor no\n' >$T/boot/loader/loader.conf
-printf 'title Amadeus OS\nlinux /vmlinuz-linux\ninitrd /initramfs-linux.img\noptions %s\n' "$CMD" >$T/boot/loader/entries/amadeus.conf
-printf 'title Amadeus OS (fallback)\nlinux /vmlinuz-linux\ninitrd /initramfs-linux-fallback.img\noptions %s\n' "${CMD/ quiet loglevel=3/}" >$T/boot/loader/entries/amadeus-fallback.conf
-[[ -f $T/boot/initramfs-linux-fallback.img ]] || rm $T/boot/loader/entries/amadeus-fallback.conf
+K=linux-cachyos
+printf 'title Amadeus OS\nlinux /vmlinuz-%s\ninitrd /initramfs-%s.img\noptions %s\n' $K $K "$CMD" >$T/boot/loader/entries/amadeus.conf
+printf 'title Amadeus OS (fallback)\nlinux /vmlinuz-%s\ninitrd /initramfs-%s-fallback.img\noptions %s\n' $K $K "${CMD/ quiet loglevel=3/}" >$T/boot/loader/entries/amadeus-fallback.conf
+[[ -f $T/boot/initramfs-$K-fallback.img ]] || rm $T/boot/loader/entries/amadeus-fallback.conf
 # Register the loader with the firmware too (bootctl --no-variables is used so this also works in a chroot).
 efibootmgr -q -c -d "$DISK" -p 1 -L "Amadeus OS" -l '\EFI\systemd\systemd-bootx64.efi' 2>/dev/null || true
 
@@ -207,7 +232,7 @@ rsync -a --delete $T/boot/ $T/.bootbackup/
 say "Snapshots and services"
 ch snapper --no-dbus -c root create-config /
 sed -i 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE="no"/; s/^NUMBER_LIMIT=.*/NUMBER_LIMIT="20"/; s/^NUMBER_LIMIT_IMPORTANT=.*/NUMBER_LIMIT_IMPORTANT="5"/' $T/etc/snapper/configs/root
-for s in NetworkManager greetd bluetooth power-profiles-daemon thermald systemd-timesyncd systemd-resolved fstrim.timer snapper-cleanup.timer; do
+for s in NetworkManager greetd bluetooth power-profiles-daemon thermald ananicy-cpp systemd-timesyncd systemd-resolved fstrim.timer snapper-cleanup.timer; do
   ch systemctl enable "$s" >/dev/null 2>&1 || echo "  (could not enable $s)"
 done
 ln -sf ../run/systemd/resolve/stub-resolv.conf $T/etc/resolv.conf

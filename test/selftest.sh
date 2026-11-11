@@ -17,7 +17,7 @@ healthy() {
   t "root is btrfs subvolume @"                bash -c 'findmnt -no FSTYPE,OPTIONS / | grep -qE "btrfs.*subvol=/@(,|$)"'
   t "no failed system units"                   bash -c '[[ -z $(systemctl --failed --no-legend) ]]'
   t "niri is running"                          pgrep -x niri
-  t "kernel on the boot partition matches"     bash -c 'cmp /boot/vmlinuz-linux /usr/lib/modules/*/vmlinuz'
+  t "kernel on the boot partition matches"     bash -c 'cmp /boot/vmlinuz-linux-cachyos /usr/lib/modules/*/vmlinuz'
   t "snapshot history carried over"            bash -c 'snapper -c root list | grep -q "fresh install"'
   t "previous system kept"                     bash -c 'amadeus-rollback list | grep -q before-rollback'
 }
@@ -62,6 +62,8 @@ t "booted with systemd-boot"                   bash -c 'bootctl status 2>/dev/nu
 t "no failed system units"                     bash -c '[[ -z $(systemctl --failed --no-legend) ]]'
 t "network is up"                              bash -c 'nmcli -t general status | grep -q "^connected"'
 t "root account is locked"                     bash -c 'passwd -S root | grep -q " L "'
+t "CachyOS kernel is running"                  bash -c 'uname -r | grep -q cachyos'
+t "CachyOS repositories come first"            bash -c 'pacman-conf --repo-list | head -1 | grep -q cachyos && pacman -Q cachyos-settings linux-cachyos'
 t "multilib enabled (Steam)"                   bash -c 'pacman -Sl multilib | head -1 | grep -q multilib'
 t "core packages installed"                    pacman -Q niri quickshell steam libreoffice-fresh amadeus amadeus-desktop snap-pac
 echo "--- snapshots"
@@ -69,7 +71,7 @@ t "snapshot of the fresh install exists"       bash -c 'snapper -c root list | g
 before=$(snapper -c root list | wc -l)
 t "installing a package works"                 pacman -S --noconfirm --needed tree
 t "package change created pre/post snapshots"  bash -c "[[ \$(snapper -c root list | wc -l) -ge $((before+2)) ]]"
-t "copy of /boot kept for rollback"            test -f /.bootbackup/vmlinuz-linux
+t "copy of /boot kept for rollback"            test -f /.bootbackup/vmlinuz-linux-cachyos
 n=$(snapper -c root list | awk '$3=="pre"{p=$1} END{print p}')
 t "rollback removes the package again"         bash -c "snapper -c root undochange $n..$((n+1)) >/dev/null && ! test -e /usr/bin/tree"
 echo "--- desktop session"
@@ -133,11 +135,11 @@ pacman -Qq | wc -l | awk '{print "packages installed: " $1}'
 df -h / | tail -1 | awk '{print "disk used: " $3}'
 
 echo "--- rollback from the running system"
-printf x >>/.bootbackup/vmlinuz-linux   # a stale saved kernel, to exercise the repair path
+printf x >>/.bootbackup/vmlinuz-linux-cachyos   # a stale saved kernel, to exercise the repair path
 snapper -c root create -d "rollback-test"
 n=$(snapper -c root list | awk '/rollback-test/{print $1}')
 touch /etc/rollback-marker
 t "amadeus-rollback lists snapshots"           bash -c 'amadeus-rollback list | grep -q rollback-test'
 t "amadeus-rollback to snapshot $n"            amadeus-rollback --yes "$n"
-t "stale kernel was repaired"                  bash -c 'cmp /boot/vmlinuz-linux /usr/lib/modules/*/vmlinuz'
+t "stale kernel was repaired"                  bash -c 'cmp /boot/vmlinuz-linux-cachyos /usr/lib/modules/*/vmlinuz'
 finish 2

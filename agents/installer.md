@@ -13,6 +13,9 @@ Read `AGENTS.md` first.
   Removing a package is as welcome as adding one.
 - **Lists, not script bodies.** The script reads the lists. It does not name packages,
   except where a package is conditional on detected hardware.
+- **Repository order is a decision.** CachyOS repositories come before the Arch ones, and
+  the processor-specific ones only when the processor supports them. The kernel is named
+  once in the installer; boot entries, the NVIDIA module and the self-test follow it.
 - **AI coding harnesses are not packages.** They are installed per user through mise
   (`desktop/bin/amadeus-harness`); do not add one to a package list.
 - **Applications outside the Arch repositories** go in the list for those. Each must have

@@ -17,7 +17,7 @@ It is built for one machine: Core i5-13450HX, RTX 3050 6 GB with Intel UHD graph
 
 | | |
 |---|---|
-| **Base** | Arch packages, rolling. Encrypted btrfs, systemd-boot, compressed swap in RAM. About 750 packages after install. |
+| **Base** | Arch, with packages from the CachyOS repositories (built for newer processors) and the `linux-cachyos` kernel. Rolling. Encrypted btrfs, systemd-boot, compressed swap in RAM. About 750 packages after install. |
 | **Recovery** | A snapshot before and after every package change. `amadeus-rollback` returns the system to any of them, from the running system or from the USB stick when it no longer starts. |
 | **Graphics** | Intel draws the desktop. The NVIDIA card is powered off until an application is sent to it; nothing forces it on. CUDA, Vulkan and video decode are available on both. |
 | **AI layer** | One daemon through which every AI action passes: capability policy, approval for destructive actions, tamper-evident audit log, undo. Works with a Claude subscription or API key, OpenAI-compatible APIs, OpenRouter, Codex, and local models. |

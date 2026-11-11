@@ -5,41 +5,56 @@ what any existing machine or distribution happens to run. Each entry names what 
 picked, what it was picked over, and the evidence. Where a choice is not yet implemented
 in the tree, it says so.
 
-## Base system: Arch Linux packages
+## Base system: Arch, through the CachyOS repositories
+
+Amadeus OS is an Arch system that takes its packages from the CachyOS repositories
+first and the Arch repositories second.
 
 | Candidate | For | Against |
 |---|---|---|
-| **Arch** | Rolling. Every required application has a maintained package built from the publisher's own release. Standard filesystem layout, so vendor binaries (Steam, Proton builds, CUDA wheels, Claude Desktop) run unmodified. Mature ISO tooling. | Updates are not atomic by themselves. |
-| NixOS (unstable) | Atomic system generations, rollback in the boot menu, the whole system is one declarative file: the best fit for an AI that changes the system. | Checked on 2026-11-11: Brave was removed from nixpkgs for lack of maintainers, and Claude Desktop is not packaged. Both would become our own derivations of auto-updating proprietary binaries on a non-standard filesystem layout; a browser whose security updates depend on us is not acceptable. CUDA development outside Nix shells is awkward. |
-| openSUSE Tumbleweed / Aeon | Rolling with tested snapshots and transactional updates. | Claude Desktop ships only as a `.deb`; ProtonPlus, herdr and Brave Origin need repackaging too. |
+| **Arch packages, CachyOS builds first** | Everything Arch offers (rolling, every required application has a maintained package, standard filesystem layout so vendor binaries run unmodified), plus the same packages rebuilt for newer processors (x86-64-v3, which this CPU supports) and a kernel tuned for desktop responsiveness with a matching prebuilt NVIDIA module. | A second set of repositories to trust, and their own build of the package manager comes with them. |
+| Plain Arch | One upstream. | Generic builds; the stock kernel. |
+| NixOS (unstable) | Atomic system generations and rollback in the boot menu: the best fit for an AI that changes the system. | Checked on 2026-11-11: Brave was removed from nixpkgs for lack of maintainers, and Claude Desktop is not packaged. A browser whose security updates depend on us is not acceptable. |
+| openSUSE Tumbleweed / Aeon | Rolling with tested snapshots and transactional updates. | Claude Desktop ships only as a `.deb`; several other required applications need repackaging. |
 | Fedora Atomic, Debian, Ubuntu | Stable. | Not rolling. |
 | Void, Gentoo | Minimal. | Few of the required applications; no systemd (Void). |
 
-Arch wins on the requirement that outranks the others in daily use: the listed
-applications and the gaming stack work from maintained packages. What NixOS does
-better, atomic change and rollback, is built on top instead:
+What to expect from the CachyOS builds, stated plainly: they are the same software as
+Arch's, compiled with newer instructions and link-time optimisation. The gain is a few
+percent in most programs and more in some. They are not more thoroughly tested than
+Arch's and track Arch closely, so they are not a stability measure. Stability here
+comes from what is below, as before:
 
 - btrfs snapshots before and after every package change (snapper, snap-pac)
 - a copy of `/boot` inside each snapshot, so a snapshot carries its matching kernel
 - `amadeus-rollback`, from the running system or from the installer medium
 - AI changes go through one enforcement point with an undo journal and an audit log
 
-No other distribution's repositories or tooling are used. Applications outside the Arch
-repositories are built from their AUR recipes (each downloads the publisher's release)
-into the repository on the ISO; `amadeus-update` keeps them current.
+The installer uses the processor-specific repositories only when the processor can run
+them, and falls back to the generic CachyOS and Arch repositories otherwise. Their
+signing key and mirror lists are fetched over HTTPS when the ISO is built and shipped
+on it.
 
 ## Kernel, boot, storage
 
-- **Kernel: Arch `linux`.** Tracks upstream closely, which is what a 13th-gen hybrid
-  CPU (P and E cores) and the NVIDIA open module want. Over `linux-lts` (older scheduler
-  work for hybrid cores) and `linux-zen` (no measurable benefit for this workload).
+- **Kernel: `linux-cachyos`**, the kernel CachyOS recommends by default: built with
+  Clang and link-time optimisation, profiled, 1000 Hz, with their scheduler tuning for
+  desktop responsiveness. Whatever scheduler that default uses is the one used here; no
+  alternative scheduler is layered on top. Over Arch's `linux` (generic build) and over
+  the other CachyOS variants (LTS, hardened, server and real-time builds answer needs
+  this machine does not have).
+- **System tuning: `cachyos-settings`** (their sysctl values, I/O scheduler rules and
+  related defaults) and `ananicy-cpp` with their rule set, which lowers the priority of
+  background work so the foreground stays responsive. That is one more always-running
+  process; it idles at a few MB.
 - **Boot loader: systemd-boot.** Already part of systemd; nothing extra to maintain.
   Over GRUB (large, slow, fragile config generation) and limine.
 - **Filesystem: btrfs on LUKS2**, subvolumes `@ @home @log @pkg`, zstd compression.
   Snapshots are the recovery mechanism, so the filesystem must provide them; over ext4
   (no snapshots) and ZFS (out-of-tree module on a rolling kernel).
 - **Swap: zram**, no swap partition. 16 GB of RAM with compressed swap in memory beats
-  writing to the SSD.
+  writing to the SSD. The cost: hibernation is not available, so the system menu does
+  not offer it.
 
 ## Graphics
 
@@ -47,11 +62,12 @@ into the repository on the ISO; `amadeus-update` keeps them current.
   3050 is supported by the open module) with runtime power management `0x02`, so the
   card is fully powered down when idle. Applications are offloaded one at a time
   (`amadeus-gpu-run`, or the AI decides per application). Nothing sets NVIDIA globally.
-- **Driver package: `nvidia-open`**, rechecked against the card (GA107BM, `10de:25ec`,
-  Ampere) and driver branch 615: the open kernel module is NVIDIA's supported path for
-  this generation, it is prebuilt for the `linux` kernel and versioned in lockstep with
-  `nvidia-utils`, so there is no DKMS compile and no window where kernel and module
-  disagree. The GPU firmware ships in `nvidia-utils`; `linux-firmware-nvidia` is only for
+- **Driver package: `linux-cachyos-nvidia-open`**, for the card in this machine
+  (GA107BM, `10de:25ec`, Ampere): the open kernel module is NVIDIA's supported path for
+  this generation, and this package is that module prebuilt for the `linux-cachyos`
+  kernel and versioned in lockstep with it and with `nvidia-utils`, so there is no DKMS
+  compile and no window where kernel and module disagree. CachyOS carries a newer driver
+  branch than Arch. The GPU firmware ships in `nvidia-utils`; `linux-firmware-nvidia` is only for
   nouveau and is not installed. `lib32-nvidia-utils` is there for Proton.
 - **Dynamic Boost on (`nvidia-powerd`).** The laptop firmware reports it as supported. It
   is the one GPU daemon worth running: under load it shifts power budget from the CPU

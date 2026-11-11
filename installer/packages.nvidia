@@ -1,4 +1,5 @@
 # NVIDIA RTX 3050 6GB Laptop (GA107BM, 10de:25ec); installed only when an NVIDIA GPU is present.
-# nvidia-open is prebuilt for the `linux` kernel and updates in step with it. The GPU firmware
+# linux-cachyos-nvidia-open is the open kernel module prebuilt for the linux-cachyos kernel; it is
+# versioned with the kernel and with nvidia-utils, so they always update together. The GPU firmware
 # ships inside nvidia-utils, so linux-firmware-nvidia (for the nouveau/nova drivers) is not needed.
-nvidia-open nvidia-utils lib32-nvidia-utils libva-nvidia-driver
+linux-cachyos-nvidia-open nvidia-utils lib32-nvidia-utils libva-nvidia-driver

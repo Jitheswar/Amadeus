@@ -4,7 +4,7 @@
 # rescue.conf instead (SNAPSHOT=N, LUKS_PASS=...), it rolls the installed system back.
 set -u
 A=/run/amadeus-auto
-mkdir -p $A /mnt/hostcache
+mkdir -p $A /mnt/hostcache /mnt/vmcache
 mount /dev/disk/by-label/AMADEUSAUTO $A || exit 1
 if [[ -f $A/rescue.conf ]]; then
   source $A/rescue.conf
@@ -15,6 +15,7 @@ if [[ -f $A/rescue.conf ]]; then
   rm -f $A/rescue.conf
 else
   mount -t 9p -o trans=virtio,ro,msize=1048576 hostcache /mnt/hostcache 2>/dev/null || true
+  mount -t 9p -o trans=virtio,msize=1048576 vmcache /mnt/vmcache 2>/dev/null || rmdir /mnt/vmcache
   for _ in $(seq 30); do ping -c1 -W2 archlinux.org >/dev/null 2>&1 && break; sleep 2; done
   {
     if amadeus-install $A/answers.conf; then echo "AMADEUS-INSTALL-RESULT: OK"; else echo "AMADEUS-INSTALL-RESULT: FAILED"; fi
