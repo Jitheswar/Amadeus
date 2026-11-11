@@ -4,7 +4,7 @@ Phase 1 boots the ISO through UEFI and lets it install unattended onto an empty 
 Phase 2 boots that disk, unlocks it, logs into the desktop and runs the self-test."""
 import glob, os, select, shutil, subprocess, sys, time
 
-OUT, SRC = "/out", "/src/distro/test"
+OUT, SRC = "/out", "/src/test"
 VM = f"{OUT}/vm"
 PASSWORD = "test-pass-123"
 extras = "no" if "--no-extras" in sys.argv else "yes"

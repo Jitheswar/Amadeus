@@ -1,44 +1,7 @@
 # Architecture
 
-## Decisions
-
-**A distribution of its own, built on Arch.** Amadeus OS is an installable ISO
-(`distro/`), not a layer on another desktop distribution. It takes packages straight
-from the Arch repositories (rolling release, pacman), because Steam, Proton, the NVIDIA
-stack and the listed applications are best supported there, and adds two packages of
-its own: `amadeus` (the AI layer) and `amadeus-desktop` (the desktop configuration).
-It uses no other distribution's packages, repositories or tooling. Applications that Arch
-does not carry are built from their publishers' own releases into the repository on the
-ISO, and `amadeus-update` keeps them current afterwards.
-
-**Stability under rolling updates comes from snapshots, not pinning.** Every package
-change is bracketed by btrfs snapshots (snap-pac), and `/boot` is copied into the root
-filesystem before and after, so each snapshot carries the kernel that matches it.
-`amadeus-rollback N` makes snapshot N the root that starts next: the current `@` is
-renamed to `@.before-rollback-<date>` (nothing is deleted), a writable copy of the
-snapshot becomes `@`, the snapshot history moves across, and the kernel on the boot
-partition is restored, or rebuilt if the saved copy does not match the modules.
-
-**systemd-boot, not GRUB or limine.** It is part of systemd, so there is nothing extra
-to install or keep updated. The cost is that snapshots are not listed in the boot menu;
-rollback is done with `amadeus-rollback`, from the running system or, when it no longer
-starts, from the ISO.
-
-**Python standard library for the daemon.** No third-party packages, so a system
-update cannot break the AI layer and the whole thing is small enough to audit
-(about 2,000 lines). It idles at roughly 20 MB with no polling.
-
-**Quickshell (QML) for every Amadeus surface and for generated apps.** The bar is
-written in it too, so generated apps look native, need no extra runtime,
-and models write QML well. A shared component library keeps them consistent.
-
-**bubblewrap for isolation.** Unprivileged, no daemon, already used by Steam and
-Flatpak. Containers or VMs would add weight without a stronger default.
-
-**Subscriptions through MCP.** Claude and Codex subscriptions are only usable through
-their own CLIs. Rather than scraping tokens, Amadeus runs those CLIs with their
-built-in tools disabled and gives them the OS tools over an MCP server, so every
-action still crosses the same policy and audit point as API providers.
+Why each component was chosen is in [DECISIONS.md](DECISIONS.md). This file describes how
+the parts work together.
 
 ## Components
 

@@ -77,7 +77,7 @@ def main():
     check("bubblewrap sandbox works", OK if sb.returncode == 0 else BAD, sb.stderr.decode()[:100])
     check("root mode is off", OK if not root.enabled() else WARN, "" if not root.enabled() else "on until shutdown or `ama root off`")
     check("root helper installed (root-owned)", OK if os.path.exists("/usr/lib/amadeus/amadeus-priv") and os.stat("/usr/lib/amadeus/amadeus-priv").st_uid == 0 else WARN,
-          "" if os.path.exists("/usr/lib/amadeus/amadeus-priv") else "run install.sh --system to enable `ama root on`")
+          "" if os.path.exists("/usr/lib/amadeus/amadeus-priv") else "the amadeus system package is not installed, so `ama root on` is unavailable")
     ok, n, bad = audit.verify()
     check("audit log chain", OK if ok else BAD, f"{n} records")
     sec = config.CONFIG / "secrets"

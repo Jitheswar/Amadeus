@@ -10,7 +10,7 @@ optdepends=('networkmanager: network tools' 'power-profiles-daemon: power profil
 options=(!debug)
 
 package() {
-  local src="$startdir/.."
+  local src="$startdir"
   install -d "$pkgdir/usr/share/amadeus" "$pkgdir/usr/lib/amadeus" "$pkgdir/usr/bin" "$pkgdir/usr/share/doc/amadeus"
   cp -r "$src/amadeus" "$src/shell" "$src/examples" "$pkgdir/usr/share/amadeus/"
   find "$pkgdir" -name __pycache__ -type d -exec rm -rf {} +
@@ -19,5 +19,5 @@ package() {
   chmod 755 "$pkgdir/usr/bin/ama"
   sed 's|@AMA@|/usr/bin/ama|' "$src/systemd/amadeusd.service" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/amadeusd.service"
   install -Dm644 "$src/priv/org.amadeus.rootmode.policy" -t "$pkgdir/usr/share/polkit-1/actions/"
-  install -Dm644 "$src"/docs/*.md "$src/README.md" -t "$pkgdir/usr/share/doc/amadeus/"
+  install -Dm644 "$src"/../docs/*.md "$src/../README.md" -t "$pkgdir/usr/share/doc/amadeus/"
 }

@@ -140,7 +140,7 @@ def root_cmd(args):
         return
     if sub == "on":
         if not os.path.exists(f"{PRIV_DIR}/root-mode"):
-            sys.exit(f"The privileged helper is not installed. Run install.sh --system from the Amadeus source.")
+            sys.exit(f"The privileged helper is not installed; it is part of the amadeus system package.")
         cmd = ["pkexec", f"{PRIV_DIR}/root-mode", "on", "--uid", str(os.getuid())]
         if "--full" in args:
             cmd.append("--full")

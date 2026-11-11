@@ -1,9 +1,0 @@
-#!/bin/bash
-# Development helper: run the daemon from the source tree.
-cd "$(dirname "$0")/.."
-sock="${XDG_RUNTIME_DIR}/amadeus/daemon.sock"
-pid=$(ss -xlpH 2>/dev/null | grep -F "$sock" | grep -o 'pid=[0-9]*' | cut -d= -f2 | head -1)
-[[ -n $pid ]] && kill "$pid" && sleep 0.4
-setsid ./bin/ama daemon >"${1:-/dev/null}" 2>&1 &
-sleep 0.8
-./bin/ama status | head -1

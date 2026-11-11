@@ -6,14 +6,14 @@ P=/tmp/profile REPO=/tmp/repo
 rm -rf $P $REPO /tmp/work /tmp/pkgsrc && mkdir -p $REPO
 
 echo "==> Packaging amadeus and amadeus-desktop"
-cp -r $SRC /tmp/pkgsrc && chown -R build /tmp/pkgsrc $REPO
-for d in packaging distro/desktop; do
+mkdir /tmp/pkgsrc && cp -r $SRC/ai $SRC/desktop $SRC/docs $SRC/README.md /tmp/pkgsrc/ && chown -R build /tmp/pkgsrc $REPO
+for d in ai desktop; do
   (cd /tmp/pkgsrc/$d && sudo -u build env PKGDEST=$REPO makepkg -f --nodeps >/dev/null)
 done
 
 echo "==> Packaging applications that are not in the Arch repositories (from their AUR recipes)"
-for p in $(grep -hv '^#' $SRC/distro/installer/packages.aur); do
-  bash /src/distro/aur-build.sh $p $REPO $OUT/pkgcache || echo "   WARNING: $p could not be built; the ISO will not include it"
+for p in $(grep -hv '^#' $SRC/installer/packages.aur); do
+  bash /src/iso/aur-build.sh $p $REPO $OUT/pkgcache || echo "   WARNING: $p could not be built; the ISO will not include it"
 done
 repo-add -q $REPO/amadeus.db.tar.gz $REPO/*.pkg.tar.zst
 ls $REPO/*.pkg.tar.zst
@@ -23,11 +23,11 @@ cp -r /usr/share/archiso/configs/releng $P
 A=$P/airootfs
 install -d $A/opt $A/usr/local/bin $A/usr/share/amadeus-install $A/etc/systemd/system/multi-user.target.wants
 cp -r $REPO $A/opt/amadeus-repo
-install -m755 $SRC/distro/installer/amadeus-install $SRC/distro/live/amadeus-autoinstall $SRC/distro/desktop/bin/amadeus-rollback $A/usr/local/bin/
-install -m644 $SRC/distro/installer/packages.* $A/usr/share/amadeus-install/
-install -m644 $SRC/distro/live/amadeus-autoinstall.service $A/etc/systemd/system/
+install -m755 $SRC/installer/amadeus-install $SRC/iso/live/amadeus-autoinstall $SRC/desktop/bin/amadeus-rollback $A/usr/local/bin/
+install -m644 $SRC/installer/packages.* $A/usr/share/amadeus-install/
+install -m644 $SRC/iso/live/amadeus-autoinstall.service $A/etc/systemd/system/
 ln -sf ../amadeus-autoinstall.service $A/etc/systemd/system/multi-user.target.wants/
-cp $SRC/distro/live/motd $A/etc/motd
+cp $SRC/iso/live/motd $A/etc/motd
 echo amadeus-live >$A/etc/hostname
 printf 'pciutils\nrsync\n' >>$P/packages.x86_64
 
