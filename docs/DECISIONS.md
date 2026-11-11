@@ -139,6 +139,23 @@ Over AUR packages (a second maintainer between the publisher and the user, root 
 install), npm installed globally (needs a system Node and root) and each tool's own
 installer script (a different updater per tool).
 
+## Where software comes from
+
+In this order, and the install catalogue encodes it per entry:
+
+1. **The system repositories**, when the software is there.
+2. **An AUR recipe that downloads the publisher's own release**, when it is not. The
+   recipe's sources are shown and the user is asked before anything is built.
+3. **mise**, for AI coding harnesses and language toolchains, which belong to the user
+   and change too often for packages.
+
+An entry lists its sources best first and the first that still exists is used, so the
+catalogue keeps working when a package moves into or out of the repositories.
+
+Two small background helpers were added with the shortcuts: a clipboard watcher (cliphist,
+a few MB, idle until something is copied) for clipboard history, and nothing for copy and
+paste themselves, which send the standard keys to the focused window on demand.
+
 ## Defaults: terminal, editor, harness
 
 The user's choice of terminal, editor and harness is one small file, read by three

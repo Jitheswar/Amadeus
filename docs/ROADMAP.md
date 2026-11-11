@@ -10,6 +10,9 @@
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
 - End-to-end AI request test on the installed system with a scripted model
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
+- Install catalogue: terminals, browsers, editors, AI desktop apps and development tools, each from the system repositories first and an AUR recipe of the publisher's build otherwise; web apps
+- Amadeus menu: Setup (display, text size, defaults, config), System, About
+- Shortcuts: universal copy and paste, clipboard history, scratchpad, screenshots, move window to workspace
 - AI coding harnesses through mise (install, remove, update, run); defaults for terminal, editor and harness
 - Own visual identity and motion system from one theme file; headless preview of the shell
 - Launcher, menus and notifications drawn by the shell; text in the launcher that matches no application goes to Amadeus

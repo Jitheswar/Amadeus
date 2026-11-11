@@ -1,0 +1,53 @@
+#!/bin/bash
+# Display setup: resolution, refresh rate, scaling and text size.
+#   amadeus-display                 choose a display, then its resolution or scale, from menus
+#   amadeus-display text [SIZE]     show or set text size for applications (for example 110%)
+# Resolution and scale are written to ~/.config/niri/display.kdl. The whole desktop
+# configuration is checked first; a setting the desktop rejects is not kept.
+set -euo pipefail
+conf=${XDG_CONFIG_HOME:-$HOME/.config}/niri
+file=$conf/display.kdl
+
+if [[ ${1:-} == text ]]; then
+  now=$(gsettings get org.gnome.desktop.interface text-scaling-factor 2>/dev/null || echo 1.0)
+  [[ -n ${2:-} ]] || { awk -v n="$now" 'BEGIN { printf "%d%%\n", n * 100 + 0.5 }'; exit 0; }
+  gsettings set org.gnome.desktop.interface text-scaling-factor "$(awk -v p="${2%\%}" 'BEGIN { printf "%.2f", p / 100 }')"
+  echo "Text size: ${2%\%}%"; exit 0
+fi
+
+outputs=$(niri msg --json outputs)
+name=$(python3 -c 'import json, sys; print("\n".join(json.load(sys.stdin)))' <<<"$outputs" | { mapfile -t o; (( ${#o[@]} == 1 )) && echo "${o[0]}" || printf '%s\n' "${o[@]}" | amadeus-pick Display; }) || exit 0
+what=$(printf 'Resolution\nScale' | amadeus-pick "$name") || exit 0
+if [[ $what == Resolution ]]; then
+  value=$(python3 -c '
+import json, sys
+o = json.load(sys.stdin)[sys.argv[1]]
+seen = []
+for m in sorted(o["modes"], key=lambda m: (-m["width"] * m["height"], -m["refresh_rate"])):
+    s = "%dx%d@%.3f" % (m["width"], m["height"], m["refresh_rate"] / 1000)
+    if s not in seen: seen.append(s)
+print("\n".join(seen))' "$name" <<<"$outputs" | amadeus-pick "Resolution of $name") || exit 0
+  key=mode
+else
+  value=$(printf '%s\n' 1 1.25 1.5 1.75 2 | amadeus-pick "Scale of $name") || exit 0
+  key=scale
+fi
+
+# Keep the other setting for this display, replace the one being changed.
+mkdir -p "$conf"; touch "$file"
+old=$(cat "$file")
+python3 - "$file" "$name" "$key" "$value" <<'PY'
+import re, sys
+path, name, key, value = sys.argv[1:]
+text = open(path).read()
+blocks = dict(re.findall(r'output "([^"]+)" \{(.*?)\}\n', text, re.S))
+settings = dict(re.findall(r'\s*(mode|scale) ("[^"]*"|[\d.]+)', blocks.get(name, "")))
+settings[key] = '"%s"' % value if key == "mode" else value
+blocks[name] = "".join("\n    %s %s" % kv for kv in settings.items()) + "\n"
+open(path, "w").write("// Display settings, written by amadeus-display.\n" + "".join('output "%s" {%s}\n' % b for b in blocks.items()))
+PY
+if [[ -f $conf/config.kdl ]] && ! niri validate -c "$conf/config.kdl" >/dev/null 2>&1; then
+  printf '%s' "$old" >"$file"
+  notify-send -a Amadeus "Display setting not applied" "The desktop rejected $key $value for $name; nothing was changed."; exit 1
+fi
+notify-send -a Amadeus "$name: $key $value"

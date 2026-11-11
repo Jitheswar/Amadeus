@@ -1,0 +1,20 @@
+# Development tools. Languages and runtimes are installed for your user through mise, so
+# several versions can live side by side and nothing needs the administrator password.
+Node.js	mise:node
+Bun	mise:bun
+Deno	mise:deno
+Python	mise:python
+Go	mise:go
+Rust	mise:rust
+Ruby	mise:ruby
+PHP	mise:php
+Java	mise:java
+Zig	mise:zig
+Elixir	mise:elixir
+Erlang	mise:erlang
+.NET	mise:dotnet
+Lua	mise:lua
+Docker	pacman:docker+docker-compose+docker-buildx
+Podman	pacman:podman
+GitHub CLI	pacman:github-cli
+Lazygit	pacman:lazygit

@@ -91,6 +91,11 @@ t "harness list comes from mise"               bash -c 'out=$(as bash -lc "amade
 t "defaults: terminal, editor, harness"        bash -c 'out=$(as amadeus-default); echo "$out"; echo "$out" | grep -q "terminal *foot" && echo "$out" | grep -q "harness *claude" && as amadeus-default editor nano | grep -q "Default editor: nano"'
 t "default harness resolves to a program"      bash -c 'as bash -lc "amadeus-harness run claude --version"'
 t "text files open with the default editor"    bash -c 'as xdg-mime query default text/plain | grep -q amadeus-editor'
+t "install catalogue resolves its sources"     bash -c 'for c in terminal browser editor ai development; do n=$(as bash -lc "amadeus-catalog $c" | wc -l); echo "$c $n"; [[ $n -ge 3 ]] || exit 1; done; as bash -lc "amadeus-catalog ai" | grep -q "^Claude Desktop  (installed)"'
+t "web app can be added and removed"           bash -c 'as amadeus-webapp install "Self Test" example.org >/dev/null; as amadeus-webapp list | grep -q "^Self Test" && as amadeus-launcher --print | grep -q "^Self Test" && as amadeus-webapp remove "Self Test" >/dev/null && ! as amadeus-webapp list | grep -q "Self Test"'
+t "scratchpad workspace exists"                bash -c 'as niri msg --json workspaces | grep -q "\"name\":\"scratchpad\""'
+t "clipboard history records copies"           bash -c 'echo amadeus-clip-test | as wl-copy; sleep 1; as cliphist list | grep -q amadeus-clip-test'
+t "system menu and about are present"          bash -c 'test -x /usr/bin/amadeus-power-menu && as fastfetch | grep -q "Amadeus OS"'
 t "desktop config is valid"                    as niri validate -c /home/$U/.config/niri/config.kdl
 t "compositor answers over IPC"                bash -c 'out=$(as niri msg --json workspaces 2>&1); echo "$out" | grep -q idx || { echo "sock=$(ls $R/niri.*.sock 2>&1) out=$out"; false; }'
 t "X11 applications supported"                 bash -c 'ls /tmp/.X11-unix/ | grep -q "^X"'

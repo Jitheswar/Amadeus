@@ -1,9 +1,14 @@
 #!/bin/bash
-# Power menu (Super+Escape): lock, suspend, log out, restart, shut down.
-choice=$(printf 'Lock\nSuspend\nLog out\nRestart\nShut down' | amadeus-pick Power) || exit 0
+# System menu (Super+Escape): lock, suspend, hibernate, log out, restart, shut down.
+can() { [[ $(busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager "Can$1" 2>/dev/null) == 's "yes"' ]]; }
+options=(Lock Suspend)
+can Hibernate && options+=(Hibernate)     # offered only when this machine can actually do it
+options+=("Log out" Restart "Shut down")
+choice=$(printf '%s\n' "${options[@]}" | amadeus-pick System) || exit 0
 case $choice in
   Lock) swaylock -f ;;
   Suspend) systemctl suspend ;;
+  Hibernate) systemctl hibernate ;;
   "Log out") niri msg action quit --skip-confirmation ;;
   Restart) systemctl reboot ;;
   "Shut down") systemctl poweroff ;;

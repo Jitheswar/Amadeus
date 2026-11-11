@@ -17,6 +17,7 @@ Scope {
     property string hint: ""
     property bool multi: false
     property bool allowNew: false
+    property string newLabel: ""
     property bool alt: false
     property var items: []
     property var shown: []
@@ -36,7 +37,7 @@ Scope {
         try { o = JSON.parse(options) } catch (e) {}
         pick.prompt = prompt; pick.pipe = pipe
         pick.multi = !!o.multi; pick.allowNew = !!o.allowNew
-        pick.preview = o.preview || ""; pick.preview2 = o.preview2 || ""; pick.hint = o.hint || ""
+        pick.preview = o.preview || ""; pick.preview2 = o.preview2 || ""; pick.hint = o.hint || ""; pick.newLabel = o.newLabel || "Press Enter to use what you typed"
         pick.alt = false; pick.marked = ({}); pick.detail = ""; pick.items = []; pick.shown = []
         input.text = ""
         loader.path = infile
@@ -138,7 +139,7 @@ Scope {
                 color: pick.style.fg; selectionColor: pick.style.accent; selectedTextColor: pick.style.bg
                 font.family: pick.style.font; font.pixelSize: 16; clip: true
                 onTextChanged: if (pick.open) pick.refilter()
-                Text { anchors.fill: parent; verticalAlignment: Text.AlignVCenter; visible: !input.text; text: "Search"
+                Text { anchors.fill: parent; verticalAlignment: Text.AlignVCenter; visible: !input.text; text: pick.items.length ? "Search" : "Type here"
                        color: pick.style.dim; font: input.font; opacity: 0.7 }
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_Escape) pick.finish("cancel", [])
@@ -185,7 +186,7 @@ Scope {
                                 onClicked: { pick.index = line.index; pick.accept() } }
                 }
                 Text { anchors.centerIn: parent; visible: pick.shown.length === 0; color: pick.style.dim; font.family: pick.style.font; font.pixelSize: 14
-                       text: pick.allowNew && input.text.trim() ? "Press Enter to ask Amadeus" : "Nothing matches" }
+                       text: pick.allowNew ? (input.text.trim() ? pick.newLabel : "Type, then press Enter") : "Nothing matches" }
             }
             Rectangle { visible: box.wide; width: 1; color: pick.style.line; anchors { left: view.right; leftMargin: 10; top: rule.bottom; bottom: foot.top; bottomMargin: 10 } }
             Flickable {

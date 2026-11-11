@@ -1,0 +1,7 @@
+#!/bin/bash
+# Clipboard history (Super+Ctrl+V): pick something you copied earlier to put it back on the clipboard.
+#   amadeus-clipboard         choose from the history
+#   amadeus-clipboard clear   forget everything
+if [[ ${1:-} == clear ]]; then cliphist wipe; exit; fi
+choice=$(cliphist list | amadeus-pick --preview 'printf "%s" "$1" | cliphist decode | head -c 4000' "Clipboard") || exit 0
+printf '%s' "$choice" | cliphist decode | wl-copy

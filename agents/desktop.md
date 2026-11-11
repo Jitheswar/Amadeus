@@ -29,6 +29,10 @@ user starts with in `desktop/skel/`.
 - **Look at what you changed.** `./build.sh preview` draws the shell, picker,
   notifications and panel headless into `out/preview/`. Read the pictures before you
   commit a visual change.
+- **Software a user can install is a catalogue line, not code.** Add it to the right file
+  in `desktop/catalog/`, system repository source first, AUR second. Read the AUR recipe
+  and list it only if it downloads the publisher's own build or builds the publisher's
+  source.
 - **Never name a terminal, editor or harness in code.** Call `amadeus-terminal`,
   `amadeus-editor` or `amadeus-harness run`; the user chooses what they are.
 - **One picker.** Every list a user chooses from goes through `desktop/bin/amadeus-pick`,

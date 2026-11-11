@@ -63,14 +63,29 @@ means that window.
 | `ama doctor` | check drivers, GPU, sandbox, providers and applications |
 | `ama discover` | a live map of the system: commands, files, tools, permissions |
 | `Super+K` | every keyboard shortcut and system command, searchable |
-| `Super+Space` | the Amadeus menu: Apps, Install (Arch packages, AUR or AI coding harnesses, with details beside the list), Remove, Update, Defaults (terminal, editor, harness, and what opens each kind of file) |
+| `Super+Space` | the Amadeus menu: Apps, Install, Remove, Update, Setup, System, About |
 | `Super+Shift+Enter` | your default AI coding harness, in a terminal |
+| `Super+C` · `Super+V` · `Super+Ctrl+V` | copy and paste that work the same everywhere, terminals included · clipboard history |
+| `Super+S` · `Super+Alt+S` | show the scratchpad · send the focused window to it |
+| `Print` · `Shift+Print` · `Alt+Print` | screenshot of an area · the whole screen · the focused window |
+| `Super+Escape` | lock, suspend, hibernate, log out, restart, shut down |
 | `Super+Z` · `Super+A` | the Amadeus panel · the panel, about the focused window |
 | `amadeus-update` | update the system and the applications from the AUR |
 | `amadeus-aur` | look up, review, build and install applications from the AUR |
 | `amadeus-harness` | install, remove, update and run AI coding harnesses (Claude Code, Codex, opencode, Antigravity CLI and others) through mise |
 | `amadeus-default` | show or set your default terminal, editor and harness |
 | `amadeus-rollback` | list snapshots, or go back to one |
+
+### The Amadeus menu
+
+| | |
+|---|---|
+| **Install** | Terminals, browsers, editors, AI desktop apps, development tools, AI coding harnesses, web apps, any package, anything from the AUR. Each list shows details beside it and marks what is installed. Software comes from the system repositories when it is there, and from an AUR recipe of the publisher's own build only when it is not. |
+| **Remove** | Packages, harnesses and tools, web apps. |
+| **Update** | Everything, or only what mise manages. |
+| **Setup** | Display resolution and scaling, text size, defaults (terminal, editor, harness, browser, and what opens each kind of file), and Config, which opens any of the system's configuration files in your editor. |
+| **System** | Lock, suspend, hibernate, log out, restart, shut down. |
+| **About** | The facts about this machine. |
 
 ## Build
 

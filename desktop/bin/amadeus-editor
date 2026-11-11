@@ -5,7 +5,7 @@
 editor=$(amadeus-default editor)
 command -v "$editor" >/dev/null || editor=nano
 case $editor in
-  code|codium|zed|zeditor|gnome-text-editor|kate|gedit) exec "$editor" "$@" ;;
+  code|codium|cursor|zed|zeditor|subl|gnome-text-editor|kate|gedit) exec "$editor" "$@" ;;
 esac
 if [[ -t 0 && -t 1 ]]; then exec "$editor" "$@"; fi
 exec amadeus-terminal -e "$editor" "$@"

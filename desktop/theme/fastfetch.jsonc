@@ -1,0 +1,23 @@
+// What Super+Space, About shows: the facts about this machine, without decoration.
+{
+  "logo": { "type": "none" },
+  "display": { "separator": "   ", "color": { "keys": "38;2;255;161;74" } },
+  "modules": [
+    { "type": "custom", "format": "Amadeus OS" },
+    { "type": "custom", "format": "El Psy Kongroo." },
+    "break",
+    { "type": "host", "key": "Machine" },
+    { "type": "cpu", "key": "Processor" },
+    { "type": "gpu", "key": "Graphics" },
+    { "type": "memory", "key": "Memory" },
+    { "type": "disk", "key": "Disk", "folders": "/" },
+    { "type": "display", "key": "Display" },
+    "break",
+    { "type": "kernel", "key": "Kernel" },
+    { "type": "packages", "key": "Packages" },
+    { "type": "wm", "key": "Desktop" },
+    { "type": "terminal", "key": "Terminal" },
+    { "type": "shell", "key": "Shell" },
+    { "type": "uptime", "key": "Uptime" }
+  ]
+}

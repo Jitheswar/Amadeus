@@ -1,0 +1,8 @@
+# Terminals. Each line: what to call it, then where it comes from, best source first.
+#   pacman:NAME[+NAME]  the system repositories      aur:NAME  an AUR recipe (reviewed before building)
+#   mise:NAME           installed for your user through mise
+# The first source that still exists is used; an entry with none left is not shown.
+Ghostty	pacman:ghostty
+Alacritty	pacman:alacritty
+Kitty	pacman:kitty
+Foot	pacman:foot

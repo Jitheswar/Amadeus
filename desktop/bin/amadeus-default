@@ -7,7 +7,7 @@
 set -euo pipefail
 file=${XDG_CONFIG_HOME:-$HOME/.config}/amadeus/defaults
 declare -A FALLBACK=([terminal]=foot [editor]=nano [harness]="")
-EDITORS="nano nvim vim hx helix micro emacs code codium zed zeditor gnome-text-editor kate gedit"
+EDITORS="nano nvim vim hx helix micro emacs code codium cursor zed zeditor subl gnome-text-editor kate gedit"
 
 get() { local v; v=$(sed -n "s/^${1^^}=//p" "$file" 2>/dev/null | tail -1); printf '%s\n' "${v:-${FALLBACK[$1]}}"; }
 choices() {

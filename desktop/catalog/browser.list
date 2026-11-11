@@ -1,0 +1,13 @@
+# Browsers. Same format as terminal.list: the system repositories first, an AUR recipe of the publisher's build otherwise.
+Brave Origin	aur:brave-origin-bin
+Brave	aur:brave-bin
+Chromium	pacman:chromium
+Zen	aur:zen-browser-bin
+Google Chrome	aur:google-chrome
+Firefox	pacman:firefox
+Helium	aur:helium-browser-bin
+LibreWolf	pacman:librewolf aur:librewolf-bin aur:librewolf
+Tor Browser	pacman:torbrowser-launcher aur:tor-browser-bin
+Mullvad Browser	aur:mullvad-browser-bin
+Waterfox	aur:waterfox-bin
+Vivaldi	pacman:vivaldi

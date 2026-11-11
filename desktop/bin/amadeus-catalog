@@ -1,0 +1,63 @@
+#!/bin/bash
+# The install catalogue: named lists of software (terminals, browsers, editors, AI apps, development tools).
+#   amadeus-catalog                    the categories
+#   amadeus-catalog CATEGORY           what can be installed, with what is already installed marked
+#   amadeus-catalog info 'LINE'        details for one line of a list
+#   amadeus-catalog install 'LINE'...  install; system packages first, then AUR recipes, then mise tools
+# Each entry names its sources best first: the system repositories, then an AUR recipe, then mise.
+# The first source that still exists is used, so a renamed or removed package drops out by itself.
+set -euo pipefail
+DIR=${AMADEUS_CATALOG:-/usr/share/amadeus-os/catalog}
+aur_names=""
+have_aur() { [[ -n $aur_names ]] || aur_names=$(amadeus-aur list 2>/dev/null || true); grep -qxF "$1" <<<"$aur_names"; }
+
+# The first source in a list that exists right now.
+resolve() {
+  local s n
+  for s in $1; do
+    case $s in
+      pacman:*) n=${s#pacman:}; pacman -Si ${n//+/ } >/dev/null 2>&1 && { echo "$s"; return; } ;;
+      aur:*)    have_aur "${s#aur:}" && { echo "$s"; return; } ;;
+      mise:*)   mise registry "${s#mise:}" >/dev/null 2>&1 && { echo "$s"; return; } ;;
+    esac
+  done
+  return 1
+}
+installed() {
+  case $1 in
+    pacman:*|aur:*) local n=${1#*:}; pacman -Q "${n%%+*}" >/dev/null 2>&1 ;;
+    mise:*) mise ls --global "${1#mise:}" 2>/dev/null | grep -q . ;;
+  esac
+}
+
+case ${1:-} in
+  "") for f in "$DIR"/*.list; do basename "$f" .list; done ;;
+  info)
+    src=${2##*$'\t'}
+    case $src in
+      pacman:*) n=${src#pacman:}; pacman -Sii ${n//+/ } ;;
+      aur:*)    amadeus-aur info "${src#aur:}" ;;
+      mise:*)   amadeus-harness info "${src#mise:}" ;;
+    esac ;;
+  install)
+    shift; repo=() aur=() tools=()
+    for line in "$@"; do
+      src=${line##*$'\t'}
+      case $src in
+        pacman:*) n=${src#pacman:}; read -ra parts <<<"${n//+/ }"; repo+=("${parts[@]}") ;;
+        aur:*)    aur+=("${src#aur:}") ;;
+        mise:*)   tools+=("${src#mise:}") ;;
+      esac
+    done
+    (( ${#repo[@]} ))  && sudo pacman -S --needed -- "${repo[@]}"
+    (( ${#aur[@]} ))   && amadeus-aur install "${aur[@]}"
+    (( ${#tools[@]} )) && amadeus-harness install "${tools[@]}"
+    exit 0 ;;
+  *)
+    [[ -f $DIR/$1.list ]] || { echo "No category called $1. Categories: $("$0" | paste -sd' ')"; exit 1; }
+    grep -v '^#' "$DIR/$1.list" | while IFS=$'\t' read -r title sources; do
+      src=$(resolve "$sources") || continue
+      installed "$src" && title+="  (installed)"
+      printf '%s\t%s\n' "$title" "$src"
+    done ;;
+esac

@@ -48,6 +48,12 @@ hotkey-overlay { skip-at-startup; }
 
 spawn-at-startup "quickshell" "-p" "/usr/share/amadeus-os/shell"
 spawn-at-startup "swayidle" "-w"
+// Clipboard history: remembers what was copied so Super+Ctrl+V can bring it back.
+spawn-at-startup "wl-paste" "--type" "text" "--watch" "cliphist" "store"
+spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
+
+// Windows sent here are out of the way and one key from view (Super+S).
+workspace "scratchpad"
 spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
 
 // Amadeus approval prompts float in the centre.
@@ -78,11 +84,19 @@ binds {
     Mod+A hotkey-overlay-title="Ask Amadeus about this window" { spawn "ama" "panel" "window"; }
     Mod+B hotkey-overlay-title="Browser" { spawn "xdg-open" "https://"; }
     Mod+E hotkey-overlay-title="Files" { spawn "nautilus" "--new-window"; }
-    Mod+Escape hotkey-overlay-title="Power menu" { spawn "amadeus-power-menu"; }
+    Mod+Escape hotkey-overlay-title="System: lock, suspend, restart, shut down" { spawn "amadeus-power-menu"; }
+    Mod+Ctrl+V hotkey-overlay-title="Clipboard history" { spawn "amadeus-clipboard"; }
+    // Copy and paste that work the same in every application, terminals included.
+    Mod+C hotkey-overlay-title="Copy" { spawn "wtype" "-M" "ctrl" "-k" "Insert"; }
+    Mod+V hotkey-overlay-title="Paste" { spawn "wtype" "-M" "shift" "-k" "Insert"; }
+    Mod+S hotkey-overlay-title="Scratchpad" { spawn "amadeus-scratchpad"; }
+    Mod+Alt+S hotkey-overlay-title="Send window to scratchpad" { spawn "amadeus-scratchpad" "send"; }
     Mod+Ctrl+L hotkey-overlay-title="Lock" { spawn "swaylock" "-f"; }
-    Print { screenshot; }
-    Ctrl+Print { screenshot-screen; }
-    Alt+Print { screenshot-window; }
+    // Screenshots: choose an area, the whole screen, or the focused window. Saved and copied.
+    Print hotkey-overlay-title="Screenshot: choose an area" { screenshot; }
+    Shift+Print hotkey-overlay-title="Screenshot: whole screen" { screenshot-screen; }
+    Alt+Print hotkey-overlay-title="Screenshot: this window" { screenshot-window; }
+    Mod+Print hotkey-overlay-title="Screenshot: choose an area" { screenshot; }
 
     // Windows
     Mod+W { close-window; }
@@ -90,7 +104,7 @@ binds {
     Mod+M { maximize-column; }
     Mod+T { toggle-window-floating; }
     Mod+R { switch-preset-column-width; }
-    Mod+C { center-column; }
+    Mod+Ctrl+C { center-column; }
     Mod+O repeat=false { toggle-overview; }
     Mod+Left { focus-column-left; }
     Mod+Right { focus-column-right; }
@@ -115,15 +129,15 @@ binds {
     Mod+7 { focus-workspace 7; }
     Mod+8 { focus-workspace 8; }
     Mod+9 { focus-workspace 9; }
-    Mod+Shift+1 { move-column-to-workspace 1; }
-    Mod+Shift+2 { move-column-to-workspace 2; }
-    Mod+Shift+3 { move-column-to-workspace 3; }
-    Mod+Shift+4 { move-column-to-workspace 4; }
-    Mod+Shift+5 { move-column-to-workspace 5; }
-    Mod+Shift+6 { move-column-to-workspace 6; }
-    Mod+Shift+7 { move-column-to-workspace 7; }
-    Mod+Shift+8 { move-column-to-workspace 8; }
-    Mod+Shift+9 { move-column-to-workspace 9; }
+    Mod+Shift+1 { move-window-to-workspace 1; }
+    Mod+Shift+2 { move-window-to-workspace 2; }
+    Mod+Shift+3 { move-window-to-workspace 3; }
+    Mod+Shift+4 { move-window-to-workspace 4; }
+    Mod+Shift+5 { move-window-to-workspace 5; }
+    Mod+Shift+6 { move-window-to-workspace 6; }
+    Mod+Shift+7 { move-window-to-workspace 7; }
+    Mod+Shift+8 { move-window-to-workspace 8; }
+    Mod+Shift+9 { move-window-to-workspace 9; }
     Mod+WheelScrollDown cooldown-ms=150 { focus-workspace-down; }
     Mod+WheelScrollUp cooldown-ms=150 { focus-workspace-up; }
 

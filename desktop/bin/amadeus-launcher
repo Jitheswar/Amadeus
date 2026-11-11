@@ -41,7 +41,7 @@ def main():
     lines = sorted((f"{e.get('Name', i)}\t{i}" for i, e in apps.items()), key=str.lower)
     if "--print" in sys.argv:
         return print("\n".join(lines))
-    p = subprocess.run(["amadeus-pick", "--new", "Apps"], input="\n".join(lines), capture_output=True, text=True)
+    p = subprocess.run(["amadeus-pick", "--new", "--new-label", "Press Enter to ask Amadeus", "Apps"], input="\n".join(lines), capture_output=True, text=True)
     choice = p.stdout.strip()
     if p.returncode == 0 and "\t" in choice:
         start(apps[choice.split("\t")[1]])

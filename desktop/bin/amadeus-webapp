@@ -1,0 +1,44 @@
+#!/bin/bash
+# Web apps: a website in its own window with its own launcher entry, without a browser's bars.
+#   amadeus-webapp install NAME URL    add one
+#   amadeus-webapp list                the ones you have
+#   amadeus-webapp remove NAME...      remove
+#   amadeus-webapp launch URL          open a site as an app (what the launcher entries run)
+# They open in your default browser when it can show a site as an app (Chromium-based
+# browsers can), otherwise in any installed browser that can.
+set -euo pipefail
+apps=${XDG_DATA_HOME:-$HOME/.local/share}/applications
+icons=${XDG_DATA_HOME:-$HOME/.local/share}/amadeus/webapp-icons
+id() { printf 'amadeus-webapp-%s' "$(tr -cs 'A-Za-z0-9' '-' <<<"$1" | sed 's/^-*//; s/-*$//' | tr 'A-Z' 'a-z')"; }
+
+browser() {  # a browser that can open a site as an app: the default if it can, else the first that can
+  local def exe c
+  def=$(xdg-settings get default-web-browser 2>/dev/null || true)
+  exe=$(sed -n 's/^Exec=\([^ ]*\).*/\1/p' "/usr/share/applications/$def" 2>/dev/null | head -1)
+  for c in "$exe" brave-origin brave chromium google-chrome-stable helium-browser vivaldi; do
+    [[ -n $c ]] && command -v "$c" >/dev/null && "$c" --version 2>/dev/null | grep -qiE 'brave|chrom|helium|vivaldi' && { echo "$c"; return; }
+  done
+  return 1
+}
+
+case ${1:-} in
+  install)
+    name=${2:?name needed} url=${3:?address needed}
+    [[ $url == *://* ]] || url="https://$url"
+    mkdir -p "$apps" "$icons"
+    icon=applications-internet
+    # The site's own icon, fetched from the site itself.
+    host=$(sed -E 's#^[a-z]+://([^/]+).*#\1#' <<<"$url")
+    if curl -fsSL -m 8 -o "$icons/$(id "$name").ico" "https://$host/favicon.ico" 2>/dev/null && [[ -s $icons/$(id "$name").ico ]]; then icon="$icons/$(id "$name").ico"; fi
+    printf '[Desktop Entry]\nType=Application\nName=%s\nComment=%s\nExec=amadeus-webapp launch %s\nIcon=%s\nCategories=Network;\nX-Amadeus-WebApp=true\n' \
+      "$name" "$url" "$(printf '%q' "$url")" "$icon" >"$apps/$(id "$name").desktop"
+    echo "Added $name. It is in the launcher: Super+Space, Apps." ;;
+  list) grep -ls '^X-Amadeus-WebApp=true' "$apps"/*.desktop 2>/dev/null | while read -r f; do printf '%s\t%s\n' "$(sed -n 's/^Name=//p' "$f")" "$(sed -n 's/^Comment=//p' "$f")"; done ;;
+  remove)
+    shift
+    for name in "$@"; do name=${name%%$'\t'*}; rm -f "$apps/$(id "$name").desktop" "$icons/$(id "$name").ico" && echo "Removed $name."; done ;;
+  launch)
+    b=$(browser) || { notify-send -a Amadeus "No browser that can show web apps" "Install one: Super+Space, Install, Browser."; exit 1; }
+    exec "$b" --app="${2:?address needed}" ;;
+  *) sed -n 2,6p "$0"; exit 1 ;;
+esac

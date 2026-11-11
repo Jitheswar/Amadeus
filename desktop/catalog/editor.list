@@ -1,0 +1,9 @@
+# Editors. Same format as terminal.list.
+Neovim	pacman:neovim
+Visual Studio Code	aur:visual-studio-code-bin
+Vim	pacman:vim
+Emacs	pacman:emacs-wayland pacman:emacs
+Zed	pacman:zed
+Helix	pacman:helix
+Sublime Text	aur:sublime-text-4
+Cursor	aur:cursor-bin
