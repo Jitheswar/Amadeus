@@ -8,6 +8,7 @@
 - Installer: encrypted btrfs, snapshots on every package change, NVIDIA only when present
 - ISO build and VM test harness, both in a container; the full run passes: install, first boot, rollback from the system, rollback from the ISO
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
+- End-to-end AI request test on the installed system with a scripted model
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
 - Shortcut and command list (Super+K), read from the live configuration
 - Amadeus menu (Super+Space): Apps, Install, Remove, Update, Defaults
@@ -15,7 +16,7 @@
 - Applications outside the Arch repositories built from publisher releases; no third-party repository
 
 ## In progress
-1. A real AI request end to end on the installed system, and `amadeus-update`, in the VM
+1. `amadeus-update` in the VM; a real model driving the installed system
 2. Launcher and notifications inside the shell; one entry point for applications and the AI
 
 ## Next

@@ -101,9 +101,8 @@ build.sh     entry point
 
 | | |
 |---|---|
-| Verified in a VM (62 checks, all passing) | UEFI boot and unattended encrypted install; first boot into the niri desktop; snapshots; sandbox, policy and audit log; the Amadeus panel opening and reaching the daemon; the Amadeus menu; Super+K; the agent skill and `ama discover`; the six applications from publisher releases; rollback from the running system, and rollback from the ISO, each followed by a clean boot |
-| Verified by unit tests only | Undoing a whole task, stopping a task |
-| Not yet exercised | A real AI request end to end on the installed system (the VM has no provider login); `amadeus-update`; the interactive installer prompts |
+| Verified in a VM (72 checks, all passing) | UEFI boot and unattended encrypted install; first boot into the niri desktop; snapshots; sandbox, policy and audit log; AI requests end to end with a scripted model (tool run, approval, denial, opening an application, stop, undo of a whole task, two tasks in parallel, audit trail); the Amadeus panel opening and reaching the daemon; the Amadeus menu; Super+K; the agent skill and `ama discover`; the six applications from publisher releases; rollback from the running system, and rollback from the ISO, each followed by a clean boot |
+| Not yet exercised | A real model driving the system (the VM has no provider login, so the model is scripted); clicking through the panel by hand; `amadeus-update`; the interactive installer prompts |
 | Decided, not yet built | Launcher and notifications inside the shell (fuzzel and mako are used today); a mark on windows the AI is working in |
 | Never tested | Real hardware: the NVIDIA driver and power path, Dynamic Boost, Wi-Fi, suspend |
 
