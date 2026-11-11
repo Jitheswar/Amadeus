@@ -75,7 +75,7 @@ EXTRA_CMDLINE="console=tty0 console=ttyS0,115200"
 POST_HOOK=/run/amadeus-auto/posthook.sh
 """
     open(f"{VM}/answers.conf", "w").write(answers)
-    for src in (f"{VM}/answers.conf", f"{SRC}/posthook.sh", f"{SRC}/selftest.sh"):
+    for src in (f"{VM}/answers.conf", f"{SRC}/posthook.sh", f"{SRC}/selftest.sh", f"{SRC}/e2e.py"):
         subprocess.run(["mcopy", "-i", auto, src, "::"], check=True)
     cmd = BASE + ["-cdrom", iso]
     if os.path.isdir("/hostcache"):

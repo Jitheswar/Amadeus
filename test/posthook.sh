@@ -8,6 +8,7 @@ command = "niri-session"
 user = "$USER_NAME"
 G
 install -m755 /run/amadeus-auto/selftest.sh $T/usr/local/bin/amadeus-selftest
+install -m755 /run/amadeus-auto/e2e.py $T/usr/local/bin/amadeus-e2e
 sed -i "s/@USER@/$USER_NAME/" $T/usr/local/bin/amadeus-selftest
 cat >$T/etc/systemd/system/amadeus-selftest.service <<U
 [Unit]

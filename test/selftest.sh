@@ -96,6 +96,11 @@ t "agent skill installed for Claude Code"      test -f /home/$U/.claude/skills/a
 t "Amadeus panel opens and reaches the daemon" bash -c 'as ama panel show; sleep 2; s=$(as ama panel state); echo "$s"; echo "$s" | grep -q "\"open\": true.*\"connected\": true"'
 t "panel takes a window as context"            bash -c 'as ama panel window; as ama panel hide; sleep 1; as ama panel state | grep -q "\"open\": false"'
 t "audit log chain intact"                     as ama audit verify
+echo "--- AI requests end to end (scripted model; everything else is real)"
+while read -r line; do
+  echo "$line"
+  case $line in PASS*) pass=$((pass+1)) ;; FAIL*) fail=$((fail+1)) ;; esac
+done < <(as python3 /usr/local/bin/amadeus-e2e 2>&1)
 echo "--- applications outside the Arch repositories"
 for p in protonplus brave-origin-bin claude-desktop claude-code herdr-bin localsend-bin; do t "$p installed" pacman -Q $p; done
 echo "--- ama doctor"
