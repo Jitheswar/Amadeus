@@ -141,5 +141,5 @@ case $CMD in
     fi
     sync
     say "Done. Restart to use the system from snapshot $N."
-    [[ $LIVE == no ]] && echo "Until you restart, this session keeps running the old system; changes made now will not carry over." ;;
+    if [[ $LIVE == no ]]; then echo "Until you restart, this session keeps running the old system; changes made now will not carry over."; fi ;;
 esac

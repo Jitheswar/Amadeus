@@ -8,7 +8,8 @@ mkdir -p $A /mnt/hostcache
 mount /dev/disk/by-label/AMADEUSAUTO $A || exit 1
 if [[ -f $A/rescue.conf ]]; then
   source $A/rescue.conf
-  { if AMADEUS_LUKS_PASS=$LUKS_PASS amadeus-rollback --yes "$SNAPSHOT"; then echo "AMADEUS-RESCUE-RESULT: OK"; else echo "AMADEUS-RESCUE-RESULT: FAILED"; fi
+  export AMADEUS_LUKS_PASS=$LUKS_PASS
+  { if amadeus-rollback --yes "$SNAPSHOT"; then echo "AMADEUS-RESCUE-RESULT: OK"; else echo "AMADEUS-RESCUE-RESULT: FAILED"; fi
     amadeus-rollback list
   } 2>&1 | tee $A/rescue.log /dev/ttyS0 2>/dev/null
   rm -f $A/rescue.conf
