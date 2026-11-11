@@ -16,7 +16,7 @@ HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
   ama doctor                  verify drivers, GPU, sandbox and providers
   ama discover [--json]       a live map of this system: commands, files, tools, policy
   ama skill                   print the built-in guide that teaches an AI agent to manage this system
-  ama panel [toggle | show | hide | window | state]
+  ama panel [toggle | show | hide | window | state | ask TEXT]
                               the docked panel; `window` makes the next request about the focused window
   ama reload | daemon | mcp
 """
@@ -176,7 +176,9 @@ def panel_cmd(args):
             extra = [json.dumps({"id": w.get("id"), "app": w.get("app_id") or "", "title": (w.get("title") or "")[:120]})]
         else:
             action = "show"
-    if action not in ("toggle", "show", "hide", "window", "state"):
+    if action == "ask":
+        extra = [" ".join(args[1:])]
+    if action not in ("toggle", "show", "hide", "window", "state", "ask"):
         sys.exit(HELP)
 
     def call(fn, *a):

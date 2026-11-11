@@ -3,7 +3,7 @@
 Read `AGENTS.md` first, especially "Refresh pattern" and "Command naming".
 
 `desktop/` builds the `amadeus-desktop` package: compositor defaults in `desktop/niri/`,
-the bar in `desktop/bar/`, system commands in `desktop/bin/`, and the files every new
+the shell (bar, picker, notifications) in `desktop/shell/`, system commands in `desktop/bin/`, and the files every new
 user starts with in `desktop/skel/`.
 
 ## Rules
@@ -19,6 +19,8 @@ user starts with in `desktop/skel/`.
 - **The bar's layout is data.** A new widget is a component plus an id in the widget
   table in the bar, and the same id in the AI layer's list of bar widgets in
   `ai/amadeus/tools/desktop.py`. Both or neither.
+- **One picker.** Every list a user chooses from goes through `desktop/bin/amadeus-pick`,
+  which the shell draws. Do not add another menu program.
 - **State comes from events.** The bar reads the compositor's event stream. Do not add a
   timer where an event exists.
 - **Commands** follow the naming rule and carry their description on line 2. A command

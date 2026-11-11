@@ -80,7 +80,7 @@ def main():
     lines = [f"{k:<{width}}   {v}" for k, v in rows] + [f"{c:<{width}}   {d}  (command)" for c, d in cmds]
     if "--print" in sys.argv:
         return print("\n".join(lines))
-    subprocess.run(["fuzzel", "--dmenu", "--prompt", "Keys  ", "--width", "72", "--lines", "18"], input="\n".join(lines), text=True)
+    subprocess.run(["amadeus-pick", "Shortcuts and commands"], input="\n".join(lines), text=True, capture_output=True)
 
 
 main()

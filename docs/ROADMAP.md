@@ -10,6 +10,8 @@
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
 - End-to-end AI request test on the installed system with a scripted model
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
+- Launcher, menus and notifications drawn by the shell; text in the launcher that matches no application goes to Amadeus
+- Install menu for Arch packages and the AUR with a details pane; `amadeus-aur` with recipe review
 - Shortcut and command list (Super+K), read from the live configuration
 - Amadeus menu (Super+Space): Apps, Install, Remove, Update, Defaults
 - Desktop on niri: defaults, bar driven by the compositor's event stream, AI-managed include file that is validated before it is applied
@@ -17,15 +19,14 @@
 
 ## In progress
 1. `amadeus-update` in the VM; a real model driving the installed system
-2. Launcher and notifications inside the shell; one entry point for applications and the AI
 
 ## Next
-3. First install on the real machine: NVIDIA power-down, PRIME offload, Wi-Fi, suspend
-4. Snapshots selectable in the boot menu
-5. Local model as the offline fallback (a 4-bit 7B model fits the 6 GB card)
-6. Context awareness: the daemon follows compositor events and offers workspace layouts per activity
-7. Extending existing applications: side panels attached to an application's windows
-8. Offline install (all packages on the ISO)
+2. First install on the real machine: NVIDIA power-down, PRIME offload, Wi-Fi, suspend
+3. Snapshots selectable in the boot menu
+4. Local model as the offline fallback (a 4-bit 7B model fits the 6 GB card)
+5. Context awareness: the daemon follows compositor events and offers workspace layouts per activity
+6. Extending existing applications: side panels attached to an application's windows
+7. Offline install (all packages on the ISO)
 
 ## Not yet verified
 - Anything on real hardware

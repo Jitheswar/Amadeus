@@ -1,18 +1,27 @@
 #!/bin/bash
 # The Amadeus menu (Super+Space): Apps, Install, Remove, Update, Defaults.
 # Usage: amadeus-menu [apps|install|remove|update|defaults]
-pick()  { fuzzel --dmenu --prompt "$1  " "${@:2}"; }
+pick()  { amadeus-pick "$@"; }
 term()  { foot --title "Amadeus: $1" -e bash -c "$2; echo; read -rsn1 -p 'Press any key to close.'"; }
+quoted() { local out; out=$(xargs -d '\n' printf '%q ' <<<"$1"); printf '%s' "$out"; }
 
 install_menu() {
-  local pkg; pkg=$(pacman -Slq | sort -u | pick "Install" --lines 12) || exit 0
-  [[ -n $pkg ]] && term "install $pkg" "sudo pacman -S --needed -- $(printf '%q' "$pkg")"
+  local where pkgs
+  where=$(printf 'Packages\nAUR' | pick "Install from") || exit 0
+  if [[ $where == AUR ]]; then
+    # User-written recipes: the details pane shows who maintains each, Alt+B shows the recipe itself.
+    pkgs=$(amadeus-aur list | pick --multi --preview 'amadeus-aur info "$1"' --preview2 'amadeus-aur recipe "$1"' --hint recipe "Install from AUR") || exit 0
+    [[ -n $pkgs ]] && term "install from AUR" "amadeus-aur install $(quoted "$pkgs")"
+  else
+    pkgs=$(pacman -Slq | sort -u | pick --multi --preview 'pacman -Sii "$1"' "Install") || exit 0
+    [[ -n $pkgs ]] && term "install" "sudo pacman -S --needed -- $(quoted "$pkgs")"
+  fi
 }
 
 remove_menu() {
   # Only what was installed on purpose is offered; dependencies go with it.
-  local pkg; pkg=$(pacman -Qqe | pick "Remove" --lines 12) || exit 0
-  [[ -n $pkg ]] && term "remove $pkg" "sudo pacman -Rns -- $(printf '%q' "$pkg")"
+  local pkgs; pkgs=$(pacman -Qqe | pick --multi --preview 'pacman -Qi "$1"' "Remove") || exit 0
+  [[ -n $pkgs ]] && term "remove" "sudo pacman -Rns -- $(quoted "$pkgs")"
 }
 
 # Kind of file or link -> the types that decide which application opens it.
@@ -28,7 +37,7 @@ declare -A KINDS=(
 )
 
 defaults_menu() {
-  local kind; kind=$(printf '%s\n' Browser Files Images Video Music Documents Text Mail | pick "Default for" --lines 8) || exit 0
+  local kind; kind=$(printf '%s\n' Browser Files Images Video Music Documents Text Mail | pick "Default for") || exit 0
   local types=${KINDS[$kind]} first; [[ -n $types ]] || exit 0
   first=${types%% *}
   local -A byname=(); local f name
@@ -40,7 +49,7 @@ defaults_menu() {
   done
   (( ${#byname[@]} )) || { notify-send -a Amadeus "No application for $kind is installed"; exit 0; }
   local current; current=$(xdg-mime query default "$first")
-  local choice; choice=$(printf '%s\n' "${!byname[@]}" | sort | pick "$kind opens with" --lines 8) || exit 0
+  local choice; choice=$(printf '%s\n' "${!byname[@]}" | sort | pick "$kind opens with") || exit 0
   [[ -n ${byname[$choice]:-} ]] || exit 0
   # shellcheck disable=SC2086
   xdg-mime default "${byname[$choice]}" $types
@@ -48,8 +57,8 @@ defaults_menu() {
   notify-send -a Amadeus "$kind now opens with $choice" "Was: ${current:-not set}"
 }
 
-case ${1:-$(printf 'Apps\nInstall\nRemove\nUpdate\nDefaults' | pick "Amadeus" --lines 5)} in
-  Apps|apps)         exec fuzzel ;;
+case ${1:-$(printf 'Apps\nInstall\nRemove\nUpdate\nDefaults' | pick "Amadeus")} in
+  Apps|apps)         exec amadeus-launcher ;;
   Install|install)   install_menu ;;
   Remove|remove)     remove_menu ;;
   Update|update)     term "update" "amadeus-update" ;;

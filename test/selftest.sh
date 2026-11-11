@@ -6,7 +6,7 @@ pass=0 fail=0
 ok()   { echo "PASS  $1"; pass=$((pass+1)); }
 bad()  { echo "FAIL  $1 ${2:+— $2}"; fail=$((fail+1)); }
 t()    { local name=$1; shift; local out; if out=$("$@" 2>&1); then ok "$name"; else bad "$name" "$(echo "$out" | tail -2 | tr '\n' ' ')"; fi; }
-as()   { sudo -u $U env XDG_RUNTIME_DIR=$R WAYLAND_DISPLAY=wayland-1 NIRI_SOCKET="$(ls $R/niri.*.sock 2>/dev/null | head -1)" HOME=/home/$U PATH=/usr/bin "$@"; }
+as()   { sudo -u $U env XDG_RUNTIME_DIR=$R DBUS_SESSION_BUS_ADDRESS=unix:path=$R/bus WAYLAND_DISPLAY=wayland-1 NIRI_SOCKET="$(ls $R/niri.*.sock 2>/dev/null | head -1)" HOME=/home/$U PATH=/usr/bin "$@"; }
 export U R; export -f as
 echo "AMADEUS-SELFTEST-BEGIN"
 for _ in $(seq 60); do [[ -S $R/amadeus/daemon.sock ]] && pgrep -x niri >/dev/null && break; sleep 2; done
@@ -75,7 +75,14 @@ t "rollback removes the package again"         bash -c "snapper -c root undochan
 echo "--- desktop session"
 t "greeter service running"                    systemctl is-active greetd
 t "niri is running"                            pgrep -x niri
-t "bar is running"                             pgrep -f 'quickshell -p /usr/share/amadeus-os/bar'
+t "shell is running"                           pgrep -f 'quickshell -p /usr/share/amadeus-os/shell'
+shell() { as quickshell ipc -p /usr/share/amadeus-os/shell call "$@"; }; export -f shell
+t "picker shows a list and returns the choice" bash -c '(printf "alpha\nbeta\n" | as amadeus-pick Test >/tmp/pick.out 2>&1 &); sleep 2; s=$(shell shell state); echo "$s"; echo "$s" | grep -q "\"picker\":true,\"pickerItems\":2" && shell pick choose beta && sleep 1 && grep -qx beta /tmp/pick.out'
+t "picker closes without a choice"             bash -c '(printf "a\n" | as amadeus-pick Test >/tmp/pick2.out 2>&1; echo "rc=$?" >>/tmp/pick2.out) & sleep 2; shell pick cancel; sleep 1; grep -qx "rc=1" /tmp/pick2.out'
+t "notifications are shown by the shell"       bash -c 'as notify-send "Self-test" "hello"; sleep 1; s=$(shell shell state); echo "$s"; echo "$s" | grep -q "\"notifications\":[1-9]"'
+t "launcher lists installed applications"      bash -c 'as amadeus-launcher --print | grep -q "^Steam"'
+t "no separate launcher or notification program" bash -c '! pacman -Q fuzzel mako 2>/dev/null | grep -q .'
+t "AUR lookup works"                           bash -c 'as amadeus-aur info protonplus | grep -q "^Name"'
 t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/niri/default.kdl'
 t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
 t "desktop config is valid"                    as niri validate -c /home/$U/.config/niri/config.kdl

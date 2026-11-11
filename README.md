@@ -62,9 +62,10 @@ means that window.
 | `ama doctor` | check drivers, GPU, sandbox, providers and applications |
 | `ama discover` | a live map of the system: commands, files, tools, permissions |
 | `Super+K` | every keyboard shortcut and system command, searchable |
-| `Super+Space` | the Amadeus menu: Apps, Install, Remove, Update, Defaults |
+| `Super+Space` | the Amadeus menu: Apps, Install (Arch packages or AUR, with details beside the list), Remove, Update, Defaults |
 | `Super+Z` · `Super+A` | the Amadeus panel · the panel, about the focused window |
-| `amadeus-update` | update the system and the applications from outside the Arch repositories |
+| `amadeus-update` | update the system and the applications from the AUR |
+| `amadeus-aur` | look up, review, build and install applications from the AUR |
 | `amadeus-rollback` | list snapshots, or go back to one |
 
 ## Build
@@ -103,7 +104,7 @@ build.sh     entry point
 |---|---|
 | Verified in a VM (72 checks, all passing) | UEFI boot and unattended encrypted install; first boot into the niri desktop; snapshots; sandbox, policy and audit log; AI requests end to end with a scripted model (tool run, approval, denial, opening an application, stop, undo of a whole task, two tasks in parallel, audit trail); the Amadeus panel opening and reaching the daemon; the Amadeus menu; Super+K; the agent skill and `ama discover`; the six applications from publisher releases; rollback from the running system, and rollback from the ISO, each followed by a clean boot |
 | Not yet exercised | A real model driving the system (the VM has no provider login, so the model is scripted); clicking through the panel by hand; `amadeus-update`; the interactive installer prompts |
-| Decided, not yet built | Launcher and notifications inside the shell (fuzzel and mako are used today); a mark on windows the AI is working in |
+| Decided, not yet built | A mark on windows the AI is working in |
 | Never tested | Real hardware: the NVIDIA driver and power path, Dynamic Boost, Wi-Fi, suspend |
 
 The earlier Arch + Hyprland version is kept under the tag `v0-arch`.

@@ -101,6 +101,8 @@ ShellRoot {
             try { root.about = JSON.parse(json) } catch (e) { root.about = null }
             root.open = true; input.input.forceActiveFocus()
         }
+        // Start a new task from outside (the launcher sends text here that matched no application).
+        function ask(text: string): void { root.open = true; input.text = text; root.submit(true) }
         function state(): string { return JSON.stringify({ open: root.open, tasks: root.nextTask, running: root.running, connected: sock.connected }) }
     }
     ListModel { id: log }

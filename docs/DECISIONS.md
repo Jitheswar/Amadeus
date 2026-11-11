@@ -89,8 +89,12 @@ One toolkit for the bar, launcher, notifications, AI surfaces and generated apps
   component library, a lint pass before a new version replaces the working one, and
   per-app version history.
 
-The launcher and notifications are part of the shell rather than separate programs
-*(planned; fuzzel and mako are used today)*.
+The launcher, every menu and notifications are part of the shell rather than separate
+programs: one picker draws all lists (applications, the Amadeus menu, packages with a
+details pane), so there is one look and two fewer packages. Applications from the AUR
+are built by `amadeus-aur`, a short script, instead of a third-party helper such as yay:
+it shows where a recipe downloads from and asks before building, because AUR recipes
+are written by users and are the least trusted software on the system.
 
 ## AI layer: Python standard library
 

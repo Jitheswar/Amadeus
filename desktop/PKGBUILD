@@ -1,19 +1,19 @@
 pkgname=amadeus-desktop
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="Amadeus OS desktop: niri defaults, bar, system tools and user skeleton"
+pkgdesc="Amadeus OS desktop: niri defaults, shell (bar, picker, notifications), system tools and user skeleton"
 arch=(any)
 license=(MIT)
-depends=(niri xwayland-satellite quickshell foot fuzzel mako swaylock swayidle polkit-gnome wl-clipboard brightnessctl networkmanager wireplumber xdg-utils libnotify)
+depends=(niri xwayland-satellite quickshell foot swaylock swayidle polkit-gnome wl-clipboard brightnessctl networkmanager wireplumber xdg-utils libnotify)
 options=(!debug)
 
 package() {
   local src="$startdir"
   install -Dm644 "$src/niri/default.kdl" -t "$pkgdir/usr/share/amadeus-os/niri/"
-  install -Dm644 "$src/bar/shell.qml" -t "$pkgdir/usr/share/amadeus-os/bar/"
+  install -Dm644 "$src"/shell/*.qml -t "$pkgdir/usr/share/amadeus-os/shell/"
   install -Dm755 "$src"/bin/* -t "$pkgdir/usr/bin/"
   cp -r "$src/skel" "$pkgdir/etc-skel" && install -d "$pkgdir/etc" && mv "$pkgdir/etc-skel" "$pkgdir/etc/skel"
-  install -Dm644 "$src/bar/bar.default.json" "$pkgdir/etc/skel/.config/amadeus/bar.json"
+  install -Dm644 "$src/shell/bar.default.json" "$pkgdir/etc/skel/.config/amadeus/bar.json"
   install -Dm644 /dev/stdin "$pkgdir/usr/lib/os-release.amadeus" <<'OS'
 NAME="Amadeus OS"
 PRETTY_NAME="Amadeus OS"

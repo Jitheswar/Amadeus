@@ -1,0 +1,95 @@
+#!/bin/bash
+# Applications from the Arch User Repository: look them up, review the recipe, build and install.
+#   amadeus-aur list                names of everything in the AUR (refreshed once a day)
+#   amadeus-aur info NAME           what it is, who maintains it, how popular, what it needs
+#   amadeus-aur recipe NAME         the build recipe, which is what you are trusting
+#   amadeus-aur install NAME...     show each recipe, ask, then build and install (with its AUR dependencies)
+#   amadeus-aur update              rebuild installed AUR packages that have a newer version
+# AUR recipes are written by users, not by Arch. Run as your user; it asks for the password when needed.
+set -euo pipefail
+AUR=https://aur.archlinux.org
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/amadeus-aur
+mkdir -p "$cache"
+(( EUID != 0 )) || { echo "Run amadeus-aur as your user; it asks for the password when needed."; exit 1; }
+declare -A seen=()
+
+rpc() {  # NAME... -> JSON
+  local args; args=$(printf '&arg[]=%s' "$@")
+  curl -fsS "$AUR/rpc/v5/info?${args#&}"
+}
+
+info() {
+  rpc "$1" | python3 -c '
+import json, sys, time
+r = json.load(sys.stdin)["results"]
+if not r: sys.exit("Not in the AUR.")
+r = r[0]
+rows = [("Name", r["Name"]), ("Version", r["Version"]), ("About", r.get("Description") or ""), ("Website", r.get("URL") or ""),
+        ("Maintainer", r.get("Maintainer") or "none (orphaned)"), ("Votes", r.get("NumVotes")), ("Popularity", round(r.get("Popularity") or 0, 2)),
+        ("Updated", time.strftime("%Y-%m-%d", time.gmtime(r.get("LastModified") or 0))),
+        ("Out of date", "yes, flagged " + time.strftime("%Y-%m-%d", time.gmtime(r["OutOfDate"])) if r.get("OutOfDate") else "no"),
+        ("Needs", "  ".join(r.get("Depends") or []) or "nothing"), ("Needs to build", "  ".join(r.get("MakeDepends") or []) or "nothing")]
+for k, v in rows: print(f"{k:<15}: {v}")
+print("\nThis recipe is written by a user, not by Arch. Alt+B shows it.")'
+}
+
+fetch() {  # NAME -> clones the recipe into $cache/NAME
+  rm -rf "${cache:?}/$1"
+  git clone -q --depth 1 "$AUR/$1.git" "$cache/$1"
+  [[ -f $cache/$1/PKGBUILD ]] || { echo "  $1 is not in the AUR."; return 1; }
+}
+
+build() {  # NAME: build and install, AUR dependencies first
+  local name=$1 dep
+  [[ -z ${seen[$name]:-} ]] || return 0
+  seen[$name]=1
+  echo; echo "==> $name"
+  fetch "$name" || return 1
+  for dep in $(sed -nE 's/^\s*(make|check)?depends(_x86_64)? = ([^<>=: ]+).*/\3/p' "$cache/$name/.SRCINFO" | sort -u); do
+    pacman -T "$dep" >/dev/null 2>&1 && continue          # already satisfied
+    pacman -Si "$dep" >/dev/null 2>&1 && continue          # in the Arch repositories; installed during the build
+    pacman -Ssq "^${dep//+/\\+}$" >/dev/null 2>&1 && continue
+    echo "  $name needs $dep, which also comes from the AUR."
+    build "$dep" || { echo "  $dep could not be installed, so $name was skipped."; return 1; }
+  done
+  if [[ -z ${AMADEUS_AUR_YES:-} ]]; then
+    echo "  Downloads from:"
+    sed -nE 's/^\s*source(_x86_64)? = (.*::)?(.*)/    \3/p' "$cache/$name/.SRCINFO" | grep -E '://' || echo "    (only files inside the recipe)"
+    while :; do
+      read -rp "  Build and install $name? [y]es / [n]o / [v]iew the recipe: " answer
+      case ${answer,,} in
+        y|yes) break ;;
+        v|view) ${PAGER:-less} "$cache/$name/PKGBUILD" ;;
+        *) echo "  Skipped $name."; return 1 ;;
+      esac
+    done
+  fi
+  (cd "$cache/$name" && makepkg -sif --needed ${AMADEUS_AUR_YES:+--noconfirm}) || { echo "  $name could not be built; nothing was changed for it."; return 1; }
+}
+
+case ${1:-} in
+  list)
+    f=$cache/names
+    if [[ ! -s $f || -n $(find "$f" -mmin +1440 2>/dev/null) ]]; then
+      curl -fsS "$AUR/packages.gz" | gunzip >"$f.new" && mv "$f.new" "$f" || { [[ -s $f ]] || { echo "Could not reach the AUR." >&2; exit 1; }; }
+    fi
+    cat "$f" ;;
+  info)    info "${2:?name needed}" ;;
+  recipe)  curl -fsS "$AUR/cgit/aur.git/plain/PKGBUILD?h=${2:?name needed}" ;;
+  install)
+    shift; (( $# )) || { sed -n 3,8p "$0"; exit 1; }
+    failed=0
+    for n in "$@"; do build "$n" || failed=1; done
+    exit $failed ;;
+  update)
+    mapfile -t foreign < <(pacman -Qmq | grep -vxE 'amadeus|amadeus-desktop' || true)
+    (( ${#foreign[@]} )) || exit 0
+    latest=$(rpc "${foreign[@]}" | python3 -c 'import json, sys
+for r in json.load(sys.stdin)["results"]: print(r["Name"], r["Version"])') || { echo "Could not reach the AUR; applications from it were not checked."; exit 0; }
+    while read -r name ver; do
+      [[ -n $name && $(vercmp "$ver" "$(pacman -Q "$name" | cut -d" " -f2)") -gt 0 ]] || continue
+      echo "==> Updating $name to $ver"
+      AMADEUS_AUR_YES=1 build "$name" </dev/tty || echo "    $name could not be updated; the installed version is unchanged."
+    done <<<"$latest" ;;
+  *) sed -n 2,9p "$0"; exit 1 ;;
+esac

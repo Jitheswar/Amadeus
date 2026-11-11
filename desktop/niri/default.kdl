@@ -30,8 +30,7 @@ prefer-no-csd
 screenshot-path "~/Pictures/Screenshots/%Y-%m-%d_%H-%M-%S.png"
 hotkey-overlay { skip-at-startup; }
 
-spawn-at-startup "quickshell" "-p" "/usr/share/amadeus-os/bar"
-spawn-at-startup "mako"
+spawn-at-startup "quickshell" "-p" "/usr/share/amadeus-os/shell"
 spawn-at-startup "swayidle" "-w"
 spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
 

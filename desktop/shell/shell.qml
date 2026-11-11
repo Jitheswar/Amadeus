@@ -2,9 +2,10 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The Amadeus OS bar. Its layout is data: ~/.config/amadeus/bar.json lists widget ids
-// for left, center and right, and the bar rebuilds when that file changes, so both
-// the user and Amadeus can rearrange it without touching code.
+// The Amadeus OS shell: the bar, the picker (applications, menus, packages) and notifications.
+// The bar's layout is data: ~/.config/amadeus/bar.json lists widget ids for left, center
+// and right, and the bar rebuilds when that file changes, so both the user and Amadeus
+// can rearrange it without touching code.
 ShellRoot {
     id: root
     readonly property color bg: "#142620"
@@ -12,6 +13,21 @@ ShellRoot {
     readonly property color accent: "#8bcbb1"
     readonly property color dim: "#7f9a8f"
     readonly property color warn: "#e0af68"
+    readonly property color muted: "#2b5147"
+
+    Picker { id: picker; style: root }
+    Notifications { id: notifications; style: root }
+    IpcHandler {
+        target: "pick"
+        function start(prompt: string, infile: string, pipe: string, options: string): void { picker.start(prompt, infile, pipe, options) }
+        // For automation and tests: choose a line by its text, or close.
+        function choose(line: string): void { if (picker.open) picker.finish("ok", [line]) }
+        function cancel(): void { if (picker.open) picker.finish("cancel", []) }
+    }
+    IpcHandler {
+        target: "shell"
+        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, notifications: notifications.count }) }
+    }
     property var layout: ({ left: ["workspaces", "title"], center: ["clock"], right: ["gpu", "network", "volume", "battery", "amadeus"] })
     property var status: ({ battery: "", charging: false, net: "", volume: "", gpu: "" })
 

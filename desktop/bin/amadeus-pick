@@ -1,0 +1,33 @@
+#!/bin/bash
+# Choose from a list in the Amadeus picker: lines come in on standard input, the choice is printed.
+#   amadeus-pick [options] PROMPT
+#     --multi              several lines may be chosen (Tab); one is printed per line
+#     --preview CMD        show details beside the list; CMD is a shell command, the line is "$1"
+#     --preview2 CMD       a second details view, toggled with Alt+B; --hint NAME labels it
+#     --new                typed text that matches nothing is accepted: printed, exit status 2
+# A line may be "shown text<TAB>anything": only the text before the tab is shown, the whole line is printed.
+# Exit status: 0 chosen, 1 closed without choosing, 2 new text.
+set -euo pipefail
+multi=false new=false preview="" preview2="" hint=""
+while [[ ${1:-} == --* ]]; do
+  case $1 in
+    --multi) multi=true ;; --new) new=true ;;
+    --preview) preview=$2; shift ;; --preview2) preview2=$2; shift ;; --hint) hint=$2; shift ;;
+    *) echo "amadeus-pick: unknown option $1" >&2; exit 1 ;;
+  esac
+  shift
+done
+dir=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/amadeus-pick.XXXXXX")
+trap 'rm -rf "$dir"' EXIT
+cat >"$dir/in"
+mkfifo "$dir/out"
+options=$(python3 -c 'import json, sys; print(json.dumps({"multi": sys.argv[1] == "true", "allowNew": sys.argv[2] == "true", "preview": sys.argv[3], "preview2": sys.argv[4], "hint": sys.argv[5]}))' \
+  "$multi" "$new" "$preview" "$preview2" "$hint")
+quickshell ipc -p /usr/share/amadeus-os/shell call pick start "${1:-Choose}" "$dir/in" "$dir/out" "$options" >/dev/null \
+  || { echo "amadeus-pick: the desktop shell is not running" >&2; exit 1; }
+{ read -r status; choice=$(cat); } <"$dir/out"
+case $status in
+  ok)  printf '%s\n' "$choice" ;;
+  new) printf '%s\n' "$choice"; exit 2 ;;
+  *)   exit 1 ;;
+esac
