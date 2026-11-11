@@ -6,7 +6,7 @@
 - Generated-app framework: manifest, sandbox, component library, lint, version history
 - Root mode: separate root helper, restricted or unrestricted, time limit, gone at shutdown
 - Installer: encrypted btrfs, snapshots on every package change, NVIDIA only when present
-- ISO build and VM test harness, both in a container
+- ISO build and VM test harness, both in a container; the full run passes: install, first boot, rollback from the system, rollback from the ISO
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
 - Shortcut and command list (Super+K), read from the live configuration
@@ -15,7 +15,7 @@
 - Applications outside the Arch repositories built from publisher releases; no third-party repository
 
 ## In progress
-1. VM run of the niri desktop, `amadeus-rollback` (running system and ISO) and `amadeus-update`
+1. A real AI request end to end on the installed system, and `amadeus-update`, in the VM
 2. Launcher and notifications inside the shell; one entry point for applications and the AI
 
 ## Next

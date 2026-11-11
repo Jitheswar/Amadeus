@@ -10,8 +10,8 @@ and works without any AI provider or network connection.
 It is built for one machine: Core i5-13450HX, RTX 3050 6 GB with Intel UHD graphics,
 16 GB RAM, 1 TB NVMe. Nothing is included for hardware that machine does not have.
 
-> **Status: pre-release.** The ISO installs and passes its self-test in a virtual
-> machine. It has not been installed on real hardware yet. See [Status](#status).
+> **Status: pre-release.** The ISO installs, boots and rolls back in a virtual machine,
+> passing every check. It has not been installed on real hardware yet. See [Status](#status).
 
 ## What you get
 
@@ -101,9 +101,12 @@ build.sh     entry point
 
 | | |
 |---|---|
-| Verified in a VM (tag `v0-arch`, the earlier Hyprland desktop) | UEFI boot, unattended encrypted install, first boot into the desktop, snapshots, sandbox, policy, audit log; 35 of 35 checks |
-| Built and checked in the build container, not yet run in a VM | The niri desktop (configuration validates; the AI's config tool rejects a bad change and keeps the old one), `amadeus-rollback`, `amadeus-update`, the six applications built from publisher releases |
+| Verified in a VM (62 checks, all passing) | UEFI boot and unattended encrypted install; first boot into the niri desktop; snapshots; sandbox, policy and audit log; the Amadeus panel opening and reaching the daemon; the Amadeus menu; Super+K; the agent skill and `ama discover`; the six applications from publisher releases; rollback from the running system, and rollback from the ISO, each followed by a clean boot |
+| Verified by unit tests only | Undoing a whole task, stopping a task |
+| Not yet exercised | A real AI request end to end on the installed system (the VM has no provider login); `amadeus-update`; the interactive installer prompts |
 | Decided, not yet built | Launcher and notifications inside the shell (fuzzel and mako are used today); a mark on windows the AI is working in |
-| Never tested | Real hardware: the NVIDIA power path, Wi-Fi, suspend, the interactive installer |
+| Never tested | Real hardware: the NVIDIA driver and power path, Dynamic Boost, Wi-Fi, suspend |
+
+The earlier Arch + Hyprland version is kept under the tag `v0-arch`.
 
 Next steps are in [docs/ROADMAP.md](docs/ROADMAP.md).
