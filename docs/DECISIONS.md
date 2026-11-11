@@ -47,6 +47,19 @@ into the repository on the ISO; `amadeus-update` keeps them current.
   3050 is supported by the open module) with runtime power management `0x02`, so the
   card is fully powered down when idle. Applications are offloaded one at a time
   (`gpu-run`, or the AI decides per application). Nothing sets NVIDIA globally.
+- **Driver package: `nvidia-open`**, rechecked against the card (GA107BM, `10de:25ec`,
+  Ampere) and driver branch 615: the open kernel module is NVIDIA's supported path for
+  this generation, it is prebuilt for the `linux` kernel and versioned in lockstep with
+  `nvidia-utils`, so there is no DKMS compile and no window where kernel and module
+  disagree. The GPU firmware ships in `nvidia-utils`; `linux-firmware-nvidia` is only for
+  nouveau and is not installed. `lib32-nvidia-utils` is there for Proton.
+- **Dynamic Boost on (`nvidia-powerd`).** The laptop firmware reports it as supported. It
+  is the one GPU daemon worth running: under load it shifts power budget from the CPU
+  to the GPU, which is where games on this machine are limited.
+- **CUDA is installed on demand**, not preinstalled: the toolkit is 5 GB.
+- Left at the driver default, to be tried on the real machine: S0ix video-memory
+  self-refresh (`NVreg_EnableS0ixPowerManagement`). The platform supports it and only
+  offers s2idle sleep, but if deep idle is not reached it costs battery during sleep.
 - No GPU switching daemon (optimus-manager, envycontrol, supergfxctl): PRIME render
   offload in the kernel and driver already does this without a background service.
 - Video decode: `intel-media-driver` (VA-API) on Intel; `libva-nvidia-driver` when an

@@ -149,7 +149,9 @@ if [[ $NVIDIA == yes ]]; then
 ACTION=="bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="auto"
 ACTION=="unbind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="on"
 U
-  ch systemctl enable nvidia-suspend nvidia-resume nvidia-hibernate >/dev/null 2>&1 || true
+  # nvidia-powerd is Dynamic Boost: in games it moves power budget from the CPU to the GPU.
+  # This laptop's firmware supports it; where it is not supported the service simply exits.
+  ch systemctl enable nvidia-suspend nvidia-resume nvidia-hibernate nvidia-powerd >/dev/null 2>&1 || true
 fi
 
 # ---- boot --------------------------------------------------------------------
