@@ -3,8 +3,10 @@
 #   ./build.sh iso     build out/amadeus-os-<date>-x86_64.iso
 #   ./build.sh test    install the ISO in a VM, boot it, run the self-test and both rollback paths
 #   ./build.sh shell   a shell in the build container
+#   ./build.sh check   fast checks without a container: syntax, unit tests, guides match the repo
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
+[[ ${1:-} == check ]] && exec python3 "$here/test/check.py"
 mkdir -p "$here/out"
 docker=(docker); docker info >/dev/null 2>&1 || docker=(sudo docker)
 "${docker[@]}" build -q -t amadeus-builder "$here/iso" >/dev/null
@@ -14,5 +16,5 @@ case ${1:-iso} in
   iso)   "${run[@]}" amadeus-builder bash /src/iso/mkiso.sh ;;
   test)  "${run[@]}" amadeus-builder python3 /src/test/vm-test.py "${@:2}" ;;
   shell) "${run[@]}" -it amadeus-builder bash ;;
-  *)     sed -n 2,5p "$0"; exit 1 ;;
+  *)     sed -n 2,6p "$0"; exit 1 ;;
 esac

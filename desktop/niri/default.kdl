@@ -1,7 +1,7 @@
 // Amadeus OS desktop defaults. Shipped in /usr/share/amadeus-os and updated with the system.
 // Personal changes belong in ~/.config/niri/config.kdl, which includes this file first.
 // Nothing here selects the NVIDIA card: the compositor and ordinary applications render on
-// the Intel GPU, and Amadeus (or `gpu-run <app>`) sends individual applications to NVIDIA.
+// the Intel GPU, and Amadeus (or `amadeus-gpu-run <app>`) sends individual applications to NVIDIA.
 
 input {
     keyboard { xkb { layout "us"; }; }

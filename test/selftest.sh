@@ -1,4 +1,5 @@
 #!/bin/bash
+# First-boot self-test for the VM harness. Runs as root on the installed system; reports to the answers disk.
 exec > >(tee /dev/ttyS0 /var/log/amadeus-selftest.log) 2>&1
 U=@USER@; UID_=$(id -u $U); R=/run/user/$UID_
 pass=0 fail=0

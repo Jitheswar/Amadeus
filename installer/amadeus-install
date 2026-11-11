@@ -95,8 +95,13 @@ CONF=$(mktemp)
 } >"$CONF"
 LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps)"
 [[ $NVIDIA == yes ]] && LIST+=" $(pkgs $SHARE/packages.nvidia)"
-# shellcheck disable=SC2086
-pacstrap -C "$CONF" -K $T $LIST
+# A stalled download should not end the install: what was fetched is kept, so retry.
+for try in 1 2 3; do
+  # shellcheck disable=SC2086
+  pacstrap -C "$CONF" -K $T $LIST && break
+  (( try < 3 )) || die "packages could not be downloaded; check the connection and run amadeus-install again"
+  echo "  Download interrupted; trying again ($try of 2)."; sleep 5
+done
 
 # Amadeus itself and the applications that are not in the Arch repositories are on this
 # medium. They are installed from their files directly, so a same-named package in a

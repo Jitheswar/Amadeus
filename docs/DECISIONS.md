@@ -46,7 +46,7 @@ into the repository on the ISO; `amadeus-update` keeps them current.
 - **Intel renders the desktop; NVIDIA is off until asked for.** `nvidia-open` (the RTX
   3050 is supported by the open module) with runtime power management `0x02`, so the
   card is fully powered down when idle. Applications are offloaded one at a time
-  (`gpu-run`, or the AI decides per application). Nothing sets NVIDIA globally.
+  (`amadeus-gpu-run`, or the AI decides per application). Nothing sets NVIDIA globally.
 - **Driver package: `nvidia-open`**, rechecked against the card (GA107BM, `10de:25ec`,
   Ampere) and driver branch 615: the open kernel module is NVIDIA's supported path for
   this generation, it is prebuilt for the `linux` kernel and versioned in lockstep with
