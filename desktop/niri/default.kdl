@@ -10,14 +10,28 @@ input {
 }
 
 layout {
-    gaps 8
+    gaps 10
     center-focused-column "never"
     preset-column-widths { proportion 0.33333; proportion 0.5; proportion 0.66667; }
     default-column-width { proportion 0.5; }
-    focus-ring { width 2; active-color "#8bcbb1"; inactive-color "#2b5147"; }
+    focus-ring { width 2; active-gradient from="#ffa14a" to="#ff6f3c" angle=45; inactive-color "#342f29"; }
     border { off; }
-    background-color "#142620"
+    shadow { on; softness 28; spread 4; offset x=0 y=6; color "#00000066"; }
+    background-color "#0f0e0d"
 }
+
+// Motion: short and decisive. Springs are critically damped, so windows arrive fast and
+// settle without bouncing; opening and closing are quick eases.
+animations {
+    workspace-switch { spring damping-ratio=1.0 stiffness=1000 epsilon=0.0001; }
+    horizontal-view-movement { spring damping-ratio=1.0 stiffness=900 epsilon=0.0001; }
+    window-movement { spring damping-ratio=1.0 stiffness=900 epsilon=0.0001; }
+    window-resize { spring damping-ratio=1.0 stiffness=900 epsilon=0.0001; }
+    overview-open-close { spring damping-ratio=1.0 stiffness=900 epsilon=0.0001; }
+    window-open { duration-ms 160; curve "ease-out-expo"; }
+    window-close { duration-ms 120; curve "ease-out-quad"; }
+}
+overview { backdrop-color "#0f0e0d"; }
 
 environment {
     QT_QPA_PLATFORM "wayland;xcb"
@@ -40,7 +54,7 @@ window-rule {
     open-floating true
 }
 window-rule {
-    geometry-corner-radius 8
+    geometry-corner-radius 12
     clip-to-geometry true
 }
 // Games get the whole screen.

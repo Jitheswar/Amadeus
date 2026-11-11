@@ -27,7 +27,8 @@ class Model(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers["content-length"])))
         msgs = body["messages"]
         last_user = max(i for i, m in enumerate(msgs) if m["role"] == "user")
-        scenario = msgs[last_user]["content"].split("E2E:")[-1].split()[0]
+        text = msgs[last_user]["content"]
+        scenario = text.split("E2E:")[-1].split()[0] if "E2E:" in text else "read"
         answered = any(m["role"] == "tool" for m in msgs[last_user:])
         if scenario == "slow" and not answered:
             time.sleep(4)
@@ -168,4 +169,5 @@ def main():
     sys.exit(1 if fails else 0)
 
 
-main()
+if __name__ == "__main__":
+    main()

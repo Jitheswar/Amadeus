@@ -148,7 +148,7 @@ cat >$T/etc/greetd/config.toml <<G
 [terminal]
 vt = 1
 [default_session]
-command = "tuigreet --time --remember --asterisks --greeting 'Amadeus OS · El Psy Kongroo' --cmd niri-session"
+command = "tuigreet --time --remember --asterisks --greeting 'Amadeus OS · El Psy Kongroo' --theme 'border=yellow;title=yellow;greet=white;prompt=yellow;input=white;time=gray;action=gray;button=yellow;container=black' --cmd niri-session"
 user = "greeter"
 G
 

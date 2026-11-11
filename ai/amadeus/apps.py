@@ -180,14 +180,12 @@ def _desktop_entry(m):
 
 def theme_env():
     env = {}
-    f = config.CONFIG / "theme.toml"
-    f = f if f.exists() else None
-    try:
-        c = tomllib.loads(f.read_text()) if f else {}
-        pairs = {"AMA_BG": "background", "AMA_FG": "foreground", "AMA_ACCENT": "accent", "AMA_GOOD": "color2", "AMA_WARN": "color3", "AMA_BAD": "color1"}
-        env = {k: c[v] for k, v in pairs.items() if isinstance(c.get(v), str)}
-    except (OSError, tomllib.TOMLDecodeError):
-        pass
+    # The system theme, then the user's own on top. Every key becomes AMA_<KEY> for the UI components.
+    for f in (Path("/usr/share/amadeus-os/theme.json"), config.CONFIG / "theme.json"):
+        try:
+            env.update({f"AMA_{k.upper()}": str(v) for k, v in json.loads(f.read_text()).items() if isinstance(v, (str, int))})
+        except (OSError, json.JSONDecodeError, AttributeError):
+            pass
     return env
 
 

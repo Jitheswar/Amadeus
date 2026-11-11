@@ -5,4 +5,4 @@ niri xwayland-satellite quickshell qt6-wayland foot swaylock swayidle polkit-gno
 xdg-desktop-portal-gnome xdg-desktop-portal-gtk gnome-keyring xdg-user-dirs xdg-utils libnotify
 greetd greetd-tuigreet
 wl-clipboard brightnessctl playerctl
-noto-fonts noto-fonts-emoji ttf-jetbrains-mono
+inter-font noto-fonts noto-fonts-emoji ttf-jetbrains-mono

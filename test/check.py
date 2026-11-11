@@ -69,7 +69,17 @@ for g in guides + ["README.md"] + sorted(f for f in files if f.startswith("docs/
         if ("/" in ref or ref in top) and first in top and not Path(ref).exists():
             bad(f"{g}: names `{ref}`, which does not exist")
 
-# 5. The shortcut list reads the shipped desktop defaults.
+# 5. One palette. Files that cannot read the theme file must only use its colours.
+import json
+palette = {v.lstrip("#").lower() for v in json.loads(Path("desktop/theme/theme.json").read_text()).values() if isinstance(v, str) and v.startswith("#")}
+for f, pattern in (("desktop/niri/default.kdl", r'"#([0-9a-fA-F]{6})'), ("desktop/skel/.config/swaylock/config", r"=([0-9a-fA-F]{6})\b"),
+                   ("desktop/skel/.config/foot/foot.ini", r"^(?:background|foreground|selection-\w+)=([0-9a-fA-F]{6})"),
+                   ("ai/shell/components/Theme.qml", r'"#([0-9a-fA-F]{6})"'), ("desktop/shell/shell.qml", r'"#([0-9a-fA-F]{6})"')):
+    for c in set(re.findall(pattern, Path(f).read_text(), re.M)):
+        if c.lower() not in palette | {"000000"}:
+            bad(f"{f}: colour #{c} is not in desktop/theme/theme.json")
+
+# 5b. The shortcut list reads the shipped desktop defaults.
 p = subprocess.run([sys.executable, "desktop/bin/amadeus-keys", "--print"], capture_output=True, text=True,
                    env=dict(os.environ, AMADEUS_NIRI_CONFIG="desktop/niri/default.kdl"))
 keys = p.stdout.splitlines()

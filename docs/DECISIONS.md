@@ -96,6 +96,31 @@ are built by `amadeus-aur`, a short script, instead of a third-party helper such
 it shows where a recipe downloads from and asks before building, because AUR recipes
 are written by users and are the least trusted software on the system.
 
+## Look and motion
+
+Amadeus OS has its own visual identity, defined once in `desktop/theme/theme.json` and
+read by the shell, the Amadeus panel and every generated app.
+
+- **Palette: warm black with one amber accent.** Near-black surfaces with a slight warm
+  tint, off-white text, and a single amber accent (with a deeper orange for gradients),
+  after the glow of a nixie tube. One accent colour means anything amber is either
+  focused or the AI; nothing else competes for the eye. Over the cool blue, green and
+  purple palettes most Linux desktops ship, which this would otherwise be mistaken for.
+- **Type: Inter for the interface, JetBrains Mono for code**, set system-wide, so
+  applications match the shell.
+- **Shape: floating, rounded surfaces** (bar, panel, picker, notifications) on a
+  background the shell draws itself: no wallpaper image and no wallpaper program.
+- **Motion: short and decisive.** Three durations (110, 180, 260 ms) and one easing
+  curve that arrives fast and settles gently. Window movement uses critically damped
+  springs, so windows follow the hand and never bounce. Opening and closing are a single
+  motion driven by one value, so a surface can be interrupted halfway and reverse.
+  Nothing animates for longer than a quarter of a second, and nothing animates that
+  does not explain where something came from or went.
+- **No blur or transparency effects.** The compositor does not provide them, and they
+  cost battery on the integrated GPU for no gain in legibility.
+- GTK applications are told to use dark mode, the same accent and the same fonts through
+  system defaults; a user's own settings still win.
+
 ## AI layer: Python standard library
 
 A daemon in the user session with no third-party packages, so a system update cannot

@@ -1,0 +1,19 @@
+{
+  "bg": "#0f0e0d",
+  "surface": "#191715",
+  "raised": "#26221e",
+  "line": "#342f29",
+  "fg": "#f1ebe1",
+  "dim": "#9c948a",
+  "accent": "#ffa14a",
+  "accent2": "#ff6f3c",
+  "good": "#8fd19e",
+  "warn": "#f4c35b",
+  "bad": "#ff6b5e",
+  "font": "Inter",
+  "mono": "JetBrains Mono",
+  "radius": 12,
+  "fast": 110,
+  "normal": 180,
+  "slow": 260
+}

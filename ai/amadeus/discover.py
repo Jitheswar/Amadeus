@@ -44,7 +44,7 @@ def build():
     owned = {p: [f for f in _run(["pacman", "-Qlq", p]).splitlines() if not f.endswith("/")] for p in PACKAGES}
     files_all = [f for fs in owned.values() for f in fs]
     cfg = config.load()
-    user_files = [config.CONFIG / "config.toml", config.CONFIG / "bar.json", config.CONFIG / "theme.toml",
+    user_files = [config.CONFIG / "config.toml", config.CONFIG / "bar.json", config.CONFIG / "theme.json",
                   Path.home() / ".config/niri/config.kdl", Path.home() / ".config/niri/amadeus.kdl"]
     osr = _os_release()
     return {

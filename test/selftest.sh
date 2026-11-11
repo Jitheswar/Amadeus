@@ -85,6 +85,7 @@ t "no separate launcher or notification program" bash -c '! pacman -Q fuzzel mak
 t "AUR lookup works"                           bash -c 'as amadeus-aur info protonplus | grep -q "^Name"'
 t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/niri/default.kdl'
 t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
+t "system look applies to applications"        bash -c 'as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark && fc-match sans-serif | grep -qi inter && test -f /usr/share/amadeus-os/theme.json'
 t "desktop config is valid"                    as niri validate -c /home/$U/.config/niri/config.kdl
 t "compositor answers over IPC"                bash -c 'out=$(as niri msg --json workspaces 2>&1); echo "$out" | grep -q idx || { echo "sock=$(ls $R/niri.*.sock 2>&1) out=$out"; false; }'
 t "X11 applications supported"                 bash -c 'ls /tmp/.X11-unix/ | grep -q "^X"'

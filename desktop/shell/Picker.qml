@@ -24,6 +24,9 @@ Scope {
     property int index: 0
     property string detail: ""
     readonly property string current: shown.length ? shown[index] : ""
+    // 0 when closed, 1 when open; everything on screen follows it, so opening and closing are one motion.
+    property real t: open ? 1 : 0
+    Behavior on t { NumberAnimation { duration: pick.open ? pick.style.normal : pick.style.fast; easing.type: Easing.OutCubic } }
     readonly property int nMarked: Object.keys(marked).length
 
     function label(line) { const t = line.indexOf("\t"); return t < 0 ? line : line.slice(0, t) }
@@ -73,7 +76,7 @@ Scope {
         marked = m
         if (index < shown.length - 1) index++
     }
-    function move(by) { if (shown.length) { index = Math.max(0, Math.min(shown.length - 1, index + by)); view.positionViewAtIndex(index, ListView.Contain); describe.restart() } }
+    function move(by) { if (shown.length) { index = Math.max(0, Math.min(shown.length - 1, index + by)); describe.restart() } }
 
     FileView {
         id: loader
@@ -94,12 +97,12 @@ Scope {
     Process { id: fetch; stdout: StdioCollector { onStreamFinished: pick.detail = text } }
 
     PanelWindow {
-        visible: pick.open
+        visible: pick.open || pick.t > 0.01
         anchors { top: true; bottom: true; left: true; right: true }
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-        color: "#99000000"
+        WlrLayershell.keyboardFocus: pick.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        color: Qt.rgba(0, 0, 0, 0.5 * pick.t)
         onVisibleChanged: if (visible) input.forceActiveFocus()
         MouseArea { anchors.fill: parent; onClicked: pick.finish("cancel", []) }
 
@@ -107,21 +110,36 @@ Scope {
             id: box
             readonly property bool wide: pick.preview !== ""
             anchors.centerIn: parent
-            width: Math.min(parent.width - 80, wide ? 1040 : 560)
-            height: Math.min(parent.height - 120, 560)
-            radius: 12
-            color: pick.style.bg
-            border.color: pick.style.accent
-            border.width: 2
+            anchors.verticalCenterOffset: (1 - pick.t) * 10
+            width: Math.min(parent.width - 80, wide ? 1080 : 600)
+            // A short menu is a short box; long lists and anything with details get the full height.
+            height: Math.min(parent.height - 120, wide ? 580 : 112 + Math.max(1, Math.min(pick.shown.length, 13)) * 34)
+            Behavior on height { NumberAnimation { duration: pick.style.fast; easing.type: Easing.OutCubic } }
+            radius: pick.style.radius + 4
+            color: pick.style.surface
+            border.color: pick.style.line
+            border.width: 1
+            opacity: pick.t
+            scale: 0.97 + 0.03 * pick.t
             MouseArea { anchors.fill: parent }
 
-            Text { id: title; text: pick.prompt; color: pick.style.accent; font.pixelSize: 14; font.bold: true
-                   anchors { left: parent.left; top: parent.top; margins: 16 } }
+            // Search row: what this list is, then what you typed.
+            Rectangle {
+                id: chip
+                anchors { left: parent.left; top: parent.top; margins: 16 }
+                width: title.implicitWidth + 20; height: 28; radius: 14
+                color: Qt.rgba(pick.style.accent.r, pick.style.accent.g, pick.style.accent.b, 0.14)
+                Text { id: title; anchors.centerIn: parent; text: pick.prompt; color: pick.style.accent
+                       font.family: pick.style.font; font.pixelSize: 13; font.weight: Font.Medium }
+            }
             TextInput {
                 id: input
-                anchors { left: title.right; right: parent.right; verticalCenter: title.verticalCenter; leftMargin: 12; rightMargin: 16 }
-                color: pick.style.fg; selectionColor: pick.style.accent; font.pixelSize: 15; clip: true
+                anchors { left: chip.right; right: parent.right; verticalCenter: chip.verticalCenter; leftMargin: 14; rightMargin: 18 }
+                color: pick.style.fg; selectionColor: pick.style.accent; selectedTextColor: pick.style.bg
+                font.family: pick.style.font; font.pixelSize: 16; clip: true
                 onTextChanged: if (pick.open) pick.refilter()
+                Text { anchors.fill: parent; verticalAlignment: Text.AlignVCenter; visible: !input.text; text: "Search"
+                       color: pick.style.dim; font: input.font; opacity: 0.7 }
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_Escape) pick.finish("cancel", [])
                     else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) pick.accept()
@@ -135,40 +153,56 @@ Scope {
                     event.accepted = true
                 }
             }
-            Rectangle { id: rule; height: 1; color: pick.style.muted; anchors { left: parent.left; right: parent.right; top: title.bottom; margins: 12 } }
+            Rectangle { id: rule; height: 1; color: pick.style.line; anchors { left: parent.left; right: parent.right; top: chip.bottom; topMargin: 14 } }
 
             ListView {
                 id: view
-                anchors { left: parent.left; top: rule.bottom; bottom: foot.top; margins: 12 }
-                width: box.wide ? 360 : parent.width - 24
+                anchors { left: parent.left; top: rule.bottom; bottom: foot.top; margins: 10 }
+                width: box.wide ? 380 : parent.width - 20
                 clip: true
                 model: pick.shown
-                delegate: Rectangle {
+                currentIndex: pick.index
+                boundsBehavior: Flickable.StopAtBounds
+                // The highlight glides between rows instead of jumping.
+                highlightMoveDuration: 90
+                highlightMoveVelocity: -1
+                highlightResizeDuration: 0
+                highlight: Rectangle { width: view.width; radius: 8; color: pick.style.raised
+                    Rectangle { width: 3; height: 16; radius: 2; color: pick.style.accent; anchors { left: parent.left; leftMargin: 4; verticalCenter: parent.verticalCenter } } }
+                delegate: Item {
+                    id: line
                     required property int index
                     required property string modelData
-                    width: view.width; height: 26; radius: 6
-                    color: index === pick.index ? pick.style.muted : "transparent"
-                    Text { anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: parent.right; leftMargin: 8; rightMargin: 8 }
-                           text: (pick.marked[parent.modelData] ? "● " : "") + pick.label(parent.modelData)
-                           color: pick.marked[parent.modelData] ? pick.style.accent : pick.style.fg; font.pixelSize: 13; elide: Text.ElideRight }
-                    MouseArea { anchors.fill: parent; onClicked: { pick.index = parent.index; pick.accept() } }
+                    readonly property bool on: !!pick.marked[modelData]
+                    width: view.width; height: 34
+                    Text { anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: tick.left; leftMargin: 16; rightMargin: 8 }
+                           text: pick.label(line.modelData); elide: Text.ElideRight
+                           color: line.on ? pick.style.accent : pick.style.fg; font.family: pick.style.font; font.pixelSize: 14 }
+                    Rectangle { id: tick; visible: line.on; width: 8; height: 8; radius: 4; color: pick.style.accent
+                                anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter } }
+                    MouseArea { anchors.fill: parent; hoverEnabled: true
+                                onPositionChanged: if (pick.index !== line.index) { pick.index = line.index; describe.restart() }
+                                onClicked: { pick.index = line.index; pick.accept() } }
                 }
-                Text { anchors.centerIn: parent; visible: pick.shown.length === 0; color: pick.style.dim; font.pixelSize: 13
-                       text: pick.allowNew && input.text.trim() ? "Enter: ask Amadeus" : "Nothing matches" }
+                Text { anchors.centerIn: parent; visible: pick.shown.length === 0; color: pick.style.dim; font.family: pick.style.font; font.pixelSize: 14
+                       text: pick.allowNew && input.text.trim() ? "Press Enter to ask Amadeus" : "Nothing matches" }
             }
+            Rectangle { visible: box.wide; width: 1; color: pick.style.line; anchors { left: view.right; leftMargin: 10; top: rule.bottom; bottom: foot.top; bottomMargin: 10 } }
             Flickable {
                 visible: box.wide
-                anchors { left: view.right; right: parent.right; top: rule.bottom; bottom: foot.top; margins: 12 }
+                anchors { left: view.right; right: parent.right; top: rule.bottom; bottom: foot.top; leftMargin: 26; rightMargin: 16; topMargin: 14; bottomMargin: 10 }
                 clip: true
                 contentHeight: info.implicitHeight
-                Text { id: info; width: parent.width; text: pick.detail; color: pick.style.fg; font.family: "monospace"; font.pixelSize: 12; wrapMode: Text.Wrap }
+                boundsBehavior: Flickable.StopAtBounds
+                Text { id: info; width: parent.width; text: pick.detail; color: pick.style.fg; opacity: 0.9
+                       font.family: pick.style.mono; font.pixelSize: 12; lineHeight: 1.25; wrapMode: Text.Wrap }
             }
             Text {
                 id: foot
-                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 12 }
-                color: pick.style.dim; font.pixelSize: 11; elide: Text.ElideRight
-                text: (pick.multi ? "Tab: select several" + (pick.nMarked ? " (" + pick.nMarked + " selected)" : "") + "   " : "")
-                    + "Enter: choose   Esc: close" + (pick.preview2 ? "   Alt+B: " + (pick.alt ? "details" : pick.hint || "more") : "")
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 18; rightMargin: 18; bottomMargin: 12 }
+                color: pick.style.dim; font.family: pick.style.font; font.pixelSize: 12; elide: Text.ElideRight
+                text: (pick.multi ? "Tab  select several" + (pick.nMarked ? " · " + pick.nMarked + " selected" : "") + "      " : "")
+                    + "Enter  choose      Esc  close" + (pick.preview2 ? "      Alt+B  " + (pick.alt ? "details" : pick.hint || "more") : "")
             }
         }
     }

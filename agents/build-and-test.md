@@ -21,6 +21,9 @@ self-test that runs inside the installed system.
   about them. Say so when you report a result.
 - **Verdicts come from files, not the console.** The harness reads logs the guest writes
   to the answers disk. Keep it that way.
+- **`./build.sh preview` shows what the shell looks like**, not how windows behave: it
+  runs in a stand-in compositor with a scripted model. Motion can only be judged on a
+  real session.
 - **To try a compositor or package question quickly**, use `./build.sh shell` and install
   what you need inside the container.
 - The harness reuses downloaded packages from the build machine's cache read-only. It

@@ -107,24 +107,41 @@ ShellRoot {
     }
     ListModel { id: log }
 
-    PanelWindow {
-        visible: root.open
-        anchors { top: true; bottom: true; right: true }
-        implicitWidth: 440
-        focusable: true
-        color: Theme.bg
+    // 0 closed, 1 open. The panel slides in while the compositor moves the windows aside.
+    property real t: open ? 1 : 0
+    Behavior on t { NumberAnimation { duration: root.open ? Theme.slow : Theme.normal; easing.type: Theme.ease } }
 
-        Rectangle { anchors { left: parent.left; top: parent.top; bottom: parent.bottom } width: 1; color: Theme.line }
+    PanelWindow {
+        id: win
+        visible: root.open || root.t > 0.01
+        anchors { top: true; bottom: true; right: true }
+        implicitWidth: 452
+        exclusiveZone: root.open ? implicitWidth : 0
+        focusable: true
+        color: "transparent"
+
+        Rectangle {
+            x: (1 - root.t) * 64 + 8; y: 8
+            width: parent.width - 18; height: parent.height - 18
+            radius: Theme.radius + 2
+            color: Theme.surface
+            border.color: Theme.line; border.width: 1
+            opacity: root.t
         Item {
             anchors.fill: parent
-            anchors.margins: Theme.gap
+            anchors.margins: Theme.gap * 1.3
             Keys.onEscapePressed: root.open = false
 
             Row {
                 id: head
                 anchors { left: parent.left; right: parent.right; top: parent.top }
                 spacing: Theme.gap
-                Txt { text: "Amadeus"; font.pixelSize: Theme.size * 1.25; font.bold: true; anchors.verticalCenter: parent.verticalCenter }
+                Rectangle { width: 8; height: 8; radius: 4; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter
+                    // Breathes while something is being worked on.
+                    SequentialAnimation on opacity { running: root.running > 0; loops: Animation.Infinite; alwaysRunToEnd: true
+                        NumberAnimation { to: 0.25; duration: 600; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1; duration: 600; easing.type: Easing.InOutSine } } }
+                Txt { text: "Amadeus"; font.pixelSize: Theme.size * 1.2; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                 Txt { dim: true; anchors.verticalCenter: parent.verticalCenter
                       text: !sock.connected ? "not running" : root.running ? root.running + " working" : "" }
                 Item { width: Math.max(0, head.width - x - stopAllBtn.width - Theme.gap); height: 1 }
@@ -135,8 +152,10 @@ ShellRoot {
                 id: view
                 anchors { left: parent.left; right: parent.right; top: head.bottom; bottom: foot.top; topMargin: Theme.gap; bottomMargin: Theme.gap }
                 model: log
-                spacing: 6
+                spacing: 8
                 clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                add: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.normal } }
                 delegate: Column {
                     id: row
                     required property int index
@@ -157,7 +176,12 @@ ShellRoot {
                     Rectangle {
                         visible: row.kind === "task"
                         width: parent.width; height: visible ? title.implicitHeight + bar.height + Theme.gap * 2 : 0
-                        radius: Theme.radius; color: Theme.surface; border.color: root.current === row.task ? Theme.accent : Theme.line
+                        radius: Theme.radius; color: Theme.raised; border.color: root.current === row.task ? Theme.accent : "transparent"; clip: true
+                        Behavior on border.color { ColorAnimation { duration: Theme.fast } }
+                        // A light sweeps along the top edge while the task is working.
+                        Rectangle { visible: !!row.t.running; height: 2; width: parent.width * 0.35; radius: 1; color: Theme.accent; y: 0
+                            SequentialAnimation on x { running: !!row.t.running; loops: Animation.Infinite
+                                NumberAnimation { from: -row.width * 0.35; to: row.width; duration: 1100; easing.type: Easing.InOutSine } } }
                         MouseArea { anchors.fill: parent; onClicked: root.current = row.task }
                         Txt { id: title; text: row.body; color: Theme.accent; wrapMode: Text.Wrap
                               anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.gap * 0.8 } }
@@ -175,7 +199,9 @@ ShellRoot {
                     }
                     Txt {
                         visible: row.kind !== "task"
-                        width: parent.width
+                        x: Theme.gap * 0.8
+                        width: parent.width - x * 2
+                        lineHeight: 1.25
                         text: (row.kind === "user" ? "› " : row.kind === "tool" ? "· " : row.kind === "about" ? "About: " : "") + row.body
                         mono: row.kind === "tool" || row.kind === "approval"
                         dim: row.kind === "tool" || row.kind === "note" || row.kind === "about"
@@ -202,7 +228,7 @@ ShellRoot {
                 Rectangle {
                     visible: root.about !== null
                     width: parent.width; height: visible ? chip.implicitHeight + Theme.gap : 0
-                    radius: Theme.radius * 0.7; color: Theme.raised
+                    radius: Theme.radius; color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14)
                     Txt { id: chip; elide: Text.ElideRight
                           anchors { left: parent.left; right: clear.left; verticalCenter: parent.verticalCenter; margins: Theme.gap * 0.6 }
                           text: root.about ? "About this window: " + root.about.app + " · " + root.about.title : "" }
@@ -222,6 +248,7 @@ ShellRoot {
                     Btn { id: newBtn; text: "New"; onClicked: root.submit(true) }
                 }
             }
+        }
         }
     }
 }

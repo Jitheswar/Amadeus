@@ -19,6 +19,16 @@ user starts with in `desktop/skel/`.
 - **The bar's layout is data.** A new widget is a component plus an id in the widget
   table in the bar, and the same id in the AI layer's list of bar widgets in
   `ai/amadeus/tools/desktop.py`. Both or neither.
+- **One theme.** Colours, fonts, corner radius and animation timings come from
+  `desktop/theme/theme.json`. Shell and panel code reads them; it never contains a
+  colour or a duration of its own. Files that cannot read the theme (compositor, lock
+  screen, terminal) may only repeat its colours, and `./build.sh check` enforces that.
+- **Motion has three speeds** (fast, normal, slow in the theme) and one easing. A surface
+  opens and closes from one animated value so it can reverse midway. If an animation
+  does not show where something came from or went, remove it.
+- **Look at what you changed.** `./build.sh preview` draws the shell, picker,
+  notifications and panel headless into `out/preview/`. Read the pictures before you
+  commit a visual change.
 - **One picker.** Every list a user chooses from goes through `desktop/bin/amadeus-pick`,
   which the shell draws. Do not add another menu program.
 - **State comes from events.** The bar reads the compositor's event stream. Do not add a

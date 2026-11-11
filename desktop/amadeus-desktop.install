@@ -1,0 +1,6 @@
+post_install() {
+  dconf update
+}
+post_upgrade() {
+  dconf update
+}

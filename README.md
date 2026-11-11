@@ -23,6 +23,7 @@ It is built for one machine: Core i5-13450HX, RTX 3050 6 GB with Intel UHD graph
 | **AI layer** | One daemon through which every AI action passes: capability policy, approval for destructive actions, tamper-evident audit log, undo. Works with a Claude subscription or API key, OpenAI-compatible APIs, OpenRouter, Codex, and local models. |
 | **Root mode** | The AI has no root access by default. `ama root on` grants it; it ends at shutdown at the latest and must be turned on again. |
 | **Generated apps** | The AI writes small applications from a shared component library. Each runs in its own sandbox with only the permissions its manifest declares, and keeps a version history. |
+| **Look** | Its own identity: warm black with a single amber accent, floating rounded surfaces, and short, decisive motion. One theme file drives the shell, the panel and every generated app. |
 | **Applications** | Steam, ProtonPlus, Brave Origin, Claude Desktop, Claude Code, Discord, Telegram, herdr, LocalSend, LibreOffice, mpv, plus a terminal, file manager, document viewer, image viewer and camera. Nothing else. |
 
 ### For AI agents
@@ -76,6 +77,7 @@ doing the build. Requirements: Docker and KVM.
 ```
 ./build.sh iso     build out/amadeus-os-<date>-x86_64.iso
 ./build.sh test    install it in a VM, boot the result, run the self-test and both rollback paths
+./build.sh preview draw the shell and the panel headless; pictures land in out/preview/
 ```
 
 ## Install
