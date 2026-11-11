@@ -181,22 +181,30 @@ def panel_cmd(args):
 
     def call(fn, *a):
         return subprocess.run(["quickshell", "ipc", "-p", qml, "call", "panel", fn, *a], capture_output=True, text=True)
-    p = call(action, *extra)
-    if p.returncode:                # not running yet
+
+    def state():
+        """The panel's state, or None while it is not running or still loading."""
+        p = call("state")
+        try:
+            return json.loads(p.stdout) if p.returncode == 0 else None
+        except json.JSONDecodeError:
+            return None
+    if state() is None:
         if action == "hide":
             return
         subprocess.Popen(["quickshell", "-p", qml], env=dict(os.environ, **apps.theme_env()), stdin=subprocess.DEVNULL,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-        first = "show" if action == "toggle" else action
-        for _ in range(50):
+        for _ in range(100):
             time.sleep(0.1)
-            p = call(first, *extra)
-            if not p.returncode:
+            if state() is not None:
                 break
         else:
             sys.exit("the Amadeus panel could not be started")
-    if p.stdout.strip():
-        print(p.stdout.strip())
+        if action == "toggle":
+            action = "show"
+    if action == "state":
+        return print(json.dumps(state()))
+    call(action, *extra)
 
 
 def provider_cmd(c, args):
