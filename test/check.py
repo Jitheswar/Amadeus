@@ -69,7 +69,14 @@ for g in guides + ["README.md"] + sorted(f for f in files if f.startswith("docs/
         if ("/" in ref or ref in top) and first in top and not Path(ref).exists():
             bad(f"{g}: names `{ref}`, which does not exist")
 
-# 5. Unit tests.
+# 5. The shortcut list reads the shipped desktop defaults.
+p = subprocess.run([sys.executable, "desktop/bin/amadeus-keys", "--print"], capture_output=True, text=True,
+                   env=dict(os.environ, AMADEUS_NIRI_CONFIG="desktop/niri/default.kdl"))
+keys = p.stdout.splitlines()
+if p.returncode or len(keys) < 40 or not any(l.startswith("Super + K ") for l in keys) or not any("Terminal" in l for l in keys):
+    bad("desktop/bin/amadeus-keys did not list the shipped shortcuts:\n" + (p.stderr or p.stdout)[-600:])
+
+# 6. Unit tests.
 p = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests"], cwd="ai", capture_output=True, text=True)
 print(p.stderr.strip().splitlines()[-1] if p.stderr.strip() else "no test output")
 if p.returncode:

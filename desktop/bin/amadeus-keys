@@ -1,0 +1,86 @@
+#!/usr/bin/python3
+# Keyboard shortcuts and system commands (Super+K): a searchable list read from the live configuration.
+"""Nothing here is a stored list. Shortcuts are parsed from the desktop configuration as it
+is now (system defaults, your own file, and what Amadeus added), and commands are the
+amadeus-* programs installed, each with its own description.
+  amadeus-keys            show the list in a searchable menu
+  amadeus-keys --print    print it"""
+import os, re, subprocess, sys
+from pathlib import Path
+
+CONFIG = Path(os.environ.get("AMADEUS_NIRI_CONFIG", Path.home() / ".config/niri/config.kdl"))
+BIND = re.compile(r'^\s*([A-Za-z0-9_]+(?:\+[A-Za-z0-9_]+)*)((?:\s+[a-z-]+=(?:"[^"]*"|\S+))*)\s*\{\s*(.*?)\s*;?\s*\}\s*$')
+INCLUDE = re.compile(r'^\s*include\s+(?:optional=true\s+)?"([^"]+)"')
+KEYS = {"Mod": "Super", "Return": "Enter", "Slash": "/", "Comma": ",", "Period": ".", "Minus": "-", "Equal": "=",
+        "WheelScrollDown": "Scroll down", "WheelScrollUp": "Scroll up", "Print": "Print Screen",
+        "XF86AudioRaiseVolume": "Volume up", "XF86AudioLowerVolume": "Volume down", "XF86AudioMute": "Mute",
+        "XF86AudioMicMute": "Mute microphone", "XF86MonBrightnessUp": "Brightness up", "XF86MonBrightnessDown": "Brightness down",
+        "XF86AudioPlay": "Play / pause", "XF86AudioNext": "Next track", "XF86AudioPrev": "Previous track"}
+
+
+def binds(path, seen=None, out=None):
+    """Shortcuts in configuration order; a later definition of the same keys replaces an earlier one."""
+    seen, out = seen if seen is not None else set(), out if out is not None else {}
+    path = Path(os.path.expanduser(str(path)))
+    if path in seen or not path.is_file():
+        return out
+    seen.add(path)
+    inside = False
+    for line in path.read_text(errors="replace").splitlines():
+        if line.strip().startswith("//"):
+            continue
+        m = INCLUDE.match(line)
+        if m and not inside:
+            target = Path(os.path.expanduser(m.group(1)))
+            binds(target if target.is_absolute() else path.parent / target, seen, out)
+        elif re.match(r"^\s*binds\s*\{\s*$", line):
+            inside = True
+        elif inside and line.strip() == "}":
+            inside = False
+        elif inside:
+            m = BIND.match(line)
+            if m:
+                keys, props, action = m.groups()
+                title = re.search(r'hotkey-overlay-title="([^"]*)"', props)
+                out.pop(keys, None)
+                out[keys] = title.group(1) if title else describe(action)
+    return out
+
+
+def describe(action):
+    words = re.findall(r'"([^"]*)"|(\S+)', action)
+    words = [a or b for a, b in words]
+    if not words:
+        return ""
+    if words[0] in ("spawn", "spawn-sh"):
+        return "Run: " + " ".join(words[1:])
+    return (words[0].replace("-", " ").capitalize() + " " + " ".join(words[1:])).strip()
+
+
+def pretty(keys):
+    return " + ".join(KEYS.get(k, k) for k in keys.split("+"))
+
+
+def commands():
+    out = []
+    for f in sorted(Path("/usr/bin").glob("amadeus-*")) + [Path("/usr/bin/ama")]:
+        try:
+            second = f.read_text(errors="replace").splitlines()[1]
+        except (OSError, IndexError):
+            continue
+        if second.startswith("#"):
+            out.append((f.name, second.lstrip("# ").split(":")[0].split(". ")[0].rstrip(".")))
+    return out
+
+
+def main():
+    rows = [(pretty(k), v) for k, v in binds(CONFIG).items()]
+    cmds = commands()
+    width = max([len(k) for k, _ in rows] + [len(c) for c, _ in cmds] + [10])
+    lines = [f"{k:<{width}}   {v}" for k, v in rows] + [f"{c:<{width}}   {d}  (command)" for c, d in cmds]
+    if "--print" in sys.argv:
+        return print("\n".join(lines))
+    subprocess.run(["fuzzel", "--dmenu", "--prompt", "Keys  ", "--width", "72", "--lines", "18"], input="\n".join(lines), text=True)
+
+
+main()

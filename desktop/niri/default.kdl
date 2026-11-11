@@ -52,6 +52,7 @@ window-rule {
 }
 
 binds {
+    Mod+K hotkey-overlay-title="Shortcuts and commands" { spawn "amadeus-keys"; }
     Mod+Shift+Slash { show-hotkey-overlay; }
 
     // Applications

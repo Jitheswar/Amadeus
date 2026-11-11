@@ -77,6 +77,7 @@ t "greeter service running"                    systemctl is-active greetd
 t "niri is running"                            pgrep -x niri
 t "bar is running"                             pgrep -f 'quickshell -p /usr/share/amadeus-os/bar'
 t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/niri/default.kdl'
+t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
 t "desktop config is valid"                    as niri validate -c /home/$U/.config/niri/config.kdl
 t "compositor answers over IPC"                bash -c 'out=$(as niri msg --json workspaces 2>&1); echo "$out" | grep -q idx || { echo "sock=$(ls $R/niri.*.sock 2>&1) out=$out"; false; }'
 t "X11 applications supported"                 bash -c 'ls /tmp/.X11-unix/ | grep -q "^X"'

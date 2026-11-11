@@ -61,6 +61,7 @@ means that window.
 | `ama audit` · `ama audit verify` · `ama undo` | what the AI did, proof the log is intact, undo the last file change |
 | `ama doctor` | check drivers, GPU, sandbox, providers and applications |
 | `ama discover` | a live map of the system: commands, files, tools, permissions |
+| `Super+K` | every keyboard shortcut and system command, searchable |
 | `Super+Space` | the Amadeus menu: Apps, Install, Remove, Update, Defaults |
 | `Super+Z` · `Super+A` | the Amadeus panel · the panel, about the focused window |
 | `amadeus-update` | update the system and the applications from outside the Arch repositories |
