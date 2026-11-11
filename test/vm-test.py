@@ -19,7 +19,11 @@ BASE = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35", "-cpu", "host", 
         "-drive", f"file={disk},if=virtio,format=qcow2,discard=unmap",
         "-drive", f"file={auto},if=virtio,format=raw",
         "-netdev", "user,id=n0", "-device", "virtio-net-pci,netdev=n0",
-        "-device", "virtio-vga", "-display", "none", "-monitor", "none", "-serial", "stdio", "-no-reboot"]
+        "-monitor", "none", "-serial", "stdio", "-no-reboot"]
+# The compositor needs 3D acceleration. Use an Intel render node from the machine running the test when there is one.
+node = next((f"/dev/dri/{os.path.basename(r)}" for r in sorted(glob.glob("/sys/class/drm/renderD*"))
+             if open(f"{r}/device/vendor").read().strip() == "0x8086"), None)
+BASE += ["-device", "virtio-vga-gl", "-display", f"egl-headless,rendernode={node}"] if node else ["-device", "virtio-vga", "-display", "none"]
 
 
 def run(cmd, log, timeout, feed=None, until=None):
@@ -106,6 +110,7 @@ def boot_disk(stage, what):
     else:
         print("self-test never started. Console tail:\n" + open(f"{VM}/boot-serial-{stage}.log", errors="replace").read()[-2500:])
     if not ("AMADEUS-SELFTEST-END" in log and "fail=0" in log):
+        print(take("desktop-debug.log")[-3000:])
         sys.exit(1)
 
 

@@ -88,22 +88,27 @@ mount -o umask=0077 "$ESP" $T/boot
 say "Installing packages (this is the long part)"
 CONF=$(mktemp)
 {
-  echo "[options]"; echo "Architecture = auto"; echo "ParallelDownloads = 8"; echo "SigLevel = Required DatabaseOptional"
+  echo "[options]"; echo "Architecture = auto"; echo "ParallelDownloads = 8"; echo "SigLevel = Required DatabaseOptional"; echo "LocalFileSigLevel = Optional"
   echo "CacheDir = $T/var/cache/pacman/pkg/"
   [[ -n ${CACHE_DIR:-} && -d ${CACHE_DIR:-} ]] && echo "CacheDir = $CACHE_DIR/"
   for r in core extra multilib; do printf '[%s]\nInclude = /etc/pacman.d/mirrorlist\n' "$r"; done
-  printf '[amadeus]\nSigLevel = Optional TrustAll\nServer = file:///opt/amadeus-repo\n'
 } >"$CONF"
-LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps) amadeus amadeus-desktop"
-if [[ $EXTRAS == yes ]]; then
-  # Applications that are not in the Arch repositories, packaged into the repository on this medium.
-  for p in $(pkgs $SHARE/packages.aur); do
-    compgen -G "/opt/amadeus-repo/$p-[0-9]*.pkg.tar.zst" >/dev/null && LIST+=" $p" || echo "  ($p is not on this medium; skipped)"
-  done
-fi
+LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps)"
 [[ $NVIDIA == yes ]] && LIST+=" $(pkgs $SHARE/packages.nvidia)"
 # shellcheck disable=SC2086
 pacstrap -C "$CONF" -K $T $LIST
+
+# Amadeus itself and the applications that are not in the Arch repositories are on this
+# medium. They are installed from their files directly, so a same-named package in a
+# download cache can never be picked up in their place.
+LOCAL=(/opt/amadeus-repo/amadeus-[0-9]*.pkg.tar.zst /opt/amadeus-repo/amadeus-desktop-[0-9]*.pkg.tar.zst)
+if [[ $EXTRAS == yes ]]; then
+  for p in $(pkgs $SHARE/packages.aur); do
+    f=$(compgen -G "/opt/amadeus-repo/$p-[0-9]*.pkg.tar.zst" | head -1) || true
+    [[ -n $f ]] && LOCAL+=("$f") || echo "  ($p is not on this medium; skipped)"
+  done
+fi
+pacstrap -C "$CONF" -U $T "${LOCAL[@]}"
 
 say "Configuring"
 genfstab -U $T >>$T/etc/fstab

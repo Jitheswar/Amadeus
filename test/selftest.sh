@@ -27,6 +27,7 @@ finish() {
     as niri msg action screenshot-screen --write-to-disk true 2>/dev/null; sleep 2; cp "$(ls -t /home/$U/Pictures/Screenshots/*.png 2>/dev/null | head -1)" /mnt/auto/desktop.png 2>/dev/null
     journalctl -b -p warning --no-pager | tail -60 >/mnt/auto/journal-warnings.log
   fi
+  (( fail )) && { as niri msg outputs; journalctl -b --no-pager _COMM=niri | tail -60; } >/mnt/auto/desktop-debug.log 2>&1
   cp /var/log/amadeus-selftest.log /mnt/auto/selftest-$STAGE.log
   echo "$1" >/mnt/auto/stage
   sync; umount /mnt/auto
@@ -74,9 +75,10 @@ echo "--- desktop session"
 t "greeter service running"                    systemctl is-active greetd
 t "niri is running"                            pgrep -x niri
 t "bar is running"                             pgrep -f 'quickshell -p /usr/share/amadeus-os/bar'
+t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/niri/default.kdl'
 t "desktop config is valid"                    as niri validate -c /home/$U/.config/niri/config.kdl
-t "compositor answers over IPC"                bash -c "as niri msg --json workspaces | grep -q is_active"
-t "X11 applications supported"                 pgrep -f xwayland-satellite
+t "compositor answers over IPC"                bash -c 'out=$(as niri msg --json workspaces 2>&1); echo "$out" | grep -q idx || { echo "sock=$(ls $R/niri.*.sock 2>&1) out=$out"; false; }'
+t "X11 applications supported"                 bash -c 'ls /tmp/.X11-unix/ | grep -q "^X"'
 echo "--- Amadeus"
 t "daemon running in the user session"         test -S $R/amadeus/daemon.sock
 t "ama status"                                 as ama status

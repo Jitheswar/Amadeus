@@ -56,8 +56,8 @@ binds {
 
     // Applications
     Mod+Return hotkey-overlay-title="Terminal" { spawn "foot"; }
-    Mod+Space hotkey-overlay-title="Launcher" { spawn "fuzzel"; }
-    Mod+Z hotkey-overlay-title="Amadeus" { spawn "ama" "palette"; }
+    Mod+Space hotkey-overlay-title="Amadeus menu" { spawn "amadeus-menu"; }
+    Mod+Z hotkey-overlay-title="Ask Amadeus" { spawn "ama" "palette"; }
     Mod+B hotkey-overlay-title="Browser" { spawn "xdg-open" "https://"; }
     Mod+E hotkey-overlay-title="Files" { spawn "nautilus" "--new-window"; }
     Mod+Escape hotkey-overlay-title="Power menu" { spawn "amadeus-power-menu"; }
