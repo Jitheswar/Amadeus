@@ -4,7 +4,7 @@ pkgrel=1
 pkgdesc="Amadeus OS desktop: niri defaults, shell (bar, picker, notifications), system tools and user skeleton"
 arch=(any)
 license=(MIT)
-depends=(niri xwayland-satellite quickshell foot swaylock swayidle polkit-gnome wl-clipboard cliphist wtype fastfetch brightnessctl networkmanager wireplumber xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
+depends=(niri xwayland-satellite quickshell foot swaylock swayidle polkit-gnome wl-clipboard cliphist wtype fastfetch brightnessctl networkmanager wireplumber upower power-profiles-daemon bluez polkit xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
 options=(!debug)
 install=amadeus-desktop.install
 
@@ -13,6 +13,12 @@ package() {
   install -Dm644 "$src/niri/default.kdl" -t "$pkgdir/usr/share/amadeus-os/niri/"
   install -Dm644 "$src"/shell/*.qml -t "$pkgdir/usr/share/amadeus-os/shell/"
   install -Dm755 "$src"/bin/* -t "$pkgdir/usr/bin/"
+  # Passwordless administrator access is a switch the user turns on from the bar; this is its root side.
+  install -Dm755 "$src/lib/sudo-helper" -t "$pkgdir/usr/lib/amadeus-os/"
+  install -Dm644 "$src/lib/org.amadeus.sudo.policy" -t "$pkgdir/usr/share/polkit-1/actions/"
+  install -Dm644 "$src/lib/amadeus-sudo-boot.service" -t "$pkgdir/usr/lib/systemd/system/"
+  install -d "$pkgdir/usr/lib/systemd/system/multi-user.target.wants"
+  ln -s ../amadeus-sudo-boot.service "$pkgdir/usr/lib/systemd/system/multi-user.target.wants/"
   install -Dm644 "$src/theme/theme.json" "$src/harnesses.list" -t "$pkgdir/usr/share/amadeus-os/"
   install -Dm644 "$src"/catalog/*.list -t "$pkgdir/usr/share/amadeus-os/catalog/"
   install -Dm644 "$src/theme/fastfetch.jsonc" "$pkgdir/etc/skel/.config/fastfetch/config.jsonc"

@@ -1,0 +1,17 @@
+#!/bin/bash
+# Let administrator commands run without asking for the password, for a while or until turned off.
+#   amadeus-sudo                    show whether it is on, and until when
+#   amadeus-sudo on 15m|30m|1h|always   turn it on (asks for your password once)
+#   amadeus-sudo off                turn it off
+# While it is on, anything running as you can become administrator without asking, including
+# programs you did not start yourself. A timed setting also ends at the next restart.
+set -euo pipefail
+state=/run/amadeus-sudo
+case ${1:-} in
+  "") if [[ -r $state ]]; then read -r until <"$state"; [[ $until == always ]] && echo "on until turned off" || echo "on until $(date -d "@$until" '+%-I:%M %p')"; else echo off; fi ;;
+  on)
+    case ${2:-} in 15m|30m|1h|always) ;; *) echo "Choose 15m, 30m, 1h or always."; exit 1 ;; esac
+    exec pkexec /usr/lib/amadeus-os/sudo-helper on "$2" "$(id -un)" ;;
+  off) exec pkexec /usr/lib/amadeus-os/sudo-helper off ;;
+  *) sed -n 2,5p "$0"; exit 1 ;;
+esac

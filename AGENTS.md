@@ -94,7 +94,10 @@ assumed:
   (so the user sees one password prompt and knows why) or refuses to run as root when it
   must build or download as the user. Follow the existing commands.
 - Never add a passwordless sudo rule, a polkit rule that allows without asking, or a
-  setuid file.
+  setuid file. The one exception is the user's own switch, `desktop/bin/amadeus-sudo`:
+  it asks for the password to turn on, writes a single rule for that user, and a timed
+  setting ends by itself and at restart. Nothing else may create such a rule, and
+  nothing may turn that switch on for the user.
 - **Never run the installer, a package manager, or any system-changing command on the
   machine you are developing on.** Everything is built and tested in the container and
   the VM. This is the project's hardest rule.

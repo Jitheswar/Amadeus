@@ -139,6 +139,26 @@ Over AUR packages (a second maintainer between the publisher and the user, root 
 install), npm installed globally (needs a system Node and root) and each tool's own
 installer script (a different updater per tool).
 
+## The bar and its controls
+
+- **Icons are drawn, not installed.** One family of line icons on a 24-unit grid lives in
+  `desktop/shell/Icon.qml` as vector paths (shapes after Feather Icons, MIT). They are
+  sharp at any size, take the theme's colours, and a new icon is one more path in the
+  same style. Over an icon font (a package, fixed weights, glyph numbers nobody can
+  read) and over an icon theme (mixed styles from many hands).
+- **Controls follow events.** Battery, power profile, audio, Bluetooth, the tray and
+  stay-awake come from the shell toolkit's own bindings to the system services; Wi-Fi is
+  re-read only when NetworkManager reports a change. The exceptions are the weather
+  (every 30 minutes) and two sysfs reads every 30 seconds for the NVIDIA power state.
+- **Power follows the cable**: performance when plugged in, balanced on battery, battery
+  saver under 20%. A choice made by hand holds until the cable or that threshold changes.
+- **Weather** asks wttr.in, which places you by network address. Removing `weather` from
+  the bar layout stops the requests.
+- **Administrator access without a password is a visible switch**, never a default. It
+  costs one password prompt to turn on, shows in the bar while on, and a timed setting
+  cannot outlive a restart. While it is on, the AI's host shell could also use it; that
+  tool still asks for approval per command under the default policy.
+
 ## Where software comes from
 
 In this order, and the install catalogue encodes it per entry:

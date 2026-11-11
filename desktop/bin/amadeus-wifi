@@ -1,0 +1,20 @@
+#!/bin/bash
+# Wi-Fi from the command line or the bar: list networks, connect, switch the radio.
+#   amadeus-wifi list             networks in range: in use, name, strength, whether it needs a password
+#   amadeus-wifi connect NAME     connect; asks for the password the first time
+#   amadeus-wifi on | off | state
+case ${1:-} in
+  list) nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan auto 2>/dev/null | awk -F: '$2 != "" && !seen[$2]++' ;;
+  on|off) nmcli radio wifi "$1" ;;
+  state) nmcli radio wifi ;;
+  connect)
+    name=${2:?network name needed}
+    if nmcli -t -f NAME connection show | grep -qxF "$name"; then nmcli connection up id "$name" && exit 0; fi
+    if nmcli -t -f SSID,SECURITY device wifi list | grep -F "$name:" | grep -qE ':(--|)$'; then
+      nmcli device wifi connect "$name"
+    else
+      pass=$(amadeus-pick --new --new-label "Press Enter to connect" "Password for $name" </dev/null); (( $? == 2 )) || exit 1
+      nmcli device wifi connect "$name" password "$pass"
+    fi && notify-send -a Amadeus "Connected to $name" || notify-send -a Amadeus "Could not connect to $name" "Check the password and try again." ;;
+  *) sed -n 2,5p "$0"; exit 1 ;;
+esac

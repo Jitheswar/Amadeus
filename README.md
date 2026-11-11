@@ -76,6 +76,18 @@ means that window.
 | `amadeus-default` | show or set your default terminal, editor and harness |
 | `amadeus-rollback` | list snapshots, or go back to one |
 
+### The bar
+
+| | |
+|---|---|
+| Left | Workspaces, and the title of the focused window. |
+| Centre | Administrator-without-password switch (15 minutes, 30 minutes, 1 hour, or until turned off), stay-awake switch, the day and 12-hour time (click for a calendar), the weather. |
+| Right | Applications running in the background, Bluetooth, Wi-Fi, volume, brightness, battery, and the Amadeus button. Each opens a small panel: devices and networks to connect to, sliders, and the power mode. |
+
+Power mode follows the cable: performance when plugged in, balanced on battery, battery
+saver under 20%. The layout is a file (`~/.config/amadeus/bar.json`); ask Amadeus to
+rearrange it, or edit it.
+
 ### The Amadeus menu
 
 | | |

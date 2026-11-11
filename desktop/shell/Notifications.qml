@@ -22,7 +22,7 @@ Scope {
         visible: notes.count > 0 || cards.contentHeight > 1
         anchors { top: true; right: true }
         exclusionMode: ExclusionMode.Ignore
-        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.layer: WlrLayer.Top
         implicitWidth: 404
         implicitHeight: Math.max(1, cards.contentHeight + 66)
         color: "transparent"

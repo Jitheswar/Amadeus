@@ -79,6 +79,9 @@ t "shell is running"                           pgrep -f 'quickshell -p /usr/shar
 shell() { as quickshell ipc -p /usr/share/amadeus-os/shell call "$@"; }; export -f shell
 t "picker shows a list and returns the choice" bash -c '(printf "alpha\nbeta\n" | as amadeus-pick Test >/tmp/pick.out 2>&1 &); sleep 2; s=$(shell shell state); echo "$s"; echo "$s" | grep -q "\"picker\":true,\"pickerItems\":2" && shell pick choose beta && sleep 1 && grep -qx beta /tmp/pick.out'
 t "picker closes without a choice"             bash -c '(printf "a\n" | as amadeus-pick Test >/tmp/pick2.out 2>&1; echo "rc=$?" >>/tmp/pick2.out) & sleep 2; shell pick cancel; sleep 1; grep -qx "rc=1" /tmp/pick2.out'
+t "bar drop-downs open and close"              bash -c 'shell shell popover calendar 600; sleep 0.5; shell shell state | grep -q "\"popover\":\"calendar\"" && shell shell popover "" 0'
+t "stay awake switches"                        bash -c 'shell shell awake true; shell shell state | grep -q "\"awake\":true" && shell shell awake false'
+t "passwordless administrator switch works and ends" bash -c '/usr/lib/amadeus-os/sudo-helper on 15m '$U' && as amadeus-sudo | grep -q "^on until" && sudo -u '$U' sudo -n true && /usr/lib/amadeus-os/sudo-helper off && ! sudo -u '$U' sudo -n true 2>/dev/null && as amadeus-sudo | grep -qx off'
 t "notifications are shown by the shell"       bash -c 'as notify-send "Self-test" "hello"; sleep 1; s=$(shell shell state); echo "$s"; echo "$s" | grep -q "\"notifications\":[1-9]"'
 t "launcher lists installed applications"      bash -c 'as amadeus-launcher --print | grep -q "^Steam"'
 t "no separate launcher or notification program" bash -c '! pacman -Q fuzzel mako 2>/dev/null | grep -q .'

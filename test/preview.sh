@@ -4,7 +4,7 @@
 # the shell looks, not how windows are arranged; a scripted model answers the panel.
 set -u
 export HOME=/tmp/home XDG_RUNTIME_DIR=/tmp/xdg PATH=/tmp/fake:/src/desktop/bin:/src/ai/bin:$PATH
-export WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 QT_QPA_PLATFORM=wayland
+export AMADEUS_DEMO=1 WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 QT_QPA_PLATFORM=wayland
 node=$(for r in /sys/class/drm/renderD*; do [[ $(<"$r/device/vendor") == 0x8086 ]] && echo "/dev/dri/${r##*/}"; done | head -1)
 [[ -n $node ]] && export WLR_RENDER_DRM_DEVICE=$node || export WLR_RENDERER=pixman QT_QUICK_BACKEND=software
 OUT=/out/preview; rm -rf $OUT; mkdir -p $OUT $HOME/.config/amadeus $XDG_RUNTIME_DIR /tmp/fake /usr/share/amadeus-os; chmod 700 $XDG_RUNTIME_DIR
@@ -23,7 +23,6 @@ fi
 [[ "$*" == *focused-window* ]] && echo '{"id":7,"title":"sales-q3.csv — Files","app_id":"files"}'
 exit 0
 N
-printf '#!/bin/bash\necho %s\n' "'{\"battery\":\"82\",\"charging\":false,\"net\":\"wifi:Home\",\"volume\":\"45\",\"gpu\":\"suspended\"}'" >/tmp/fake/amadeus-bar-status
 chmod +x /tmp/fake/*
 
 cat >/tmp/sway.conf <<'S'
@@ -39,6 +38,12 @@ run() {
   notify-send -a "Amadeus" "Update finished" "64 packages updated. A snapshot was taken before and after."
   notify-send -a "LocalSend" "File received" "holiday-photos.zip from Pixel 9" -A open=Open -A show="Show in Files" >/dev/null 2>&1 &
   shot 1-desktop 1.5
+  ipc() { quickshell ipc -p /usr/share/amadeus-os/shell call "$@"; }
+  ipc shell popover calendar 960; shot 5-calendar 0.8
+  ipc shell popover power 1780; shot 6-power 0.8
+  ipc shell popover wifi 1650; shot 7-wifi 0.8
+  ipc shell popover sudo 800; shot 8-sudo 0.8
+  ipc shell popover "" 0; sleep 0.4
 
   printf 'Apps\nInstall\nRemove\nUpdate\nDefaults\n' | amadeus-pick Amadeus >/dev/null 2>&1 &
   shot 2-menu; quickshell ipc -p /usr/share/amadeus-os/shell call pick cancel

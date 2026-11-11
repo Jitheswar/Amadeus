@@ -247,8 +247,9 @@ def desktop_config(a, ctx):
 
 
 BAR_FILE = Path.home() / ".config/amadeus/bar.json"
-BAR_WIDGETS = ["workspaces", "title", "clock", "gpu", "network", "volume", "battery", "amadeus"]
-BAR_DEFAULT = {"left": ["workspaces", "title"], "center": ["clock"], "right": ["gpu", "network", "volume", "battery", "amadeus"]}
+BAR_WIDGETS = ["workspaces", "title", "sudo", "awake", "clock", "weather", "gpu", "tray", "bluetooth", "network", "volume", "brightness", "battery", "power", "amadeus"]
+BAR_DEFAULT = {"left": ["workspaces", "title"], "center": ["sudo", "awake", "clock", "weather"],
+               "right": ["gpu", "tray", "bluetooth", "network", "volume", "brightness", "battery", "power", "amadeus"]}
 
 
 @tool("desktop_bar", "Read or change the top bar layout. Pass left/center/right as lists of widget ids to rearrange, add or remove widgets; "

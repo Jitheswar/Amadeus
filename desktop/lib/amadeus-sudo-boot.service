@@ -1,0 +1,6 @@
+[Unit]
+Description=Amadeus OS: end timed passwordless administrator access at boot
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/amadeus-os/sudo-helper boot

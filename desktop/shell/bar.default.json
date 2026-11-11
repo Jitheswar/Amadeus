@@ -1,5 +1,23 @@
 {
-  "left": ["workspaces", "title"],
-  "center": ["clock"],
-  "right": ["gpu", "network", "volume", "battery", "amadeus"]
+  "left": [
+    "workspaces",
+    "title"
+  ],
+  "center": [
+    "sudo",
+    "awake",
+    "clock",
+    "weather"
+  ],
+  "right": [
+    "gpu",
+    "tray",
+    "bluetooth",
+    "network",
+    "volume",
+    "brightness",
+    "battery",
+    "power",
+    "amadeus"
+  ]
 }
