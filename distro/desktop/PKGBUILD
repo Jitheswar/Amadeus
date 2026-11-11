@@ -1,0 +1,38 @@
+pkgname=amadeus-desktop
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Amadeus OS desktop: Hyprland defaults, bar, launcher and lock configuration"
+arch=(any)
+license=(MIT)
+depends=(hyprland quickshell uwsm foot fuzzel mako hyprlock hypridle grim slurp wl-clipboard brightnessctl networkmanager wireplumber)
+options=(!debug)
+
+package() {
+  local src="$startdir"
+  install -Dm644 "$src/hypr/default.lua" -t "$pkgdir/usr/share/amadeus-os/hypr/"
+  install -Dm644 "$src/bar/shell.qml" -t "$pkgdir/usr/share/amadeus-os/bar/"
+  install -Dm755 "$src"/bin/* -t "$pkgdir/usr/bin/"
+  cp -r "$src/skel" "$pkgdir/etc-skel" && install -d "$pkgdir/etc" && mv "$pkgdir/etc-skel" "$pkgdir/etc/skel"
+  install -Dm644 "$src/bar/bar.default.json" "$pkgdir/etc/skel/.config/amadeus/bar.json"
+  install -Dm644 /dev/stdin "$pkgdir/usr/lib/os-release.amadeus" <<'OS'
+NAME="Amadeus OS"
+PRETTY_NAME="Amadeus OS"
+ID=amadeus
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;139;203;177"
+OS
+  # Keep the system identifying as Amadeus OS when Arch updates its own os-release.
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/libalpm/hooks/amadeus-os-release.hook" <<'HOOK'
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = filesystem
+Target = amadeus-desktop
+[Action]
+Description = Setting the system identity to Amadeus OS
+When = PostTransaction
+Exec = /usr/bin/ln -sf ../usr/lib/os-release.amadeus /etc/os-release
+HOOK
+}

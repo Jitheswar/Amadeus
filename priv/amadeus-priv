@@ -1,0 +1,177 @@
+#!/usr/bin/python3 -I
+"""Amadeus privileged helper ("root mode").
+
+Runs as a transient root service only while the user has switched root mode on.
+It is never enabled, so it cannot survive a shutdown. It accepts requests only
+from one user id (checked with SO_PEERCRED) and, unless started with --full,
+only a fixed set of operations with validated arguments."""
+import argparse, json, os, pwd, re, shutil, socket, struct, subprocess, sys, time
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--uid", type=int, required=True)
+ap.add_argument("--full", action="store_true")
+ap.add_argument("--ttl", type=int, default=0, help="minutes")
+ap.add_argument("--socket", default="/run/amadeus/priv.sock")
+A = ap.parse_args()
+START = time.time()
+UNIT = re.compile(r"^[\w@.:\\-]+$")
+PKG = re.compile(r"^[a-zA-Z0-9@._+-]+$")
+PROTECTED = ("/etc/shadow", "/etc/gshadow", "/etc/passwd", "/etc/group", "/etc/sudoers", "/etc/sudoers.d", "/etc/pam.d",
+             "/etc/polkit-1", "/etc/security", "/etc/ssh", "/etc/crypttab", "/etc/fstab", "/etc/amadeus")
+BACKUPS = "/var/lib/amadeus/backups"
+
+
+def log(msg):
+    print(msg, file=sys.stderr, flush=True)      # journald: journalctl -u amadeus-priv
+
+
+def run(argv, timeout=1800):
+    p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+    out = (p.stdout + p.stderr).strip()
+    return p.returncode, out[-6000:]
+
+
+def snap(kind, desc, pre=None):
+    cmd = ["snapper", "-c", "root", "create", "--type", kind, "--print-number", "--description", f"amadeus: {desc}"[:120], "--cleanup-algorithm", "number"]
+    if pre:
+        cmd += ["--pre-number", str(pre)]
+    rc, out = run(cmd, 120)
+    return int(out.split()[-1]) if rc == 0 and out.split() and out.split()[-1].isdigit() else None
+
+
+def op_info(a):
+    left = max(0, int(A.ttl * 60 - (time.time() - START))) if A.ttl else 0
+    return {"full": A.full, "ttl_left": left, "since": int(START)}
+
+
+def op_systemctl(a):
+    if a.get("action") not in ("start", "stop", "restart", "reload", "enable", "disable") or not UNIT.match(a.get("unit", "")):
+        raise ValueError("invalid systemctl request")
+    if a["unit"].startswith("amadeus-priv"):
+        raise ValueError("refusing to manage the helper itself")
+    rc, out = run(["systemctl", a["action"], a["unit"]], 120)
+    if rc:
+        raise RuntimeError(out)
+    return out or f"{a['action']} {a['unit']}: done"
+
+
+def op_pacman(a):
+    pk = a.get("packages") or []
+    if any(not PKG.match(p) for p in pk):
+        raise ValueError("invalid package name")
+    cmd = {"install": ["pacman", "-S", "--noconfirm", "--needed"] + pk,
+           "remove": ["pacman", "-Rns", "--noconfirm"] + pk,
+           "upgrade": ["pacman", "-Syu", "--noconfirm"]}.get(a.get("action"))
+    if not cmd or (a["action"] != "upgrade" and not pk):
+        raise ValueError("invalid pacman request")
+    pre = snap("pre", f"{a['action']} {' '.join(pk)}")
+    rc, out = run(cmd, 3600)
+    post = snap("post", f"{a['action']} {' '.join(pk)}", pre) if pre else None
+    if rc:
+        raise RuntimeError(out)
+    return {"output": out[-1500:], "snapshots": [pre, post], "undo": f"sys_snapshot undo from={pre} to={post}" if pre and post else None}
+
+
+def op_snapper(a):
+    act = a.get("action")
+    if act == "list":
+        return run(["snapper", "-c", "root", "list", "--columns", "number,type,pre-number,date,description"], 60)[1][-4000:]
+    if act == "create":
+        return {"number": snap("single", a.get("description", "manual"))}
+    if act == "undo":
+        f, t = a.get("frm"), a.get("to")
+        if not (isinstance(f, int) and isinstance(t, int) and 0 < f < t):
+            raise ValueError("undo needs from < to snapshot numbers")
+        rc, out = run(["snapper", "-c", "root", "undochange", f"{f}..{t}"], 900)
+        if rc:
+            raise RuntimeError(out)
+        return out or "changes undone"
+    raise ValueError("invalid snapper request")
+
+
+def op_write_file(a):
+    path = os.path.realpath(a.get("path", ""))
+    if not path.startswith("/etc/") or not isinstance(a.get("content"), str):
+        raise ValueError("only files under /etc can be written")
+    if not A.full and any(path == p or path.startswith(p + "/") for p in PROTECTED):
+        raise ValueError(f"{path} is protected; it can only be changed in unrestricted root mode")
+    backup = None
+    if os.path.exists(path):
+        backup = f"{BACKUPS}/{int(time.time())}{path}"
+        os.makedirs(os.path.dirname(backup), exist_ok=True)
+        shutil.copy2(path, backup)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".amadeus-tmp"
+    with open(tmp, "w") as f:
+        f.write(a["content"])
+    if backup:
+        shutil.copymode(path, tmp)
+    os.replace(tmp, path)
+    return {"written": path, "backup": backup}
+
+
+def op_exec(a):
+    if not A.full:
+        raise ValueError("arbitrary root commands need unrestricted root mode: ama root on --full")
+    argv = a.get("argv")
+    if not (isinstance(argv, list) and argv and all(isinstance(x, str) for x in argv)):
+        raise ValueError("argv must be a list of strings")
+    rc, out = run(argv)
+    return {"exit": rc, "output": out}
+
+
+OPS = {"info": op_info, "systemctl": op_systemctl, "pacman": op_pacman, "snapper": op_snapper, "write_file": op_write_file, "exec": op_exec}
+
+
+def main():
+    os.makedirs(os.path.dirname(A.socket), exist_ok=True)
+    if os.path.exists(A.socket):
+        os.unlink(A.socket)
+    os.umask(0o177)
+    srv = socket.socket(socket.AF_UNIX)
+    srv.bind(A.socket)
+    if os.geteuid() == 0:
+        os.chown(A.socket, A.uid, 0)
+    srv.listen(4)
+    log(f"root mode ON for uid {A.uid} ({'unrestricted' if A.full else 'restricted'}, ttl {A.ttl or 'none'})")
+    while True:
+        conn, _ = srv.accept()
+        try:
+            pid, uid, gid = struct.unpack("3i", conn.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+            if uid != A.uid:
+                log(f"rejected connection from uid {uid}")
+                continue
+            conn.settimeout(10)
+            buf = b""
+            while not buf.endswith(b"\n") and len(buf) < 4_000_000:
+                chunk = conn.recv(65536)
+                if not chunk:
+                    break
+                buf += chunk
+            req = json.loads(buf)
+            op, args = req.get("op"), req.get("args") or {}
+            if op == "shutdown":
+                conn.sendall(b'{"ok": true, "result": "root mode: off"}\n')
+                log("root mode OFF (requested)")
+                break
+            log(f"op {op} {json.dumps(args)[:400]} (pid {pid})")
+            try:
+                if op not in OPS:
+                    raise ValueError(f"unknown operation {op}")
+                rep = {"ok": True, "result": OPS[op](args)}
+                if op == "info":
+                    rep.update(rep["result"])
+            except Exception as e:
+                rep = {"ok": False, "error": str(e)}
+                log(f"  failed: {e}")
+            conn.settimeout(None)
+            conn.sendall((json.dumps(rep) + "\n").encode())
+        except Exception as e:
+            log(f"bad request: {e}")
+        finally:
+            conn.close()
+    srv.close()
+    os.unlink(A.socket)
+
+
+main()

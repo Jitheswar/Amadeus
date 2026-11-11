@@ -1,0 +1,17 @@
+[Unit]
+Description=Amadeus — AI layer of the operating system
+Documentation=file:///usr/share/doc/amadeus/ARCHITECTURE.md
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=@AMA@ daemon
+Restart=on-failure
+RestartSec=2
+# The AI layer yields to the desktop. No memory cap here: subscription CLIs
+# (claude, codex) run as children and a cap throttles them to a standstill.
+CPUWeight=50
+Nice=5
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,0 +1,145 @@
+#!/bin/bash
+# Roll the system back to a snapshot. Works on the installed system and from the
+# Amadeus OS USB stick (when the installed system no longer starts).
+#   amadeus-rollback            list snapshots
+#   amadeus-rollback N          make snapshot N the system that starts next
+#   amadeus-rollback clean      delete the old systems kept by earlier rollbacks
+#   amadeus-rollback shell      open a root shell inside the installed system (USB stick)
+# Add --yes to skip the confirmation. Nothing is deleted by a rollback: the system
+# being replaced is kept as @.before-rollback-<date> until "clean" removes it.
+set -euo pipefail
+YES=no ARGS=()
+for a in "$@"; do [[ $a == --yes || $a == -y ]] && YES=yes || ARGS+=("$a"); done
+CMD=${ARGS[0]:-list}
+TOP=/run/amadeus-rollback/top NEW=/run/amadeus-rollback/new
+
+die() { printf '\033[1;31mRollback stopped:\033[0m %s\n' "$*" >&2; exit 1; }
+say() { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
+if (( EUID != 0 )); then exec sudo "$0" "$@"; fi
+
+OPENED=no
+cleanup() {
+  umount -R $NEW 2>/dev/null || true
+  umount $TOP 2>/dev/null || true
+  [[ $OPENED == yes ]] && cryptsetup close amadeus-rescue 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# ---- find the installed system ------------------------------------------------
+if [[ $(findmnt -no FSTYPE /) == btrfs ]]; then
+  LIVE=no
+  DEV=$(findmnt -no SOURCE / | sed 's/\[.*//')
+  ESP=$(findmnt -no SOURCE /boot) || die "/boot is not mounted"
+else
+  LIVE=yes
+  PART=$(readlink -f /dev/disk/by-partlabel/amadeus 2>/dev/null) || true
+  [[ -b ${PART:-} ]] || die "no Amadeus OS installation found on this computer"
+  ESP=$(lsblk -lnpo NAME,PARTLABEL "/dev/$(lsblk -no PKNAME "$PART")" | awk '$2=="EFI"{print $1; exit}')
+  [[ -b ${ESP:-} ]] || die "the boot partition of the installation was not found"
+  if [[ $(blkid -s TYPE -o value "$PART") == crypto_LUKS ]]; then
+    if [[ -n ${AMADEUS_LUKS_PASS:-} ]]; then
+      printf '%s' "$AMADEUS_LUKS_PASS" | cryptsetup open --key-file - "$PART" amadeus-rescue || die "wrong disk password"
+    else
+      echo "Enter the disk password of the installed system."
+      cryptsetup open "$PART" amadeus-rescue || die "wrong disk password"
+    fi
+    OPENED=yes DEV=/dev/mapper/amadeus-rescue
+  else
+    DEV=$PART
+  fi
+fi
+mkdir -p $TOP $NEW
+mount -o subvolid=5 "$DEV" $TOP
+[[ -d $TOP/@ ]] || die "this disk does not have the Amadeus OS layout"
+SNAPS=$TOP/@/.snapshots
+
+field() { sed -n "s:.*<$2>\(.*\)</$2>.*:\1:p" "$1" | head -1; }
+list() {
+  printf '%5s  %-19s  %-6s  %s\n' "No." "Date (UTC)" "Type" "What"
+  local n f
+  for n in $(ls "$SNAPS" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do
+    f=$SNAPS/$n/info.xml; [[ -f $f && -d $SNAPS/$n/snapshot ]] || continue
+    printf '%5s  %-19s  %-6s  %s\n' "$n" "$(field "$f" date)" "$(field "$f" type)" "$(field "$f" description)"
+  done
+  local old; old=$(ls -d $TOP/@.before-rollback-* 2>/dev/null | xargs -rn1 basename) || true
+  [[ -n $old ]] && printf '\nOld systems kept by earlier rollbacks (remove with: amadeus-rollback clean):\n%s\n' "$old"
+  return 0
+}
+
+mount_new() {  # the system that will start next, with its boot partition
+  mount -o subvol=@ "$DEV" $NEW
+  mount "$ESP" $NEW/boot
+}
+
+case $CMD in
+  list)
+    list
+    printf '\nRoll back with: amadeus-rollback <No.>\n' ;;
+
+  clean)
+    current=$(findmnt -no FSROOT / 2>/dev/null | sed 's:^/::')
+    found=no
+    for d in $TOP/@.before-rollback-*; do
+      [[ -d $d ]] || continue
+      [[ $(basename "$d") == "$current" ]] && { echo "Skipping $(basename "$d"): it is the system running now. Restart first."; continue; }
+      found=yes
+      btrfs subvolume delete -R "$d" >/dev/null 2>&1 || {
+        btrfs subvolume list -o "$d" | awk '{print $NF}' | sort -r | while read -r s; do btrfs subvolume delete "$TOP/$s" >/dev/null; done
+        btrfs subvolume delete "$d" >/dev/null; }
+      echo "Deleted $(basename "$d")"
+    done
+    [[ $found == no ]] && echo "Nothing to clean."
+    exit 0 ;;
+
+  shell)
+    [[ $LIVE == yes ]] || die "you are already inside the installed system"
+    mount_new
+    for sv in home:@home var/log:@log var/cache/pacman/pkg:@pkg; do mount -o subvol=${sv#*:} "$DEV" $NEW/${sv%%:*} 2>/dev/null || true; done
+    say "Root shell inside the installed system. Type exit to leave."
+    arch-chroot $NEW || true ;;
+
+  ''|*[!0-9]*)
+    die "unknown command '$CMD' (use a snapshot number, list, clean or shell)" ;;
+
+  *)
+    N=$CMD
+    [[ -d $SNAPS/$N/snapshot ]] || { list; die "there is no snapshot $N"; }
+    desc=$(field "$SNAPS/$N/info.xml" description); when=$(field "$SNAPS/$N/info.xml" date)
+    echo "Snapshot $N: ${desc:-(no description)}, taken $when UTC"
+    echo "System files go back to that moment. Your files in /home are not touched."
+    echo "The current system is kept and can be removed later with: amadeus-rollback clean"
+    if [[ $YES == no ]]; then
+      read -rp "Roll back to snapshot $N? (yes/no): " a
+      [[ $a == yes ]] || die "not confirmed; nothing was changed"
+    fi
+
+    keep="@.before-rollback-$(date -u +%Y%m%d-%H%M%S)"
+    say "Switching the system to snapshot $N"
+    mv $TOP/@ "$TOP/$keep"
+    if ! btrfs subvolume snapshot "$TOP/$keep/.snapshots/$N/snapshot" $TOP/@ >/dev/null; then
+      mv "$TOP/$keep" $TOP/@; die "could not create the new system; nothing was changed"
+    fi
+    # The snapshot history moves over to the new system.
+    rmdir $TOP/@/.snapshots 2>/dev/null || true
+    mv "$TOP/$keep/.snapshots" $TOP/@/.snapshots
+    mkdir -p "$TOP/$keep/.snapshots"
+    sed -i -E '/[[:space:]]\/[[:space:]]+btrfs/ s/subvolid=[0-9]+,?//' $TOP/@/etc/fstab
+
+    say "Restoring the matching kernel"
+    mount_new
+    [[ -f $NEW/.bootbackup/loader/loader.conf ]] && rsync -a --delete $NEW/.bootbackup/ $NEW/boot/
+    rebuild=no
+    for k in $NEW/usr/lib/modules/*/vmlinuz; do
+      [[ -f $k ]] || continue
+      name=$(cat "$(dirname "$k")/pkgbase" 2>/dev/null) || continue
+      if ! cmp -s "$k" "$NEW/boot/vmlinuz-$name"; then install -m644 "$k" "$NEW/boot/vmlinuz-$name"; rebuild=yes; fi
+    done
+    if [[ $rebuild == yes ]]; then
+      echo "The saved kernel did not match this snapshot; rebuilding the boot image."
+      arch-chroot $NEW mkinitcpio -P >/dev/null 2>&1 || die "the boot image could not be rebuilt. Undo with: mount the disk, then rename $keep back to @"
+      rsync -a --delete $NEW/boot/ $NEW/.bootbackup/
+    fi
+    sync
+    say "Done. Restart to use the system from snapshot $N."
+    [[ $LIVE == no ]] && echo "Until you restart, this session keeps running the old system; changes made now will not carry over." ;;
+esac

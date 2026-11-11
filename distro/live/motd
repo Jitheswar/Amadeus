@@ -1,0 +1,12 @@
+
+  Amadeus OS installer
+
+  Connect to the internet if you are on Wi-Fi:
+      iwctl station wlan0 connect "NETWORK NAME"
+
+  Then install (this erases the disk you choose):
+      amadeus-install
+
+  Already installed and it no longer starts? Go back to a snapshot:
+      amadeus-rollback
+

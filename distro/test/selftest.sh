@@ -1,0 +1,108 @@
+#!/bin/bash
+exec > >(tee /dev/ttyS0 /var/log/amadeus-selftest.log) 2>&1
+U=@USER@; UID_=$(id -u $U); R=/run/user/$UID_
+pass=0 fail=0
+ok()   { echo "PASS  $1"; pass=$((pass+1)); }
+bad()  { echo "FAIL  $1 ${2:+— $2}"; fail=$((fail+1)); }
+t()    { local name=$1; shift; local out; if out=$("$@" 2>&1); then ok "$name"; else bad "$name" "$(echo "$out" | tail -2 | tr '\n' ' ')"; fi; }
+as()   { sudo -u $U env XDG_RUNTIME_DIR=$R WAYLAND_DISPLAY=wayland-1 HYPRLAND_INSTANCE_SIGNATURE="$(ls $R/hypr 2>/dev/null | head -1)" HOME=/home/$U PATH=/usr/bin "$@"; }
+export U R; export -f as
+echo "AMADEUS-SELFTEST-BEGIN"
+for _ in $(seq 60); do [[ -S $R/amadeus/daemon.sock ]] && pgrep -x Hyprland >/dev/null && break; sleep 2; done
+sleep 8
+mkdir -p /mnt/auto; mount /dev/disk/by-label/AMADEUSAUTO /mnt/auto 2>/dev/null
+STAGE=$(cat /mnt/auto/stage 2>/dev/null || echo 1)
+healthy() {
+  t "root is btrfs subvolume @"                bash -c 'findmnt -no FSTYPE,OPTIONS / | grep -qE "btrfs.*subvol=/@(,|$)"'
+  t "no failed system units"                   bash -c '[[ -z $(systemctl --failed --no-legend) ]]'
+  t "Hyprland is running"                      pgrep -x Hyprland
+  t "kernel on the boot partition matches"     bash -c 'cmp /boot/vmlinuz-linux /usr/lib/modules/*/vmlinuz'
+  t "snapshot history carried over"            bash -c 'snapper -c root list | grep -q "fresh install"'
+  t "previous system kept"                     bash -c 'amadeus-rollback list | grep -q before-rollback'
+}
+finish() {
+  echo "AMADEUS-SELFTEST-END stage=$STAGE pass=$pass fail=$fail"
+  sleep 1
+  if [[ $STAGE == 1 ]]; then
+    as grim /tmp/desktop.png 2>/dev/null && cp /tmp/desktop.png /mnt/auto/desktop.png
+    journalctl -b -p warning --no-pager | tail -60 >/mnt/auto/journal-warnings.log
+  fi
+  cp /var/log/amadeus-selftest.log /mnt/auto/selftest-$STAGE.log
+  echo "$1" >/mnt/auto/stage
+  sync; umount /mnt/auto
+  systemctl poweroff
+  exit 0
+}
+if [[ $STAGE == 2 ]]; then
+  echo "--- after a rollback from the running system"
+  healthy
+  t "change made after the snapshot is gone"   bash -c '! test -e /etc/rollback-marker'
+  t "clean removes the previous system"        bash -c 'amadeus-rollback clean && ! amadeus-rollback list | grep -q before-rollback'
+  snapper -c root create -d "rescue-test"
+  touch /etc/rescue-marker
+  echo "SNAPSHOT=$(snapper -c root list | awk '/rescue-test/{print $1}')" >/mnt/auto/rescue.conf
+  finish 3
+fi
+if [[ $STAGE == 3 ]]; then
+  echo "--- after a rollback from the USB stick"
+  healthy
+  t "change made after the snapshot is gone"   bash -c '! test -e /etc/rescue-marker'
+  finish done
+fi
+
+echo "--- base system"
+t "system identifies as Amadeus OS"            grep -q '^ID=amadeus' /etc/os-release
+t "root is btrfs subvolume @"                  bash -c 'findmnt -no FSTYPE,OPTIONS / | grep -q "btrfs.*subvol=/@"'
+t "root is on an unlocked LUKS volume"         bash -c 'cryptsetup status root | grep -q "is active"'
+t "separate @home, @log, @pkg subvolumes"      bash -c 'findmnt /home && findmnt /var/log && findmnt /var/cache/pacman/pkg'
+t "zram swap active"                           bash -c 'swapon --show | grep -q zram'
+t "booted with systemd-boot"                   bash -c 'bootctl status 2>/dev/null | grep -q systemd-boot'
+t "no failed system units"                     bash -c '[[ -z $(systemctl --failed --no-legend) ]]'
+t "network is up"                              bash -c 'nmcli -t general status | grep -q "^connected"'
+t "root account is locked"                     bash -c 'passwd -S root | grep -q " L "'
+t "multilib enabled (Steam)"                   bash -c 'pacman -Sl multilib | head -1 | grep -q multilib'
+t "core packages installed"                    pacman -Q hyprland quickshell steam libreoffice-fresh amadeus amadeus-desktop snap-pac
+echo "--- snapshots"
+t "snapshot of the fresh install exists"       bash -c 'snapper -c root list | grep -q "fresh install"'
+before=$(snapper -c root list | wc -l)
+t "installing a package works"                 pacman -S --noconfirm --needed tree
+t "package change created pre/post snapshots"  bash -c "[[ \$(snapper -c root list | wc -l) -ge $((before+2)) ]]"
+t "copy of /boot kept for rollback"            test -f /.bootbackup/vmlinuz-linux
+n=$(snapper -c root list | awk '$3=="pre"{p=$1} END{print p}')
+t "rollback removes the package again"         bash -c "snapper -c root undochange $n..$((n+1)) >/dev/null && ! test -e /usr/bin/tree"
+echo "--- desktop session"
+t "greeter service running"                    systemctl is-active greetd
+t "Hyprland is running"                        pgrep -x Hyprland
+t "bar is running"                             pgrep -f 'quickshell -p /usr/share/amadeus-os/bar'
+t "Hyprland config has no errors"              bash -c "[[ -z \$(sudo -u $U env XDG_RUNTIME_DIR=$R HYPRLAND_INSTANCE_SIGNATURE=\$(ls $R/hypr | head -1) hyprctl configerrors | tr -d '[:space:]') ]]"
+echo "--- Amadeus"
+t "daemon running in the user session"         test -S $R/amadeus/daemon.sock
+t "ama status"                                 as ama status
+t "sandboxed command runs"                     bash -c "sudo -u $U env XDG_RUNTIME_DIR=$R HOME=/home/$U PATH=/usr/bin ama tool shell_run '{\"command\":\"echo sandbox-ok\"}' | grep -q sandbox-ok"
+t "sandbox has no network and no home"         bash -c "! sudo -u $U env XDG_RUNTIME_DIR=$R HOME=/home/$U PATH=/usr/bin ama tool shell_run '{\"command\":\"ls /home/$U/.config || true; curl -sm3 https://archlinux.org >/dev/null && echo LEAK\"}' | grep -qE 'LEAK|hypr'"
+t "protected paths are refused"                bash -c "sudo -u $U env XDG_RUNTIME_DIR=$R HOME=/home/$U PATH=/usr/bin ama tool fs_read '{\"path\":\"~/.ssh/id_ed25519\"}' | grep -q 'protected'"
+t "desktop state readable through Amadeus"     bash -c "as ama tool desktop_state | grep -q monitors"
+t "bar layout readable through Amadeus"        bash -c "as ama tool desktop_bar | grep -q workspaces"
+t "privileged tools refused (root mode off)"   bash -c "as ama tool pkg_manage '{\"action\":\"install\",\"packages\":[\"htop\"]}' | grep -q 'root mode'"
+t "root helper is root-owned"                  bash -c '[[ $(stat -c %U /usr/lib/amadeus/amadeus-priv) == root ]]'
+t "audit log chain intact"                     as ama audit verify
+echo "--- applications outside the Arch repositories"
+t "protonplus installed"                       pacman -Q protonplus
+for p in brave-origin-bin claude-desktop claude-code herdr localsend; do t "$p installed" pacman -Q $p; done
+echo "--- ama doctor"
+as ama doctor || true
+echo "--- resources"
+awk '{printf "kernel to self-test start: %.0f s\n", $1}' /proc/uptime
+free -m | sed -n 2p | awk '{print "memory used after login: " $3 " MB"}'
+pacman -Qq | wc -l | awk '{print "packages installed: " $1}'
+df -h / | tail -1 | awk '{print "disk used: " $3}'
+
+echo "--- rollback from the running system"
+printf x >>/.bootbackup/vmlinuz-linux   # a stale saved kernel, to exercise the repair path
+snapper -c root create -d "rollback-test"
+n=$(snapper -c root list | awk '/rollback-test/{print $1}')
+touch /etc/rollback-marker
+t "amadeus-rollback lists snapshots"           bash -c 'amadeus-rollback list | grep -q rollback-test'
+t "amadeus-rollback to snapshot $n"            amadeus-rollback --yes "$n"
+t "stale kernel was repaired"                  bash -c 'cmp /boot/vmlinuz-linux /usr/lib/modules/*/vmlinuz'
+finish 2

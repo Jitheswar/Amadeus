@@ -1,0 +1,25 @@
+#!/bin/bash
+# Switch Amadeus root mode on. Run through pkexec, so polkit authenticates the user.
+# The helper is a *transient* unit: it is never enabled and is gone after shutdown.
+set -eu
+[[ ${1:-} == on ]] || { echo "usage: root-mode on --uid N [--full] [--ttl MIN]" >&2; exit 2; }
+shift
+uid="" full="" ttl=""
+while (($#)); do
+  case $1 in
+    --uid) uid=$2; shift 2 ;;
+    --full) full=--full; shift ;;
+    --ttl) ttl=$2; shift 2 ;;
+    *) echo "unknown option $1" >&2; exit 2 ;;
+  esac
+done
+[[ $uid =~ ^[0-9]+$ && $uid -ge 1000 ]] || { echo "invalid uid" >&2; exit 2; }
+# Root mode may only be opened for the user who authenticated.
+[[ -z ${PKEXEC_UID:-} || $PKEXEC_UID == "$uid" ]] || { echo "uid does not match the authenticated user" >&2; exit 1; }
+[[ -z $ttl || $ttl =~ ^[0-9]+$ ]] || { echo "invalid ttl" >&2; exit 2; }
+
+systemctl stop amadeus-priv.service 2>/dev/null || true
+props=(-p RuntimeDirectory=amadeus -p RuntimeDirectoryMode=0755 -p PrivateTmp=yes)
+[[ -n $ttl ]] && props+=(-p "RuntimeMaxSec=$((ttl * 60))")
+exec systemd-run --quiet --collect --unit=amadeus-priv --description="Amadeus root mode" "${props[@]}" \
+  /usr/lib/amadeus/amadeus-priv --uid "$uid" $full ${ttl:+--ttl "$ttl"}

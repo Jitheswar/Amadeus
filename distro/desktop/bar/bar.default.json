@@ -1,0 +1,5 @@
+{
+  "left": ["workspaces", "title"],
+  "center": ["clock"],
+  "right": ["gpu", "network", "volume", "battery", "amadeus"]
+}

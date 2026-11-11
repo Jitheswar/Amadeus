@@ -1,0 +1,9 @@
+singleton Theme Theme.qml
+AppWindow 1.0 AppWindow.qml
+Card 1.0 Card.qml
+Txt 1.0 Txt.qml
+Btn 1.0 Btn.qml
+Field 1.0 Field.qml
+Stat 1.0 Stat.qml
+Meter 1.0 Meter.qml
+Os 1.0 Os.qml

@@ -1,0 +1,9 @@
+#!/bin/bash
+choice=$(printf 'Lock\nSuspend\nLog out\nRestart\nShut down' | fuzzel --dmenu --lines 5 --prompt 'Power  ') || exit 0
+case $choice in
+  Lock) hyprlock ;;
+  Suspend) systemctl suspend ;;
+  "Log out") uwsm stop ;;
+  Restart) systemctl reboot ;;
+  "Shut down") systemctl poweroff ;;
+esac

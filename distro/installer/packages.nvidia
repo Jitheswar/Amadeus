@@ -1,0 +1,2 @@
+# NVIDIA RTX 3050 (installed only when an NVIDIA GPU is present)
+linux-firmware-nvidia nvidia-open nvidia-utils lib32-nvidia-utils libva-nvidia-driver

@@ -1,0 +1,14 @@
+[Unit]
+Description=Amadeus OS unattended install (only when an AMADEUSAUTO disk is attached)
+ConditionPathExists=/dev/disk/by-label/AMADEUSAUTO
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/amadeus-autoinstall
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

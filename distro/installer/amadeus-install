@@ -1,0 +1,218 @@
+#!/bin/bash
+# Amadeus OS installer. Erases one disk and installs the system onto it.
+#   amadeus-install                 interactive
+#   amadeus-install answers.conf    unattended (shell variables, see the README)
+set -euo pipefail
+SHARE=/usr/share/amadeus-install
+T=/mnt/amadeus
+LOG=/var/log/amadeus-install.log
+exec > >(tee -a "$LOG") 2>&1
+
+say()  { printf '\n\033[1;32m==>\033[0m %s\n' "$*"; }
+die()  { printf '\n\033[1;31mInstall stopped:\033[0m %s\n' "$*" >&2; exit 1; }
+pkgs() { grep -hv '^#' "$@" | tr '\n' ' '; }
+ask()  { local var=$1 prompt=$2 def=${3:-} v; [[ -n ${!var:-} ]] && return; read -rp "$prompt${def:+ [$def]}: " v; printf -v "$var" '%s' "${v:-$def}"; }
+ask_secret() { local var=$1 prompt=$2 a b; [[ -n ${!var:-} ]] && return
+  while :; do read -rsp "$prompt: " a; echo; read -rsp "Again: " b; echo; [[ -n $a && $a == "$b" ]] && break; echo "Empty or not matching."; done
+  printf -v "$var" '%s' "$a"; }
+
+(( EUID == 0 )) || die "run as root"
+[[ -d /sys/firmware/efi ]] || die "this machine did not boot in UEFI mode"
+UNATTENDED=no
+if [[ -n ${1:-} ]]; then source "$1"; UNATTENDED=yes; fi
+
+# ---- questions ---------------------------------------------------------------
+if [[ -z ${DISK:-} ]]; then
+  say "Disks"
+  lsblk -dno NAME,SIZE,MODEL,TRAN | grep -vE '^(loop|sr|zram)'
+fi
+ask DISK "Disk to ERASE and install onto (for example nvme0n1)"
+DISK=/dev/${DISK#/dev/}
+[[ -b $DISK ]] || die "$DISK is not a disk"
+[[ $(lsblk -dno TYPE "$DISK") == disk ]] || die "$DISK is not a whole disk"
+ask HOSTNAME "Computer name" amadeus
+ask USERNAME "Your user name"
+[[ $USERNAME =~ ^[a-z_][a-z0-9_-]{0,30}$ ]] || die "invalid user name"
+ask_secret PASSWORD "Password for $USERNAME"
+ask ENCRYPT "Encrypt the disk (yes/no)" yes
+[[ $ENCRYPT == yes ]] && LUKS_PASS=${LUKS_PASS:-$PASSWORD}
+ask TIMEZONE "Time zone" "$(curl -fsm5 https://ipapi.co/timezone 2>/dev/null || echo UTC)"
+[[ -f /usr/share/zoneinfo/$TIMEZONE ]] || die "unknown time zone $TIMEZONE"
+ask LOCALE "Locale" en_US.UTF-8
+ask KEYMAP "Console keymap" us
+ask EXTRAS "Install Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend from a third-party repository (yes/no)" yes
+NVIDIA=${NVIDIA:-auto}
+if [[ $NVIDIA == auto ]]; then lspci -n | grep -qE ' 03[0-9a-f]{2}: 10de:' && NVIDIA=yes || NVIDIA=no; fi
+
+if [[ $UNATTENDED == no ]]; then
+  say "This will permanently erase everything on $DISK:"
+  lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS "$DISK"
+  read -rp "Type the disk name (${DISK#/dev/}) to continue: " confirm
+  [[ $confirm == "${DISK#/dev/}" ]] || die "not confirmed; nothing was changed"
+fi
+ping -c1 -W5 archlinux.org >/dev/null 2>&1 || curl -fsm8 -o /dev/null https://geo.mirror.pkgbuild.com || die "no internet connection (connect with: iwctl station wlan0 connect "NETWORK", then run again)"
+
+# ---- disk --------------------------------------------------------------------
+say "Partitioning $DISK"
+umount -R $T 2>/dev/null || true
+cryptsetup close root 2>/dev/null || true
+wipefs -af "$DISK" >/dev/null
+sgdisk -Z "$DISK" >/dev/null
+sgdisk -n1:0:+2G -t1:ef00 -c1:EFI -n2:0:0 -t2:8304 -c2:amadeus "$DISK" >/dev/null
+partprobe "$DISK"; udevadm settle
+[[ $DISK =~ [0-9]$ ]] && P=${DISK}p || P=$DISK
+ESP=${P}1 ROOTPART=${P}2
+mkfs.fat -F32 -n EFI "$ESP" >/dev/null
+if [[ $ENCRYPT == yes ]]; then
+  say "Encrypting"
+  printf '%s' "$LUKS_PASS" | cryptsetup luksFormat --type luks2 --batch-mode --key-file - "$ROOTPART"
+  printf '%s' "$LUKS_PASS" | cryptsetup open --allow-discards --key-file - "$ROOTPART" root
+  ROOTDEV=/dev/mapper/root
+else
+  ROOTDEV=$ROOTPART
+fi
+mkfs.btrfs -qf -L amadeus "$ROOTDEV"
+mount "$ROOTDEV" /mnt
+for sv in @ @home @log @pkg; do btrfs subvolume create /mnt/$sv >/dev/null; done
+umount /mnt
+OPTS=noatime,compress=zstd:3,discard=async
+mkdir -p $T
+mount -o $OPTS,subvol=@ "$ROOTDEV" $T
+mkdir -p $T/{boot,home,var/log,var/cache/pacman/pkg}
+mount -o $OPTS,subvol=@home "$ROOTDEV" $T/home
+mount -o $OPTS,subvol=@log "$ROOTDEV" $T/var/log
+mount -o $OPTS,subvol=@pkg "$ROOTDEV" $T/var/cache/pacman/pkg
+mount -o umask=0077 "$ESP" $T/boot
+
+# ---- packages ----------------------------------------------------------------
+say "Installing packages (this is the long part)"
+CONF=$(mktemp)
+{
+  echo "[options]"; echo "Architecture = auto"; echo "ParallelDownloads = 8"; echo "SigLevel = Required DatabaseOptional"
+  echo "CacheDir = $T/var/cache/pacman/pkg/"
+  [[ -n ${CACHE_DIR:-} && -d ${CACHE_DIR:-} ]] && echo "CacheDir = $CACHE_DIR/"
+  for r in core extra multilib; do printf '[%s]\nInclude = /etc/pacman.d/mirrorlist\n' "$r"; done
+  printf '[amadeus]\nSigLevel = Optional TrustAll\nServer = file:///opt/amadeus-repo\n'
+} >"$CONF"
+LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps) amadeus amadeus-desktop"
+compgen -G "/opt/amadeus-repo/protonplus-*.pkg.tar.zst" >/dev/null && LIST+=" protonplus"
+[[ $NVIDIA == yes ]] && LIST+=" $(pkgs $SHARE/packages.nvidia)"
+# shellcheck disable=SC2086
+pacstrap -C "$CONF" -K $T $LIST
+
+say "Configuring"
+genfstab -U $T >>$T/etc/fstab
+# Mount subvolumes by name only, so a rolled-back root (which gets a new id) still mounts.
+sed -i -E 's/subvolid=[0-9]+,?//' $T/etc/fstab
+ch() { arch-chroot $T "$@"; }
+sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' $T/etc/pacman.conf
+sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 8/; s/^#Color/Color/' $T/etc/pacman.conf
+cp /etc/pacman.d/mirrorlist $T/etc/pacman.d/mirrorlist
+ln -sf ../usr/lib/os-release.amadeus $T/etc/os-release
+echo "$HOSTNAME" >$T/etc/hostname
+printf '127.0.0.1 localhost\n::1 localhost\n127.0.1.1 %s\n' "$HOSTNAME" >$T/etc/hosts
+ln -sf "/usr/share/zoneinfo/$TIMEZONE" $T/etc/localtime
+ch hwclock --systohc
+sed -i "s/^#\($LOCALE\)/\1/; s/^#\(en_US.UTF-8\)/\1/" $T/etc/locale.gen
+ch locale-gen >/dev/null
+echo "LANG=$LOCALE" >$T/etc/locale.conf
+echo "KEYMAP=$KEYMAP" >$T/etc/vconsole.conf
+
+ch useradd -m -G wheel,video,input -s /bin/bash "$USERNAME"
+printf '%s:%s\n' "$USERNAME" "$PASSWORD" | ch chpasswd
+ch passwd -l root >/dev/null
+echo '%wheel ALL=(ALL:ALL) ALL' >$T/etc/sudoers.d/10-wheel; chmod 440 $T/etc/sudoers.d/10-wheel
+
+printf '[zram0]\nzram-size = min(ram, 8192)\ncompression-algorithm = zstd\n' >$T/etc/systemd/zram-generator.conf
+printf 'vm.swappiness = 150\nvm.page-cluster = 0\n' >$T/etc/sysctl.d/90-zram.conf
+mkdir -p $T/etc/systemd/journald.conf.d $T/etc/NetworkManager/conf.d
+printf '[Journal]\nSystemMaxUse=200M\n' >$T/etc/systemd/journald.conf.d/size.conf
+printf '[connection]\nwifi.powersave = 3\n' >$T/etc/NetworkManager/conf.d/wifi-powersave.conf
+
+cat >$T/etc/greetd/config.toml <<G
+[terminal]
+vt = 1
+[default_session]
+command = "tuigreet --time --remember --asterisks --greeting 'Amadeus OS' --cmd 'uwsm start hyprland-uwsm.desktop'"
+user = "greeter"
+G
+
+if [[ $NVIDIA == yes ]]; then
+  # The card powers down fully when idle and wakes only for apps that ask for it.
+  printf 'options nvidia NVreg_DynamicPowerManagement=0x02 NVreg_PreserveVideoMemoryAllocations=1\noptions nvidia_drm modeset=1\n' >$T/etc/modprobe.d/nvidia.conf
+  cat >$T/etc/udev/rules.d/80-nvidia-pm.rules <<'U'
+ACTION=="bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="auto"
+ACTION=="unbind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="on"
+U
+  ch systemctl enable nvidia-suspend nvidia-resume nvidia-hibernate >/dev/null 2>&1 || true
+fi
+
+# ---- boot --------------------------------------------------------------------
+say "Boot loader"
+ROOT_UUID=$(blkid -s UUID -o value "$ROOTPART")
+if [[ $ENCRYPT == yes ]]; then
+  sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)/' $T/etc/mkinitcpio.conf
+  CMD="rd.luks.name=$ROOT_UUID=root rd.luks.options=discard root=/dev/mapper/root"
+else
+  sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)/' $T/etc/mkinitcpio.conf
+  CMD="root=UUID=$ROOT_UUID"
+fi
+CMD+=" rootflags=subvol=@ rw quiet loglevel=3 nowatchdog ${EXTRA_CMDLINE:-}"
+ch mkinitcpio -P >/dev/null 2>&1 || ch mkinitcpio -P
+ch bootctl install --no-variables >/dev/null 2>&1 || ch bootctl install
+printf 'default amadeus.conf\ntimeout 2\nconsole-mode keep\neditor no\n' >$T/boot/loader/loader.conf
+printf 'title Amadeus OS\nlinux /vmlinuz-linux\ninitrd /initramfs-linux.img\noptions %s\n' "$CMD" >$T/boot/loader/entries/amadeus.conf
+printf 'title Amadeus OS (fallback)\nlinux /vmlinuz-linux\ninitrd /initramfs-linux-fallback.img\noptions %s\n' "${CMD/ quiet loglevel=3/}" >$T/boot/loader/entries/amadeus-fallback.conf
+[[ -f $T/boot/initramfs-linux-fallback.img ]] || rm $T/boot/loader/entries/amadeus-fallback.conf
+# Register the loader with the firmware too (bootctl --no-variables is used so this also works in a chroot).
+efibootmgr -q -c -d "$DISK" -p 1 -L "Amadeus OS" -l '\EFI\systemd\systemd-bootx64.efi' 2>/dev/null || true
+
+# Keep a copy of /boot inside the root filesystem before every package change, so a
+# snapshot always contains the kernel that matches its modules.
+mkdir -p $T/etc/pacman.d/hooks
+cat >$T/etc/pacman.d/hooks/04-boot-backup.hook <<'H'
+[Trigger]
+Operation = Upgrade
+Operation = Install
+Operation = Remove
+Type = Path
+Target = usr/lib/modules/*/vmlinuz
+[Action]
+Description = Saving a copy of /boot for snapshot rollback
+When = PreTransaction
+Exec = /usr/bin/rsync -a --delete /boot/ /.bootbackup/
+H
+# And again after the change, before the "post" snapshot is taken.
+sed 's/^When = PreTransaction/When = PostTransaction/' $T/etc/pacman.d/hooks/04-boot-backup.hook >$T/etc/pacman.d/hooks/95-boot-backup.hook
+rsync -a --delete $T/boot/ $T/.bootbackup/
+
+# ---- snapshots, services, third-party apps ------------------------------------
+say "Snapshots and services"
+ch snapper --no-dbus -c root create-config /
+sed -i 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE="no"/; s/^NUMBER_LIMIT=.*/NUMBER_LIMIT="20"/; s/^NUMBER_LIMIT_IMPORTANT=.*/NUMBER_LIMIT_IMPORTANT="5"/' $T/etc/snapper/configs/root
+for s in NetworkManager greetd bluetooth power-profiles-daemon thermald systemd-timesyncd systemd-resolved fstrim.timer snapper-cleanup.timer; do
+  ch systemctl enable "$s" >/dev/null 2>&1 || echo "  (could not enable $s)"
+done
+ln -sf ../run/systemd/resolve/stub-resolv.conf $T/etc/resolv.conf
+ch systemctl --global enable amadeusd.service pipewire-pulse.socket wireplumber.service >/dev/null 2>&1 || true
+install -Dm644 /usr/share/pacman/keyrings/omarchy* -t $T/usr/share/pacman/keyrings/ 2>/dev/null || true
+
+if [[ $EXTRAS == yes ]]; then
+  say "Third-party applications"
+  if [[ -f $T/usr/share/pacman/keyrings/omarchy.gpg ]] && ch pacman-key --populate omarchy >/dev/null 2>&1; then
+    printf '\n# Third-party applications only. Listed last, so it never replaces an Arch package.\n[omarchy]\nServer = https://pkgs.omarchy.org/stable/$arch\n' >>$T/etc/pacman.conf
+    # shellcheck disable=SC2046
+    ch pacman -Sy --noconfirm --needed $(pkgs $SHARE/packages.extras) || echo "  Some third-party applications could not be installed; the system is otherwise complete."
+  else
+    echo "  Third-party repository key unavailable; skipped."
+  fi
+fi
+
+ch snapper --no-dbus -c root create --description "fresh install" --cleanup-algorithm number >/dev/null || true
+[[ -n ${POST_HOOK:-} && -x ${POST_HOOK:-} ]] && "$POST_HOOK" $T "$USERNAME"
+
+install -Dm644 "$LOG" $T/var/log/amadeus-install.log
+sync
+umount -R $T
+[[ $ENCRYPT == yes ]] && cryptsetup close root
+say "Amadeus OS is installed on $DISK. Remove the USB stick and restart."

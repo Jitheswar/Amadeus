@@ -1,0 +1,24 @@
+#!/bin/bash
+# Unattended install driven by a disk labelled AMADEUSAUTO holding answers.conf.
+# Used for automated testing and for hands-off reinstalls. If the disk holds
+# rescue.conf instead (SNAPSHOT=N, LUKS_PASS=...), it rolls the installed system back.
+set -u
+A=/run/amadeus-auto
+mkdir -p $A /mnt/hostcache
+mount /dev/disk/by-label/AMADEUSAUTO $A || exit 1
+if [[ -f $A/rescue.conf ]]; then
+  source $A/rescue.conf
+  { if AMADEUS_LUKS_PASS=$LUKS_PASS amadeus-rollback --yes "$SNAPSHOT"; then echo "AMADEUS-RESCUE-RESULT: OK"; else echo "AMADEUS-RESCUE-RESULT: FAILED"; fi
+    amadeus-rollback list
+  } 2>&1 | tee $A/rescue.log /dev/ttyS0 2>/dev/null
+  rm -f $A/rescue.conf
+else
+  mount -t 9p -o trans=virtio,ro,msize=1048576 hostcache /mnt/hostcache 2>/dev/null || true
+  for _ in $(seq 30); do ping -c1 -W2 archlinux.org >/dev/null 2>&1 && break; sleep 2; done
+  {
+    if amadeus-install $A/answers.conf; then echo "AMADEUS-INSTALL-RESULT: OK"; else echo "AMADEUS-INSTALL-RESULT: FAILED"; fi
+  } 2>&1 | tee /dev/ttyS0 2>/dev/null
+  cp /var/log/amadeus-install.log $A/install.log 2>/dev/null
+fi
+sync; umount $A
+systemctl poweroff
