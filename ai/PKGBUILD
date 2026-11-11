@@ -5,7 +5,7 @@ pkgrel=1
 pkgdesc="AI layer for the operating system: policy-controlled agent, sandboxed generated apps"
 arch=(any)
 license=(MIT)
-depends=(python bubblewrap quickshell hyprland git polkit snapper systemd)
+depends=(python bubblewrap quickshell niri git polkit snapper systemd)
 optdepends=('networkmanager: network tools' 'power-profiles-daemon: power profile control' 'cuda: GPU compute in sandboxes')
 options=(!debug)
 

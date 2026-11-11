@@ -1,0 +1,124 @@
+// Amadeus OS desktop defaults. Shipped in /usr/share/amadeus-os and updated with the system.
+// Personal changes belong in ~/.config/niri/config.kdl, which includes this file first.
+// Nothing here selects the NVIDIA card: the compositor and ordinary applications render on
+// the Intel GPU, and Amadeus (or `gpu-run <app>`) sends individual applications to NVIDIA.
+
+input {
+    keyboard { xkb { layout "us"; }; }
+    touchpad { tap; natural-scroll; dwt; }
+    focus-follows-mouse max-scroll-amount="0%"
+}
+
+layout {
+    gaps 8
+    center-focused-column "never"
+    preset-column-widths { proportion 0.33333; proportion 0.5; proportion 0.66667; }
+    default-column-width { proportion 0.5; }
+    focus-ring { width 2; active-color "#8bcbb1"; inactive-color "#2b5147"; }
+    border { off; }
+    background-color "#142620"
+}
+
+environment {
+    QT_QPA_PLATFORM "wayland;xcb"
+    QT_WAYLAND_DISABLE_WINDOWDECORATION "1"
+    ELECTRON_OZONE_PLATFORM_HINT "auto"
+    XCURSOR_SIZE "24"
+}
+
+prefer-no-csd
+screenshot-path "~/Pictures/Screenshots/%Y-%m-%d_%H-%M-%S.png"
+hotkey-overlay { skip-at-startup; }
+
+spawn-at-startup "quickshell" "-p" "/usr/share/amadeus-os/bar"
+spawn-at-startup "mako"
+spawn-at-startup "swayidle" "-w"
+spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+
+// Amadeus surfaces (palette, approval prompts) float in the centre.
+window-rule {
+    match app-id=r#"^org\.quickshell$"# title="^Amadeus"
+    open-floating true
+}
+window-rule {
+    geometry-corner-radius 8
+    clip-to-geometry true
+}
+// Games get the whole screen.
+window-rule {
+    match app-id=r#"^steam_app_"#
+    open-fullscreen true
+    variable-refresh-rate true
+}
+
+binds {
+    Mod+Shift+Slash { show-hotkey-overlay; }
+
+    // Applications
+    Mod+Return hotkey-overlay-title="Terminal" { spawn "foot"; }
+    Mod+Space hotkey-overlay-title="Launcher" { spawn "fuzzel"; }
+    Mod+Z hotkey-overlay-title="Amadeus" { spawn "ama" "palette"; }
+    Mod+B hotkey-overlay-title="Browser" { spawn "xdg-open" "https://"; }
+    Mod+E hotkey-overlay-title="Files" { spawn "nautilus" "--new-window"; }
+    Mod+Escape hotkey-overlay-title="Power menu" { spawn "amadeus-power-menu"; }
+    Mod+Ctrl+L hotkey-overlay-title="Lock" { spawn "swaylock" "-f"; }
+    Print { screenshot; }
+    Ctrl+Print { screenshot-screen; }
+    Alt+Print { screenshot-window; }
+
+    // Windows
+    Mod+W { close-window; }
+    Mod+F { fullscreen-window; }
+    Mod+M { maximize-column; }
+    Mod+T { toggle-window-floating; }
+    Mod+R { switch-preset-column-width; }
+    Mod+C { center-column; }
+    Mod+O repeat=false { toggle-overview; }
+    Mod+Left { focus-column-left; }
+    Mod+Right { focus-column-right; }
+    Mod+Up { focus-window-or-workspace-up; }
+    Mod+Down { focus-window-or-workspace-down; }
+    Mod+Shift+Left { move-column-left; }
+    Mod+Shift+Right { move-column-right; }
+    Mod+Shift+Up { move-window-up-or-to-workspace-up; }
+    Mod+Shift+Down { move-window-down-or-to-workspace-down; }
+    Mod+Comma { consume-or-expel-window-left; }
+    Mod+Period { consume-or-expel-window-right; }
+    Mod+Minus { set-column-width "-10%"; }
+    Mod+Equal { set-column-width "+10%"; }
+
+    // Workspaces
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+    Mod+Shift+1 { move-column-to-workspace 1; }
+    Mod+Shift+2 { move-column-to-workspace 2; }
+    Mod+Shift+3 { move-column-to-workspace 3; }
+    Mod+Shift+4 { move-column-to-workspace 4; }
+    Mod+Shift+5 { move-column-to-workspace 5; }
+    Mod+Shift+6 { move-column-to-workspace 6; }
+    Mod+Shift+7 { move-column-to-workspace 7; }
+    Mod+Shift+8 { move-column-to-workspace 8; }
+    Mod+Shift+9 { move-column-to-workspace 9; }
+    Mod+WheelScrollDown cooldown-ms=150 { focus-workspace-down; }
+    Mod+WheelScrollUp cooldown-ms=150 { focus-workspace-up; }
+
+    // Hardware keys
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "-l" "1" "@DEFAULT_AUDIO_SINK@" "5%+"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%-"; }
+    XF86AudioMute allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
+    XF86AudioMicMute allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
+    XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "-e4" "-n2" "set" "5%+"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "-e4" "-n2" "set" "5%-"; }
+    XF86AudioPlay allow-when-locked=true { spawn "playerctl" "play-pause"; }
+    XF86AudioNext allow-when-locked=true { spawn "playerctl" "next"; }
+    XF86AudioPrev allow-when-locked=true { spawn "playerctl" "previous"; }
+
+    Mod+Shift+E { quit; }
+}

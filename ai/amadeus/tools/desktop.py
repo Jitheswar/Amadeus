@@ -1,83 +1,112 @@
-"""Desktop control: windows, workspaces, launching (with GPU selection), keybindings,
-bar/panels/widgets/themes through the shell's own command set."""
+"""Desktop control through the niri compositor: windows, workspaces, launching (with GPU
+selection), shortcuts and rules, and the bar layout."""
 import os, json, re, glob, shlex, subprocess, shutil
 from pathlib import Path
 from . import tool, sh, clip, ToolError
 from .files import remember
 
-HYPR_USER = Path.home() / ".config/hypr"
-MANAGED = HYPR_USER / "amadeus.lua"
+NIRI_USER = Path.home() / ".config/niri"
+MAIN = NIRI_USER / "config.kdl"
+MANAGED = NIRI_USER / "amadeus.kdl"
 NV_ENV = {"__NV_PRIME_RENDER_OFFLOAD": "1", "__GLX_VENDOR_LIBRARY_NAME": "nvidia", "__VK_LAYER_NV_optimus": "NVIDIA_only"}
 
 
-def lstr(s):
+def kstr(s):
+    """A KDL string literal."""
     return json.dumps(str(s), ensure_ascii=False)
 
 
-def hj(what):
-    p = sh(["hyprctl", "-j", what], timeout=10, check=True)
-    return json.loads(p.stdout)
+def niri_env():
+    env = dict(os.environ)
+    if not env.get("NIRI_SOCKET"):
+        socks = sorted(glob.glob(os.path.join(env.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"), "niri.*.sock")), key=os.path.getmtime)
+        if not socks:
+            raise ToolError("the desktop compositor is not running")
+        env["NIRI_SOCKET"] = socks[-1]
+    return env
 
 
-def lua(code):
-    p = sh(["hyprctl", "eval", code], timeout=10)
-    out = (p.stdout + p.stderr).strip()
-    if p.returncode or "error" in out.lower()[:40]:
-        raise ToolError(f"hyprland: {out[:500]}")
-    return out
+def niri(*args):
+    p = subprocess.run(["niri", "msg", *args], capture_output=True, text=True, timeout=10, env=niri_env())
+    if p.returncode:
+        raise ToolError(f"niri: {(p.stderr or p.stdout).strip()[:500]}")
+    return p.stdout
 
 
-def dispatch(expr):
-    return lua(f"hl.dispatch({expr})")
+def nj(what):
+    return json.loads(niri("--json", what))
 
 
-@tool("desktop_state", "Windows (address, class, title, workspace, floating, size), workspaces, monitors and the focused window.", cap="desktop.read")
+def action(*args):
+    niri("action", *[str(x) for x in args])
+
+
+@tool("desktop_state", "Windows (id, app, title, workspace, floating, focused), workspaces and monitors. Windows are arranged in "
+      "columns on a horizontal strip per workspace.", cap="desktop.read")
 def desktop_state(a, ctx):
-    wins = [{"address": c["address"], "class": c["class"], "title": c["title"][:80], "workspace": c["workspace"]["name"],
-             "floating": c["floating"], "fullscreen": c.get("fullscreen"), "at": c["at"], "size": c["size"], "pid": c["pid"]} for c in hj("clients")]
-    act = hj("activewindow") or {}
-    return {"windows": wins, "focused": act.get("address"),
-            "workspaces": [{"id": w["id"], "name": w["name"], "windows": w["windows"], "monitor": w["monitor"]} for w in hj("workspaces")],
-            "active_workspace": hj("activeworkspace").get("name"),
-            "monitors": [{"name": m["name"], "res": f"{m['width']}x{m['height']}@{round(m['refreshRate'])}", "scale": m["scale"]} for m in hj("monitors")]}
+    spaces = nj("workspaces")
+    name = {w["id"]: w.get("name") or str(w["idx"]) for w in spaces}
+    wins = nj("windows")
+    return {"windows": [{"id": w["id"], "app": w.get("app_id"), "title": (w.get("title") or "")[:80], "workspace": name.get(w.get("workspace_id")),
+                         "floating": w.get("is_floating", False), "focused": w.get("is_focused", False), "pid": w.get("pid")} for w in wins],
+            "workspaces": [{"index": w["idx"], "name": w.get("name"), "monitor": w.get("output"), "active": w.get("is_active"), "focused": w.get("is_focused")}
+                           for w in sorted(spaces, key=lambda w: (w.get("output") or "", w["idx"]))],
+            "monitors": [{"name": n, "mode": (lambda m: f"{m['width']}x{m['height']}@{round(m['refresh_rate'] / 1000)}" if m else None)(
+                              o["modes"][o["current_mode"]] if o.get("current_mode") is not None else None),
+                          "scale": (o.get("logical") or {}).get("scale")} for n, o in nj("outputs").items()]}
 
 
-ADDR = re.compile(r"^0x[0-9a-f]+$")
+SIZE = re.compile(r"^[+-]?\d+(\.\d+)?%?$")
+WINDOW_ACTIONS = {
+    "focus": "focus-window", "close": "close-window", "float": "move-window-to-floating", "tile": "move-window-to-tiling",
+    "fullscreen": "fullscreen-window", "center": "center-window",
+}
 
 
-@tool("desktop_window", "Act on a window (default: the focused one). Actions: focus, close, float, tile, fullscreen, maximize, center, "
-      "move_to_workspace (workspace), resize (width,height in px), move (x,y in px).",
-      {"action": {"type": "string", "enum": ["focus", "close", "float", "tile", "fullscreen", "maximize", "center", "move_to_workspace", "resize", "move"]},
-       "address": {"type": "string"}, "workspace": {"type": "string"}, "x": {"type": "integer"}, "y": {"type": "integer"},
-       "width": {"type": "integer"}, "height": {"type": "integer"}, "follow": {"type": "boolean"}},
+@tool("desktop_window", "Act on a window (default: the focused one; pass id from desktop_state for another). Actions: focus, close, float, tile, "
+      "fullscreen, maximize, center, move_to_workspace (workspace: index or name), width / height (size: '50%', '800', '+10%'), "
+      "move (direction: left/right moves its column, up/down moves it within the column), stack (direction: left/right pulls it into the "
+      "neighbouring column or pushes it out into its own).",
+      {"action": {"type": "string", "enum": ["focus", "close", "float", "tile", "fullscreen", "maximize", "center", "move_to_workspace", "width", "height", "move", "stack"]},
+       "id": {"type": "integer"}, "workspace": {"type": "string"}, "size": {"type": "string"},
+       "direction": {"type": "string", "enum": ["left", "right", "up", "down"]}, "follow": {"type": "boolean"}},
       required=("action",), cap="desktop.control", risk=lambda a: "destructive" if a.get("action") == "close" else "modify")
 def desktop_window(a, ctx):
-    w = ""
-    if a.get("address"):
-        if not ADDR.match(a["address"]):
-            raise ToolError("address must look like 0x55c3...")
-        w = f'window = "address:{a["address"]}"'
-    j = lambda *parts: "{ " + ", ".join(p for p in parts if p) + " }"
-    act = a["action"]
-    expr = {
-        "focus": lambda: f"hl.dsp.focus({j(w)})",
-        "close": lambda: f"hl.dsp.window.close({j(w)})",
-        "float": lambda: f"hl.dsp.window.float({j('action = \"on\"', w)})",
-        "tile": lambda: f"hl.dsp.window.float({j('action = \"off\"', w)})",
-        "fullscreen": lambda: f"hl.dsp.window.fullscreen({j('mode = \"fullscreen\"', 'action = \"toggle\"', w)})",
-        "maximize": lambda: f"hl.dsp.window.fullscreen({j('mode = \"maximized\"', 'action = \"toggle\"', w)})",
-        "center": lambda: f"hl.dsp.window.center({j(w)})",
-        "move_to_workspace": lambda: f"hl.dsp.window.move({j('workspace = ' + lstr(a['workspace']), 'follow = ' + ('true' if a.get('follow') else 'false'), w)})",
-        "resize": lambda: f"hl.dsp.window.resize({j('x = %d' % a['width'], 'y = %d' % a['height'], w)})",
-        "move": lambda: f"hl.dsp.window.move({j('x = %d' % a['x'], 'y = %d' % a['y'], w)})",
-    }[act]()
-    dispatch(expr)
+    act, wid = a["action"], a.get("id")
+    sel = ["--id", int(wid)] if wid is not None else []
+    if act == "focus" and wid is None:
+        raise ToolError("focus needs a window id")
+    if act in WINDOW_ACTIONS:
+        action(WINDOW_ACTIONS[act], *sel)
+    elif act == "move_to_workspace":
+        if not a.get("workspace"):
+            raise ToolError("workspace is required")
+        action("move-window-to-workspace", *(["--window-id", int(wid)] if wid is not None else []), "--focus", "true" if a.get("follow") else "false", a["workspace"])
+    elif act in ("width", "height"):
+        if not SIZE.match(a.get("size", "")):
+            raise ToolError("size must look like 50%, 800, +10% or -100")
+        action(f"set-window-{act}", *sel, a["size"])
+    else:
+        # These act on the focused window, so focus the target first.
+        d = a.get("direction")
+        if act != "maximize" and d is None:
+            raise ToolError("direction is required")
+        if wid is not None:
+            action("focus-window", "--id", int(wid))
+        if act == "maximize":
+            action("maximize-column")
+        elif act == "move":
+            action({"left": "move-column-left", "right": "move-column-right", "up": "move-window-up", "down": "move-window-down"}[d])
+        elif d in ("left", "right"):
+            action(f"consume-or-expel-window-{d}")
+        else:
+            raise ToolError("stack takes left or right")
     return "done"
 
 
-@tool("desktop_workspace", "Switch to a workspace by number or name.", {"workspace": {"type": "string"}}, required=("workspace",), cap="desktop.control", risk="modify")
+@tool("desktop_workspace", "Switch to a workspace by index or name.", {"workspace": {"type": "string"}}, required=("workspace",), cap="desktop.control", risk="modify")
 def desktop_workspace(a, ctx):
-    dispatch(f"hl.dsp.focus({{ workspace = {lstr(a['workspace'])} }})")
+    action("focus-workspace", a["workspace"])
     return "done"
 
 
@@ -111,9 +140,9 @@ def desktop_apps(a, ctx):
 
 
 def spawn(argv, env=None):
-    full = dict(os.environ, **(env or {}))
-    wrap = ["uwsm", "app", "--"] if shutil.which("uwsm") else []
-    subprocess.Popen(wrap + argv, env=full, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    """Start a program as the compositor's child, so it gets the session environment."""
+    pre = ["env"] + [f"{k}={v}" for k, v in (env or {}).items()] if env else []
+    action("spawn", "--", *pre, *argv)
 
 
 @tool("desktop_launch", "Launch an installed application by desktop id or name, optionally with arguments (files, URLs). "
@@ -136,59 +165,85 @@ def desktop_launch(a, ctx):
     return f"launched {e.get('Name', e['id'])} on the {'NVIDIA' if dg else 'Intel'} GPU"
 
 
+MODS = {"SUPER": "Mod", "MOD": "Mod", "WIN": "Mod", "CTRL": "Ctrl", "CONTROL": "Ctrl", "SHIFT": "Shift", "ALT": "Alt"}
+KEY = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def norm_keys(keys):
+    """'SUPER + SHIFT + N' or 'Mod+Shift+N' -> 'Mod+Shift+N'."""
+    parts = [p.strip() for p in re.split(r"\s*\+\s*", keys.strip()) if p.strip()]
+    if not parts or not all(KEY.match(p) for p in parts):
+        raise ToolError("keys must look like 'Mod+Shift+N'")
+    *mods, key = parts
+    out = []
+    for m in mods:
+        if m.upper() not in MODS:
+            raise ToolError(f"unknown modifier {m!r}; use Mod, Ctrl, Shift, Alt")
+        out.append(MODS[m.upper()])
+    return "+".join(out + [key.upper() if len(key) == 1 else key])
+
+
 def _managed_load():
-    binds = {}
+    state = {"binds": {}, "extra": ""}
     if MANAGED.exists():
-        for line in MANAGED.read_text().splitlines():
-            m = re.match(r"^-- bind (.+)$", line)
-            if m:
-                b = json.loads(m.group(1))
-                binds[b["keys"]] = b
-    return binds
+        m = re.search(r"^// state (.+)$", MANAGED.read_text(), re.M)
+        if m:
+            state.update(json.loads(m.group(1)))
+    return state
 
 
-def _managed_save(binds):
+def _managed_save(state):
+    """Write the managed file only if the whole desktop configuration still validates with it."""
+    lines = ["// Managed by Amadeus. Change it by asking, or with `ama`; this file is rewritten.",
+             "// state " + json.dumps(state, ensure_ascii=False), ""]
+    if state["binds"]:
+        lines.append("binds {")
+        for b in state["binds"].values():
+            lines.append(f"    {b['keys']} hotkey-overlay-title={kstr(b['description'])} {{ spawn-sh {kstr(b['command'])}; }}")
+        lines += ["}", ""]
+    if state["extra"].strip():
+        lines += [state["extra"].strip(), ""]
+    new = "\n".join(lines)
+    old = MANAGED.read_text() if MANAGED.exists() else None
     remember(MANAGED)
-    lines = ["-- Managed by Amadeus. Change it by asking, or with `ama`; this file is rewritten.", ""]
-    for b in binds.values():
-        lines += [f"-- bind {json.dumps(b)}", f"o.bind({lstr(b['keys'])}, {lstr(b['description'])}, {lstr(b['command'])})", ""]
-    MANAGED.write_text("\n".join(lines))
-    main = HYPR_USER / "hyprland.lua"
-    if main.exists() and "amadeus.lua" not in main.read_text():
-        remember(main)
-        with open(main, "a") as f:
-            f.write('\n-- Shortcuts and rules added by Amadeus.\ndofile(os.getenv("HOME") .. "/.config/hypr/amadeus.lua")\n')
+    NIRI_USER.mkdir(parents=True, exist_ok=True)
+    MANAGED.write_text(new)
+    if MAIN.exists() and shutil.which("niri"):
+        p = subprocess.run(["niri", "validate", "-c", str(MAIN)], capture_output=True, text=True, timeout=10)
+        if p.returncode:
+            MANAGED.write_text(old) if old is not None else MANAGED.unlink()
+            raise ToolError("the desktop rejected that configuration; nothing was changed.\n" + (p.stderr or p.stdout).strip()[-800:])
 
 
-@tool("desktop_keybind", "Add, replace or remove a persistent keyboard shortcut that runs a command, e.g. keys 'SUPER + SHIFT + N'. "
-      "Applied immediately and kept across reboots.",
+@tool("desktop_keybind", "Add, replace or remove a persistent keyboard shortcut that runs a shell command, e.g. keys 'Mod+Shift+N' "
+      "(Mod is the Super key). Checked before it is applied, applied immediately, kept across reboots.",
       {"keys": {"type": "string"}, "description": {"type": "string"}, "command": {"type": "string"}, "remove": {"type": "boolean"}},
       required=("keys",), cap="desktop.config", risk="modify")
 def desktop_keybind(a, ctx):
-    binds = _managed_load()
-    keys = a["keys"].upper()
+    state = _managed_load()
+    keys = norm_keys(a["keys"])
     if a.get("remove"):
-        binds.pop(keys, None)
-        _managed_save(binds)
-        lua(f"hl.unbind({lstr(keys)})")
+        state["binds"].pop(keys, None)
+        _managed_save(state)
         return f"removed {keys}"
     if not a.get("command"):
         raise ToolError("command is required")
-    binds[keys] = {"keys": keys, "description": a.get("description", a["command"]), "command": a["command"]}
-    _managed_save(binds)
-    try:
-        lua(f"hl.unbind({lstr(keys)})")
-    except ToolError:
-        pass
-    lua(f"o.bind({lstr(keys)}, {lstr(binds[keys]['description'])}, {lstr(a['command'])})")
+    state["binds"][keys] = {"keys": keys, "description": a.get("description", a["command"]), "command": a["command"]}
+    _managed_save(state)
     return f"bound {keys}"
 
 
-@tool("desktop_lua", "Run Lua in the window manager (Hyprland `hl.*` API) for anything the other desktop tools do not cover: "
-      "window rules, layouts, animations, config values. This can run arbitrary commands, so the user is always asked.",
-      {"code": {"type": "string"}}, required=("code",), cap="desktop.config", risk="destructive")
-def desktop_lua(a, ctx):
-    return lua(a["code"]) or "ok"
+@tool("desktop_config", "Read or replace the free-form part of the desktop configuration that Amadeus manages, in niri's KDL format: "
+      "window-rule, layout, output, input, animations, named workspaces. Omit kdl to read the current text. The whole configuration "
+      "is validated first and a rejected change is not applied. It can define commands, so the user is always asked.",
+      {"kdl": {"type": "string"}}, cap="desktop.config", risk=lambda a: "destructive" if "kdl" in a else "read")
+def desktop_config(a, ctx):
+    state = _managed_load()
+    if "kdl" not in a:
+        return {"kdl": state["extra"], "shortcuts": list(state["binds"].values())}
+    state["extra"] = a["kdl"]
+    _managed_save(state)
+    return "applied"
 
 
 BAR_FILE = Path.home() / ".config/amadeus/bar.json"

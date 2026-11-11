@@ -1,0 +1,8 @@
+color=142620
+indicator-radius=90
+ring-color=2b5147
+key-hl-color=8bcbb1
+inside-color=142620
+text-color=d8e6df
+line-uses-inside
+show-failed-attempts

@@ -1,15 +1,15 @@
 pkgname=amadeus-desktop
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="Amadeus OS desktop: Hyprland defaults, bar, launcher and lock configuration"
+pkgdesc="Amadeus OS desktop: niri defaults, bar, system tools and user skeleton"
 arch=(any)
 license=(MIT)
-depends=(hyprland quickshell uwsm foot fuzzel mako hyprlock hypridle grim slurp wl-clipboard brightnessctl networkmanager wireplumber)
+depends=(niri xwayland-satellite quickshell foot fuzzel mako swaylock swayidle polkit-gnome wl-clipboard brightnessctl networkmanager wireplumber)
 options=(!debug)
 
 package() {
   local src="$startdir"
-  install -Dm644 "$src/hypr/default.lua" -t "$pkgdir/usr/share/amadeus-os/hypr/"
+  install -Dm644 "$src/niri/default.kdl" -t "$pkgdir/usr/share/amadeus-os/niri/"
   install -Dm644 "$src/bar/shell.qml" -t "$pkgdir/usr/share/amadeus-os/bar/"
   install -Dm755 "$src"/bin/* -t "$pkgdir/usr/bin/"
   cp -r "$src/skel" "$pkgdir/etc-skel" && install -d "$pkgdir/etc" && mv "$pkgdir/etc-skel" "$pkgdir/etc/skel"

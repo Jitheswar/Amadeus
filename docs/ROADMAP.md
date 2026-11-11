@@ -7,20 +7,20 @@
 - Root mode: separate root helper, restricted or unrestricted, time limit, gone at shutdown
 - Installer: encrypted btrfs, snapshots on every package change, NVIDIA only when present
 - ISO build and VM test harness, both in a container
+- Desktop on niri: defaults, bar driven by the compositor's event stream, AI-managed include file that is validated before it is applied
 - Applications outside the Arch repositories built from publisher releases; no third-party repository
 
 ## In progress
-1. Desktop on niri: compositor defaults, the AI's desktop tools, AI-managed include file
+1. VM run of the niri desktop, `amadeus-rollback` (running system and ISO) and `amadeus-update`
 2. Launcher and notifications inside the shell; one entry point for applications and the AI
-3. VM run of `amadeus-rollback` (running system and ISO) and `amadeus-update`
 
 ## Next
-4. First install on the real machine: NVIDIA power-down, PRIME offload, Wi-Fi, suspend
-5. Snapshots selectable in the boot menu
-6. Local model as the offline fallback (a 4-bit 7B model fits the 6 GB card)
-7. Context awareness: the daemon follows compositor events and offers workspace layouts per activity
-8. Extending existing applications: side panels attached to an application's windows
-9. Offline install (all packages on the ISO)
+3. First install on the real machine: NVIDIA power-down, PRIME offload, Wi-Fi, suspend
+4. Snapshots selectable in the boot menu
+5. Local model as the offline fallback (a 4-bit 7B model fits the 6 GB card)
+6. Context awareness: the daemon follows compositor events and offers workspace layouts per activity
+7. Extending existing applications: side panels attached to an application's windows
+8. Offline install (all packages on the ISO)
 
 ## Not yet verified
 - Anything on real hardware

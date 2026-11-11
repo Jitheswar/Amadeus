@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Hyprland
 
 // The Amadeus OS bar. Its layout is data: ~/.config/amadeus/bar.json lists widget ids
 // for left, center and right, and the bar rebuilds when that file changes, so both
@@ -33,26 +32,63 @@ ShellRoot {
     Timer { interval: 5000; running: true; repeat: true; triggeredOnStart: true; onTriggered: poll.running = true }
     SystemClock { id: clock; precision: SystemClock.Minutes }
 
+    // Compositor state, kept current from niri's event stream.
+    property var workspaces: []
+    property var windows: ({})
+    property var focusedId: null
+    readonly property string focusedTitle: focusedId !== null && windows[focusedId] ? (windows[focusedId].title || "") : ""
+    function onEvent(e) {
+        if (e.WorkspacesChanged) root.workspaces = e.WorkspacesChanged.workspaces.slice().sort((a, b) => a.idx - b.idx)
+        else if (e.WorkspaceActivated) {
+            const id = e.WorkspaceActivated.id
+            const hit = root.workspaces.find(w => w.id === id)
+            if (hit) root.workspaces = root.workspaces.map(w => w.output !== hit.output ? w
+                : Object.assign({}, w, { is_active: w.id === id, is_focused: e.WorkspaceActivated.focused ? w.id === id : w.is_focused }))
+        }
+        else if (e.WindowsChanged) {
+            const m = {}; let f = null
+            for (const w of e.WindowsChanged.windows) { m[w.id] = w; if (w.is_focused) f = w.id }
+            root.windows = m; root.focusedId = f
+        }
+        else if (e.WindowOpenedOrChanged) {
+            const w = e.WindowOpenedOrChanged.window, m = Object.assign({}, root.windows)
+            m[w.id] = w; root.windows = m
+            if (w.is_focused) root.focusedId = w.id
+        }
+        else if (e.WindowClosed) {
+            const m = Object.assign({}, root.windows); delete m[e.WindowClosed.id]; root.windows = m
+            if (root.focusedId === e.WindowClosed.id) root.focusedId = null
+        }
+        else if (e.WindowFocusChanged) root.focusedId = e.WindowFocusChanged.id
+    }
+    Process {
+        id: events
+        command: ["niri", "msg", "--json", "event-stream"]
+        running: true
+        stdout: SplitParser { onRead: line => { try { root.onEvent(JSON.parse(line)) } catch (e) {} } }
+        onExited: restart.start()
+    }
+    Timer { id: restart; interval: 2000; onTriggered: events.running = true }
+
     component Label: Text { color: root.fg; font.pixelSize: 13; font.family: "sans-serif"; verticalAlignment: Text.AlignVCenter }
     component Click: MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; property string run: ""; onClicked: Quickshell.execDetached(["sh", "-c", run]) }
 
     Component { id: wWorkspaces
         Row { spacing: 4
             Repeater {
-                model: Hyprland.workspaces
+                model: root.workspaces
                 Rectangle {
                     required property var modelData
-                    readonly property bool active: Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === modelData.id
-                    visible: modelData.id > 0
-                    width: 26; height: 20; radius: 5
+                    readonly property bool active: modelData.is_active
+                    width: Math.max(26, name.implicitWidth + 12); height: 20; radius: 5
                     color: active ? root.accent : "transparent"
-                    Label { anchors.centerIn: parent; text: modelData.name; color: parent.active ? root.bg : root.fg }
-                    Click { run: "hyprctl dispatch 'hl.dsp.focus({ workspace = \"" + modelData.id + "\" })'" }
+                    Label { id: name; anchors.centerIn: parent; text: modelData.name || modelData.idx; color: parent.active ? root.bg : root.fg }
+                    Click { run: "niri msg action focus-workspace " + modelData.idx }
                 }
             }
         }
     }
-    Component { id: wTitle; Label { text: Hyprland.activeToplevel ? Hyprland.activeToplevel.title : ""; color: root.dim; elide: Text.ElideRight; width: Math.min(implicitWidth, 420) } }
+    Component { id: wTitle; Label { text: root.focusedTitle; color: root.dim; elide: Text.ElideRight; width: Math.min(implicitWidth, 420) } }
     Component { id: wClock; Label { text: Qt.formatDateTime(clock.date, "ddd d MMM   HH:mm") } }
     Component { id: wGpu; Label { visible: root.status.gpu === "active"; text: "NVIDIA on"; color: root.warn } }
     Component { id: wNetwork; Label { text: root.status.net ? root.status.net.split(":").slice(1).join(":") : "offline"; color: root.status.net ? root.fg : root.warn; Click { run: "foot -e nmtui" } } }

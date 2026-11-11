@@ -138,7 +138,7 @@ cat >$T/etc/greetd/config.toml <<G
 [terminal]
 vt = 1
 [default_session]
-command = "tuigreet --time --remember --asterisks --greeting 'Amadeus OS' --cmd 'uwsm start hyprland-uwsm.desktop'"
+command = "tuigreet --time --remember --asterisks --greeting 'Amadeus OS' --cmd niri-session"
 user = "greeter"
 G
 

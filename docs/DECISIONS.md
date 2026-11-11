@@ -65,7 +65,7 @@ into the repository on the ISO; `amadeus-update` keeps them current.
 - Video decode: `intel-media-driver` (VA-API) on Intel; `libva-nvidia-driver` when an
   application runs on NVIDIA.
 
-## Compositor: niri *(decided; the tree still ships the earlier Hyprland config)*
+## Compositor: niri
 
 The compositor is what the AI rearranges, so the deciding questions are: can a bad
 change break the session, and does the interface stay the same across updates?
@@ -110,6 +110,6 @@ while root mode is on and is gone at shutdown.
 | Image viewer | imv | Tiny, keyboard-driven, Wayland-native |
 | Camera | Snapshot | Uses PipeWire/libcamera; the older choices (Cheese, guvcview) do not |
 | Login | greetd + tuigreet | No display-manager stack |
-| Lock and idle | swaylock, swayidle *(planned; hyprlock and hypridle today)* | Compositor-independent |
+| Lock and idle | swaylock, swayidle | Compositor-independent |
 | Audio | PipeWire + WirePlumber | Required by screen sharing and Bluetooth audio |
 | Power | power-profiles-daemon + thermald | Uses the Intel driver's own hints; over TLP, which fights it |

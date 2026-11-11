@@ -5,17 +5,17 @@ pass=0 fail=0
 ok()   { echo "PASS  $1"; pass=$((pass+1)); }
 bad()  { echo "FAIL  $1 ${2:+— $2}"; fail=$((fail+1)); }
 t()    { local name=$1; shift; local out; if out=$("$@" 2>&1); then ok "$name"; else bad "$name" "$(echo "$out" | tail -2 | tr '\n' ' ')"; fi; }
-as()   { sudo -u $U env XDG_RUNTIME_DIR=$R WAYLAND_DISPLAY=wayland-1 HYPRLAND_INSTANCE_SIGNATURE="$(ls $R/hypr 2>/dev/null | head -1)" HOME=/home/$U PATH=/usr/bin "$@"; }
+as()   { sudo -u $U env XDG_RUNTIME_DIR=$R WAYLAND_DISPLAY=wayland-1 NIRI_SOCKET="$(ls $R/niri.*.sock 2>/dev/null | head -1)" HOME=/home/$U PATH=/usr/bin "$@"; }
 export U R; export -f as
 echo "AMADEUS-SELFTEST-BEGIN"
-for _ in $(seq 60); do [[ -S $R/amadeus/daemon.sock ]] && pgrep -x Hyprland >/dev/null && break; sleep 2; done
+for _ in $(seq 60); do [[ -S $R/amadeus/daemon.sock ]] && pgrep -x niri >/dev/null && break; sleep 2; done
 sleep 8
 mkdir -p /mnt/auto; mount /dev/disk/by-label/AMADEUSAUTO /mnt/auto 2>/dev/null
 STAGE=$(cat /mnt/auto/stage 2>/dev/null || echo 1)
 healthy() {
   t "root is btrfs subvolume @"                bash -c 'findmnt -no FSTYPE,OPTIONS / | grep -qE "btrfs.*subvol=/@(,|$)"'
   t "no failed system units"                   bash -c '[[ -z $(systemctl --failed --no-legend) ]]'
-  t "Hyprland is running"                      pgrep -x Hyprland
+  t "niri is running"                          pgrep -x niri
   t "kernel on the boot partition matches"     bash -c 'cmp /boot/vmlinuz-linux /usr/lib/modules/*/vmlinuz'
   t "snapshot history carried over"            bash -c 'snapper -c root list | grep -q "fresh install"'
   t "previous system kept"                     bash -c 'amadeus-rollback list | grep -q before-rollback'
@@ -24,7 +24,7 @@ finish() {
   echo "AMADEUS-SELFTEST-END stage=$STAGE pass=$pass fail=$fail"
   sleep 1
   if [[ $STAGE == 1 ]]; then
-    as grim /tmp/desktop.png 2>/dev/null && cp /tmp/desktop.png /mnt/auto/desktop.png
+    as niri msg action screenshot-screen --write-to-disk true 2>/dev/null; sleep 2; cp "$(ls -t /home/$U/Pictures/Screenshots/*.png 2>/dev/null | head -1)" /mnt/auto/desktop.png 2>/dev/null
     journalctl -b -p warning --no-pager | tail -60 >/mnt/auto/journal-warnings.log
   fi
   cp /var/log/amadeus-selftest.log /mnt/auto/selftest-$STAGE.log
@@ -61,7 +61,7 @@ t "no failed system units"                     bash -c '[[ -z $(systemctl --fail
 t "network is up"                              bash -c 'nmcli -t general status | grep -q "^connected"'
 t "root account is locked"                     bash -c 'passwd -S root | grep -q " L "'
 t "multilib enabled (Steam)"                   bash -c 'pacman -Sl multilib | head -1 | grep -q multilib'
-t "core packages installed"                    pacman -Q hyprland quickshell steam libreoffice-fresh amadeus amadeus-desktop snap-pac
+t "core packages installed"                    pacman -Q niri quickshell steam libreoffice-fresh amadeus amadeus-desktop snap-pac
 echo "--- snapshots"
 t "snapshot of the fresh install exists"       bash -c 'snapper -c root list | grep -q "fresh install"'
 before=$(snapper -c root list | wc -l)
@@ -72,9 +72,11 @@ n=$(snapper -c root list | awk '$3=="pre"{p=$1} END{print p}')
 t "rollback removes the package again"         bash -c "snapper -c root undochange $n..$((n+1)) >/dev/null && ! test -e /usr/bin/tree"
 echo "--- desktop session"
 t "greeter service running"                    systemctl is-active greetd
-t "Hyprland is running"                        pgrep -x Hyprland
+t "niri is running"                            pgrep -x niri
 t "bar is running"                             pgrep -f 'quickshell -p /usr/share/amadeus-os/bar'
-t "Hyprland config has no errors"              bash -c "[[ -z \$(sudo -u $U env XDG_RUNTIME_DIR=$R HYPRLAND_INSTANCE_SIGNATURE=\$(ls $R/hypr | head -1) hyprctl configerrors | tr -d '[:space:]') ]]"
+t "desktop config is valid"                    as niri validate -c /home/$U/.config/niri/config.kdl
+t "compositor answers over IPC"                bash -c "as niri msg --json workspaces | grep -q is_active"
+t "X11 applications supported"                 pgrep -f xwayland-satellite
 echo "--- Amadeus"
 t "daemon running in the user session"         test -S $R/amadeus/daemon.sock
 t "ama status"                                 as ama status

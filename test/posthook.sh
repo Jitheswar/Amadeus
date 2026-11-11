@@ -4,7 +4,7 @@
 T=$1 USER_NAME=$2
 cat >>$T/etc/greetd/config.toml <<G
 [initial_session]
-command = "uwsm start hyprland-uwsm.desktop"
+command = "niri-session"
 user = "$USER_NAME"
 G
 install -m755 /run/amadeus-auto/selftest.sh $T/usr/local/bin/amadeus-selftest
