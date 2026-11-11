@@ -23,6 +23,15 @@ It is built for one machine: Core i5-13450HX, RTX 3050 6 GB with Intel UHD graph
 | **Generated apps** | The AI writes small applications from a shared component library. Each runs in its own sandbox with only the permissions its manifest declares, and keeps a version history. |
 | **Applications** | Steam, ProtonPlus, Brave Origin, Claude Desktop, Claude Code, Discord, Telegram, herdr, LocalSend, LibreOffice, mpv, plus a terminal, file manager, document viewer, image viewer and camera. Nothing else. |
 
+### For AI agents
+
+The system ships a skill that teaches any agent (Claude Code picks it up automatically;
+`ama skill` prints it for others) to configure and manage it. The skill contains no
+description of the system. It tells the agent to run `ama discover`, which builds a map
+by inspecting the machine at that moment, and then how to dig further by asking the
+system itself. Documentation written into a skill goes stale; a system that describes
+itself cannot.
+
 Why each component was chosen, and over what: [docs/DECISIONS.md](docs/DECISIONS.md).
 How the pieces fit: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -43,6 +52,8 @@ SUPER+Z                             the same, from anywhere on the desktop
 | `ama app list` · `run` · `history` · `rollback` · `remove` | generated applications |
 | `ama audit` · `ama audit verify` · `ama undo` | what the AI did, proof the log is intact, undo the last file change |
 | `ama doctor` | check drivers, GPU, sandbox, providers and applications |
+| `ama discover` | a live map of the system: commands, files, tools, permissions |
+| `Super+Space` | the Amadeus menu: Apps, Install, Remove, Update, Defaults |
 | `amadeus-update` | update the system and the applications from outside the Arch repositories |
 | `amadeus-rollback` | list snapshots, or go back to one |
 

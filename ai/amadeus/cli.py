@@ -14,6 +14,8 @@ HELP = """ama — talk to and control Amadeus
   ama undo                    restore the last file the AI changed
   ama tool NAME [JSON]        call one tool directly (same policy as the AI)
   ama doctor                  verify drivers, GPU, sandbox and providers
+  ama discover [--json]       a live map of this system: commands, files, tools, policy
+  ama skill                   print the built-in guide that teaches an AI agent to manage this system
   ama reload | daemon | mcp | palette
 """
 C = {"dim": "\033[2m", "b": "\033[1m", "y": "\033[33m", "r": "\033[31m", "g": "\033[32m", "0": "\033[0m"} if sys.stdout.isatty() else dict.fromkeys(["dim", "b", "y", "r", "g", "0"], "")
@@ -194,6 +196,11 @@ def main(argv=None):
         return mcp()
     if cmd == "root":
         return root_cmd(rest)
+    if cmd == "discover":
+        from .discover import main as disc
+        return disc(rest)
+    if cmd == "skill":
+        return print((config.SHARE / "skill" / "amadeus" / "SKILL.md").read_text())
     if cmd == "doctor":
         from .doctor import main as doc
         return doc()

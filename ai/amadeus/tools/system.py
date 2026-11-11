@@ -63,6 +63,14 @@ def status():
     }
 
 
+@tool("system_discover", "A live map of this system, built by inspecting it now: installed versions, every shipped command with its purpose, "
+      "where defaults and the user's configuration live, all tools with the capability each needs, and the permission policy. "
+      "Call this first when asked to configure or manage the system.")
+def system_discover(a, ctx):
+    from .. import discover
+    return discover.build()
+
+
 @tool("sys_status", "Snapshot of the machine: load, memory, disk, temperatures, battery, GPU power state, power profile, failed services, whether root mode is on.")
 def sys_status(a, ctx):
     return status()

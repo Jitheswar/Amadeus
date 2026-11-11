@@ -1,4 +1,5 @@
 #!/bin/bash
+# Power menu (Super+Escape): lock, suspend, log out, restart, shut down.
 choice=$(printf 'Lock\nSuspend\nLog out\nRestart\nShut down' | fuzzel --dmenu --lines 5 --prompt 'Power  ') || exit 0
 case $choice in
   Lock) swaylock -f ;;

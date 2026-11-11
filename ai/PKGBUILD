@@ -12,7 +12,10 @@ options=(!debug)
 package() {
   local src="$startdir"
   install -d "$pkgdir/usr/share/amadeus" "$pkgdir/usr/lib/amadeus" "$pkgdir/usr/bin" "$pkgdir/usr/share/doc/amadeus"
-  cp -r "$src/amadeus" "$src/shell" "$src/examples" "$pkgdir/usr/share/amadeus/"
+  cp -r "$src/amadeus" "$src/shell" "$src/examples" "$src/skill" "$pkgdir/usr/share/amadeus/"
+  # The built-in agent skill, where Claude Code looks for skills in every new user's home.
+  install -d "$pkgdir/etc/skel/.claude/skills"
+  ln -s /usr/share/amadeus/skill/amadeus "$pkgdir/etc/skel/.claude/skills/amadeus"
   find "$pkgdir" -name __pycache__ -type d -exec rm -rf {} +
   install -Dm755 "$src/priv/amadeus-priv" "$src/priv/root-mode" -t "$pkgdir/usr/lib/amadeus/"
   printf '#!/usr/bin/python3\nimport sys\nsys.path.insert(0, "/usr/share/amadeus")\nfrom amadeus.cli import main\nmain()\n' >"$pkgdir/usr/bin/ama"
