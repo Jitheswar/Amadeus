@@ -65,7 +65,7 @@ t "network is up"                              bash -c 'nmcli -t general status 
 t "root account is locked"                     bash -c 'passwd -S root | grep -q " L "'
 t "CachyOS kernel is running"                  bash -c 'uname -r | grep -q cachyos'
 t "CachyOS repositories come first"            bash -c 'pacman-conf --repo-list | head -1 | grep -q cachyos && pacman -Q cachyos-settings linux-cachyos'
-t "multilib enabled (Steam)"                   bash -c 'pacman -Sl multilib | head -1 | grep -q multilib'
+t "multilib enabled (Steam)"                   bash -c 'pacman-conf --repo-list | grep -qx multilib'
 t "core packages installed"                    pacman -Q hyprland quickshell steam libreoffice-fresh amadeus amadeus-desktop snapper
 echo "--- snapshots"
 t "installing a package takes no snapshot"   bash -c 'before=$(snapper -c root list | wc -l); pacman -Sy --noconfirm --needed tree >/dev/null && [[ $(snapper -c root list | wc -l) == $before ]]'
