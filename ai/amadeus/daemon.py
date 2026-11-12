@@ -125,6 +125,7 @@ class Daemon:
             raise RuntimeError("this task is still running")
         s.update(conn=conn, rid=rid, running=True, proc=None)
         s["cancel"].clear()
+        start = len(s["history"])
         s["history"].append({"role": "user", "text": prompt})
         pname = provider or self.cfg["ai"]["provider"]
         audit.record("request", session=session, provider=pname, prompt=prompt)
@@ -138,6 +139,7 @@ class Daemon:
         def execute(name, args):
             emit("tool", {"name": name, "args": args})
             return self.execute(name, args, session=session)
+        completed = False
         try:
             prov = providers.make(pname, self.cfg)
             if prov.kind == "chat":
@@ -145,13 +147,15 @@ class Daemon:
             else:
                 text = prov.run(agent.system_prompt(), s["history"], session, emit)
                 s["history"].append({"role": "assistant", "text": text, "calls": []})
+            completed = True
             return {"session": session, "provider": pname, "text": text, "stopped": s["cancel"].is_set(), "changed": F.changed_by(session)}
         except providers.ProviderError as e:
             if s["cancel"].is_set():
                 return {"session": session, "provider": pname, "text": "", "stopped": True, "changed": F.changed_by(session)}
-            s["history"].pop()
             raise RuntimeError(str(e))
         finally:
+            if not completed:
+                del s["history"][start:]      # a half-finished turn must not poison the next one
             s["running"] = False
 
     def stop(self, session):
