@@ -27,11 +27,47 @@ done
 repo-add -q $REPO/amadeus.db.tar.gz $REPO/*.pkg.tar.zst
 ls $REPO/*.pkg.tar.zst
 
+echo "==> Collecting every package the installation needs, so it works without internet"
+# A fresh, empty package database stands in for the new system: whatever pacman would download
+# to install the package lists and the bundled applications into it is exactly what is collected.
+# Packages are checked against their signatures as they are collected. They are the builds for
+# x86-64-v3 processors, which this machine has; others install from the internet instead.
+OFF=/tmp/offline ROOT=/tmp/offroot
+rm -rf $OFF $ROOT && mkdir -p $OFF $ROOT/db
+pacman -U --noconfirm --needed $REPO/cachyos-keyring-*.pkg.tar.zst $REPO/cachyos-mirrorlist-*.pkg.tar.zst $REPO/cachyos-v3-mirrorlist-*.pkg.tar.zst >/dev/null
+pacman-key --init >/dev/null 2>&1; pacman-key --populate archlinux cachyos >/dev/null 2>&1
+{
+  echo "[options]"; echo "Architecture = x86_64 x86_64_v3"; echo "SigLevel = Required DatabaseOptional"; echo "LocalFileSigLevel = Optional"
+  echo "ParallelDownloads = 8"; echo "CacheDir = $OFF/"
+  for r in cachyos-v3 cachyos-core-v3 cachyos-extra-v3; do printf '[%s]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n' $r; done
+  printf '[cachyos]\nInclude = /etc/pacman.d/cachyos-mirrorlist\n'
+  for r in core extra multilib; do printf '[%s]\nInclude = /etc/pacman.d/mirrorlist\n' $r; done
+} >/tmp/offline.conf
+pc=(pacman --config /tmp/offline.conf --root $ROOT --dbpath $ROOT/db --noconfirm)
+"${pc[@]}" -Sy >/dev/null
+# shellcheck disable=SC2046
+want=$(grep -hv '^#' $SRC/installer/packages.{base,desktop,apps,nvidia} | tr '\n' ' ')
+local_pkgs=$(ls $REPO/*.pkg.tar.zst | grep -vE '/cachyos-(keyring|mirrorlist|v3-mirrorlist)-')
+# Packages this machine already downloaded are copied rather than fetched again.
+if [[ -d /hostcache ]]; then
+  # shellcheck disable=SC2086
+  { "${pc[@]}" -Sp --print-format '%f' $want; "${pc[@]}" -Up --print-format '%f' $local_pkgs; } 2>/dev/null | sort -u |
+    while read -r f; do [[ -f /hostcache/$f ]] && cp -n /hostcache/$f $OFF/; done
+fi
+# shellcheck disable=SC2086
+"${pc[@]}" -Sw $want >/dev/null
+# shellcheck disable=SC2086
+"${pc[@]}" -Uw $local_pkgs >/dev/null
+rm -f $OFF/*.part
+repo-add -q $OFF/amadeus-offline.db.tar.gz $OFF/*.pkg.tar.zst
+echo "   $(ls $OFF/*.pkg.tar.zst | wc -l) packages, $(du -sh $OFF | cut -f1)"
+
 echo "==> Assembling the profile"
 cp -r /usr/share/archiso/configs/releng $P
 A=$P/airootfs
 install -d $A/opt $A/usr/local/bin $A/usr/share/amadeus-install $A/etc/systemd/system/multi-user.target.wants
 cp -r $REPO $A/opt/amadeus-repo
+cp -r $OFF $A/opt/amadeus-offline
 install -m755 $SRC/installer/amadeus-install $SRC/installer/amadeus-setup $SRC/iso/live/amadeus-autoinstall $SRC/desktop/bin/amadeus-rollback $A/usr/local/bin/
 install -m644 $SRC/installer/packages.* $A/usr/share/amadeus-install/
 install -m644 $SRC/iso/live/amadeus-autoinstall.service $A/etc/systemd/system/

@@ -77,7 +77,8 @@ POST_HOOK=/run/amadeus-auto/posthook.sh
     open(f"{VM}/answers.conf", "w").write(answers)
     for src in (f"{VM}/answers.conf", f"{SRC}/posthook.sh", f"{SRC}/selftest.sh", f"{SRC}/e2e.py"):
         subprocess.run(["mcopy", "-i", auto, src, "::"], check=True)
-    cmd = BASE + ["-cdrom", iso]
+    # The install runs with no way out to the internet: everything must come from the ISO.
+    cmd = [x.replace("user,id=n0", "user,id=n0,restrict=on") for x in BASE] + ["-cdrom", iso]
     # Downloads from this run are kept for the next one.
     os.makedirs(f"{OUT}/vmcache", exist_ok=True)
     cmd += ["-virtfs", f"local,path={OUT}/vmcache,mount_tag=vmcache,security_model=none"]

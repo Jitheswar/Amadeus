@@ -57,7 +57,14 @@ if [[ $UNATTENDED == no ]]; then
   read -rp "Type the disk name (${DISK#/dev/}) to continue: " confirm
   [[ $confirm == "${DISK#/dev/}" ]] || die "not confirmed; nothing was changed"
 fi
-ping -c1 -W5 archlinux.org >/dev/null 2>&1 || curl -fsm8 -o /dev/null https://geo.mirror.pkgbuild.com || die "no internet connection (connect with: iwctl station wlan0 connect "NETWORK", then run again)"
+# Packages built for newer processors are used when this processor can run them.
+V3=no; /lib/ld-linux-x86-64.so.2 --help | grep 'x86-64-v3 (supported' >/dev/null && V3=yes
+# The ISO carries every package the installation needs, for processors that can run the
+# newer builds; the internet is then needed only for what is set up per user afterwards.
+OFFLINE=no; [[ -f /opt/amadeus-offline/amadeus-offline.db.tar.gz && $V3 == yes ]] && OFFLINE=yes
+ONLINE=no
+{ ping -c1 -W5 archlinux.org || curl -fsm8 -o /dev/null https://geo.mirror.pkgbuild.com; } >/dev/null 2>&1 && ONLINE=yes
+[[ $ONLINE == yes || $OFFLINE == yes ]] || die "no internet connection, and this processor needs packages from the internet (connect with: iwctl station wlan0 connect "NETWORK", then run again)"
 
 # ---- disk --------------------------------------------------------------------
 say "Partitioning $DISK"
@@ -99,12 +106,21 @@ pacman -U --noconfirm --needed /opt/amadeus-repo/cachyos-keyring-*.pkg.tar.zst /
 pacman-key --populate cachyos >/dev/null 2>&1
 # Packages built for newer processors are used when this processor can run them.
 ARCH="x86_64" REPOS=""
-if /lib/ld-linux-x86-64.so.2 --help | grep 'x86-64-v3 (supported' >/dev/null; then
+if [[ $V3 == yes ]]; then
   ARCH="x86_64 x86_64_v3"
   REPOS=$(for r in cachyos-v3 cachyos-core-v3 cachyos-extra-v3; do printf '[%s]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n' "$r"; done)
 fi
 REPOS+=$(printf '\n[cachyos]\nInclude = /etc/pacman.d/cachyos-mirrorlist\n')
 CONF=$(mktemp)
+if [[ $OFFLINE == yes ]]; then
+  # Everything from the medium. The packages were checked against their signatures when the
+  # ISO was built, and the medium itself is what is trusted here.
+  {
+    echo "[options]"; echo "Architecture = $ARCH"; echo "SigLevel = Optional TrustAll"; echo "LocalFileSigLevel = Optional"
+    echo "CacheDir = /opt/amadeus-offline/"
+    printf '[amadeus-offline]\nServer = file:///opt/amadeus-offline\n'
+  } >"$CONF"
+else
 {
   echo "[options]"; echo "Architecture = $ARCH"; echo "ParallelDownloads = 8"; echo "SigLevel = Required DatabaseOptional"; echo "LocalFileSigLevel = Optional"
   # A cache that outlives this run comes first, so what is downloaded once is kept.
@@ -113,6 +129,7 @@ CONF=$(mktemp)
   echo "$REPOS"
   for r in core extra multilib; do printf '[%s]\nInclude = /etc/pacman.d/mirrorlist\n' "$r"; done
 } >"$CONF"
+fi
 LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps)"
 [[ $NVIDIA == yes ]] && LIST+=" $(pkgs $SHARE/packages.nvidia)"
 # A stalled download should not end the install: what was fetched is kept, so retry.
@@ -240,21 +257,23 @@ rsync -a --delete $T/boot/ $T/.bootbackup/
 # ---- snapshots and services --------------------------------------------------
 say "Snapshots and services"
 ch snapper --no-dbus -c root create-config /
-sed -i 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE="no"/; s/^NUMBER_LIMIT=.*/NUMBER_LIMIT="20"/; s/^NUMBER_LIMIT_IMPORTANT=.*/NUMBER_LIMIT_IMPORTANT="5"/' $T/etc/snapper/configs/root
+# Snapshots are taken by amadeus-update, once before each update, and only the newest five are kept.
+sed -i 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE="no"/; s/^NUMBER_LIMIT=.*/NUMBER_LIMIT="5"/; s/^NUMBER_LIMIT_IMPORTANT=.*/NUMBER_LIMIT_IMPORTANT="0"/; s/^NUMBER_MIN_AGE=.*/NUMBER_MIN_AGE="0"/' $T/etc/snapper/configs/root
 for s in NetworkManager greetd bluetooth power-profiles-daemon thermald ananicy-cpp systemd-timesyncd systemd-resolved fstrim.timer snapper-cleanup.timer; do
   ch systemctl enable "$s" >/dev/null 2>&1 || echo "  (could not enable $s)"
 done
 ln -sf ../run/systemd/resolve/stub-resolv.conf $T/etc/resolv.conf
 ch systemctl --global enable amadeusd.service pipewire-pulse.socket wireplumber.service >/dev/null 2>&1 || true
 
-if [[ $EXTRAS == yes ]]; then
+if [[ $EXTRAS == yes && $ONLINE == no ]]; then
+  echo "  Claude Code is set up once you are online: Super+Space, Install, Harness."
+elif [[ $EXTRAS == yes ]]; then
   # AI coding harnesses live in the user's home, managed by mise. Claude Code is the default one.
   say "Claude Code"
   ch runuser -u "$USERNAME" -- env HOME="/home/$USERNAME" MISE_YES=1 mise use --global claude@latest \
     || echo "  Claude Code could not be installed now. Later: Super+Space, Install, Harness."
 fi
 
-ch snapper --no-dbus -c root create --description "fresh install" --cleanup-algorithm number >/dev/null || true
 [[ -n ${POST_HOOK:-} && -x ${POST_HOOK:-} ]] && "$POST_HOOK" $T "$USERNAME"
 
 install -Dm644 "$LOG" $T/var/log/amadeus-install.log

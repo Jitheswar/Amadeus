@@ -1,8 +1,11 @@
 #!/bin/bash
-# Update the whole system: Arch packages first (snapshotted before and after), then applications from the AUR, then harnesses.
-# Run as your user, not as root.
+# Update the whole system: a snapshot first, then packages, applications from the AUR, and harnesses.
+# Run as your user, not as root. Only the newest five snapshots are kept; amadeus-rollback goes back to one.
 set -euo pipefail
 (( EUID != 0 )) || { echo "Run amadeus-update as your user; it asks for the password when needed."; exit 1; }
+sudo snapper -c root create --cleanup-algorithm number --description "before update $(date '+%Y-%m-%d %H:%M')"
+sudo snapper -c root cleanup number
+echo "Snapshot taken. If this update breaks something: amadeus-rollback"
 sudo pacman -Syu
 amadeus-aur update
 amadeus-harness update

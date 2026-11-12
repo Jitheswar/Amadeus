@@ -18,7 +18,7 @@ It is built for one machine: Core i5-13450HX, RTX 3050 6 GB with Intel UHD graph
 | | |
 |---|---|
 | **Base** | Arch, with packages from the CachyOS repositories (built for newer processors) and the `linux-cachyos` kernel. Rolling. Encrypted btrfs, systemd-boot, compressed swap in RAM. About 750 packages after install. |
-| **Recovery** | A snapshot before and after every package change. `amadeus-rollback` returns the system to any of them, from the running system or from the USB stick when it no longer starts. |
+| **Recovery** | A snapshot before every update, the newest five kept. `amadeus-rollback` returns the system to any of them, from the running system or from the USB stick when it no longer starts. |
 | **Graphics** | Intel draws the desktop. The NVIDIA card is powered off until an application is sent to it; nothing forces it on. CUDA, Vulkan and video decode are available on both. |
 | **AI layer** | One daemon through which every AI action passes: capability policy, approval for destructive actions, tamper-evident audit log, undo. Works with a Claude subscription or API key, OpenAI-compatible APIs, OpenRouter, Codex, and local models. |
 | **Root mode** | The AI has no root access by default. `ama root on` grants it; it ends at shutdown at the latest and must be turned on again. |
@@ -125,10 +125,11 @@ the computer from the drive (F12 at the logo on Dell machines).
 1. Write the ISO to a USB stick:
    `sudo dd if=out/amadeus-os-*.iso of=/dev/sdX bs=4M status=progress oflag=sync`
 2. Boot it (UEFI, Secure Boot off). The guided installer starts by itself: keyboard,
-   Wi-Fi if there is no cable, your name and password, time zone, disk, encryption,
+   internet (optional), your name and password, time zone, disk, encryption,
    applications, then a summary.
 3. Nothing is written until you type the disk's name at the summary. Then it installs,
-   which takes about ten minutes and downloads packages, and offers to restart.
+   which takes about ten minutes and needs no internet: every package is on the ISO. It
+   then offers to restart. Connect afterwards, from the bar, for updates.
 
 ## Repository
 

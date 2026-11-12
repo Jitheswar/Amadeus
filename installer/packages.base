@@ -5,7 +5,7 @@ cachyos-settings ananicy-cpp cachyos-ananicy-rules
 linux-firmware-intel linux-firmware-realtek linux-firmware-other sof-firmware intel-ucode
 btrfs-progs cryptsetup dosfstools efibootmgr sudo nano less bash-completion man-db
 networkmanager wpa_supplicant openssh
-snapper snap-pac zram-generator pacman-contrib rsync arch-install-scripts
+snapper zram-generator pacman-contrib rsync arch-install-scripts
 power-profiles-daemon thermald bluez bluez-utils
 pipewire pipewire-pulse pipewire-alsa wireplumber rtkit upower
 polkit bubblewrap python git github-cli base-devel mise pciutils usbutils

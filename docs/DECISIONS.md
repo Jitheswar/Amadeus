@@ -25,7 +25,8 @@ percent in most programs and more in some. They are not more thoroughly tested t
 Arch's and track Arch closely, so they are not a stability measure. Stability here
 comes from what is below, as before:
 
-- btrfs snapshots before and after every package change (snapper, snap-pac)
+- a btrfs snapshot before every update (`amadeus-update`), the newest five kept; installing
+  or removing a single package takes none, so the list stays short and meaningful
 - a copy of `/boot` inside each snapshot, so a snapshot carries its matching kernel
 - `amadeus-rollback`, from the running system or from the installer medium
 - AI changes go through one enforcement point with an undo journal and an audit log
@@ -119,10 +120,20 @@ it is kept, then applied with a reload. A rejected change leaves the old one in 
 ## Installation
 
 The USB stick starts a guided installer by itself (gum, styled with the system palette):
-keyboard, Wi-Fi when there is no cable, name and password, computer name, time zone
-(detected), disk, encryption, applications, then a summary. Nothing is written until the
-disk's name is typed at the summary. It hands its answers to the same `amadeus-install`
-that the unattended VM test drives, so the tested path and the guided path are one path.
+keyboard, internet (optional), name and password, computer name, time zone, disk,
+encryption, applications, then a summary. Nothing is written until the disk's name is
+typed at the summary. It hands its answers to the same `amadeus-install` that the
+unattended VM test drives, so the tested path and the guided path are one path.
+
+**Everything the installation needs is on the ISO.** When the ISO is built, a fresh empty
+package database stands in for the new system and every package pacman would download to
+install the package lists and the bundled applications is collected, checked against its
+signature, and stored on the ISO as a repository. The installer uses it and needs no
+network; the internet is needed afterwards only for updates and for what is set up per
+user (Claude Code and other harnesses, through mise). The cost is size: the ISO grows by
+the size of those packages. The collected packages are the x86-64-v3 builds, which this
+machine runs; a processor without v3 installs from the internet as before. The VM test
+installs with its network cut off, so the offline path is the tested one.
 
 ## Desktop shell and generated applications: Quickshell (QML)
 

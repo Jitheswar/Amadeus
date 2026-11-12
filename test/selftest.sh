@@ -19,7 +19,7 @@ healthy() {
   t "no failed system units"                   bash -c '[[ -z $(systemctl --failed --no-legend) ]]'
   t "Hyprland is running"                      pgrep -x Hyprland
   t "kernel on the boot partition matches"     bash -c 'cmp /boot/vmlinuz-linux-cachyos /usr/lib/modules/*/vmlinuz'
-  t "snapshot history carried over"            bash -c 'snapper -c root list | grep -q "fresh install"'
+  t "snapshot history carried over"            bash -c 'snapper -c root list | grep -q "rollback-test"'
   t "previous system kept"                     bash -c 'amadeus-rollback list | grep -q before-rollback'
 }
 finish() {
@@ -66,15 +66,13 @@ t "root account is locked"                     bash -c 'passwd -S root | grep -q
 t "CachyOS kernel is running"                  bash -c 'uname -r | grep -q cachyos'
 t "CachyOS repositories come first"            bash -c 'pacman-conf --repo-list | head -1 | grep -q cachyos && pacman -Q cachyos-settings linux-cachyos'
 t "multilib enabled (Steam)"                   bash -c 'pacman -Sl multilib | head -1 | grep -q multilib'
-t "core packages installed"                    pacman -Q hyprland quickshell steam libreoffice-fresh amadeus amadeus-desktop snap-pac
+t "core packages installed"                    pacman -Q hyprland quickshell steam libreoffice-fresh amadeus amadeus-desktop snapper
 echo "--- snapshots"
-t "snapshot of the fresh install exists"       bash -c 'snapper -c root list | grep -q "fresh install"'
-before=$(snapper -c root list | wc -l)
-t "installing a package works"                 pacman -S --noconfirm --needed tree
-t "package change created pre/post snapshots"  bash -c "[[ \$(snapper -c root list | wc -l) -ge $((before+2)) ]]"
+t "installing a package takes no snapshot"   bash -c 'before=$(snapper -c root list | wc -l); pacman -Sy --noconfirm --needed tree >/dev/null && [[ $(snapper -c root list | wc -l) == $before ]]'
 t "copy of /boot kept for rollback"            test -f /.bootbackup/vmlinuz-linux-cachyos
-n=$(snapper -c root list | awk '$3=="pre"{p=$1} END{print p}')
-t "rollback removes the package again"         bash -c "snapper -c root undochange $n..$((n+1)) >/dev/null && ! test -e /usr/bin/tree"
+# What amadeus-update does before updating, seven times: only five snapshots may remain.
+for i in 1 2 3 4 5 6 7; do snapper -c root create --cleanup-algorithm number --description "before update test $i"; snapper -c root cleanup number; done
+t "only the newest five snapshots are kept"    bash -c '[[ $(snapper -c root list --columns number | tail -n +3 | grep -cv "^ *0") -le 5 ]] && snapper -c root list | grep -q "before update test 7"'
 echo "--- desktop session"
 t "greeter service running"                    systemctl is-active greetd
 t "Hyprland is running"                        pgrep -x Hyprland
@@ -92,7 +90,8 @@ t "AUR lookup works"                           bash -c 'as amadeus-aur info prot
 t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/hypr/default.lua'
 t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
 t "system look applies to applications"        bash -c 'as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark && fc-match sans-serif | grep -qi inter && test -f /usr/share/amadeus-os/theme.json'
-t "Claude Code installed through mise"         bash -c 'as bash -lc "mise ls --global" | grep -q "^claude" && as bash -lc "claude --version"'
+t "the install worked without internet"       bash -c 'grep -q "Claude Code is set up once you are online" /var/log/amadeus-install.log'
+t "a harness installs through mise (Claude Code)" bash -c 'as bash -lc "amadeus-harness install claude" >/dev/null 2>&1; as bash -lc "mise ls --global" | grep -q "^claude" && as bash -lc "claude --version"'
 t "harness list comes from mise"               bash -c 'out=$(as bash -lc "amadeus-harness list"); echo "$out" | grep -q "Claude Code  (installed)" && echo "$out" | grep -q "^Codex"'
 t "defaults: terminal, editor, harness"        bash -c 'out=$(as amadeus-default); echo "$out"; echo "$out" | grep -q "terminal *foot" && echo "$out" | grep -q "harness *claude" && as amadeus-default editor nano | grep -q "Default editor: nano"'
 t "default harness resolves to a program"      bash -c 'as bash -lc "amadeus-harness run claude --version"'

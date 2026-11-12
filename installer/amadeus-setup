@@ -59,8 +59,15 @@ loadkeys "$KEYMAP" 2>/dev/null
 
 # ---- network
 online() { curl -fsm6 -o /dev/null https://geo.mirror.pkgbuild.com; }
+# With the packages on the medium, the internet is optional: it is used afterwards, for updates.
+offline_ok() { [[ -f /opt/amadeus-offline/amadeus-offline.db.tar.gz ]] && /lib/ld-linux-x86-64.so.2 --help | grep 'x86-64-v3 (supported' >/dev/null; }
 while ! online; do
   screen 2 "Connect to the internet"
+  if offline_ok; then
+    note "Everything needed to install is on this USB stick. Connecting now is optional;" "you can connect later from the bar."
+    echo
+    gum confirm --affirmative "Continue without internet" --negative "Connect now" "  " && break
+  fi
   dev=$(iwctl device list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '$2 == "station" || /station/ {print $1; exit}')
   [[ -z $dev ]] && dev=$(ls /sys/class/net | grep -m1 '^wl')
   if [[ -z $dev ]]; then

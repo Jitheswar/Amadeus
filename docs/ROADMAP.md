@@ -10,6 +10,7 @@
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
 - End-to-end AI request test on the installed system with a scripted model
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
+- Offline install: every package on the ISO; snapshots only before updates, five kept
 - Setup > GPU: automatic, NVIDIA for everything, or Intel only
 - CachyOS repositories, `linux-cachyos` kernel with its prebuilt NVIDIA module, `cachyos-settings`
 - Bar with drawn icons and drop-down panels: calendar, power mode (automatic by cable and charge), Wi-Fi, Bluetooth, volume, brightness, background apps, stay awake, timed passwordless administrator access, weather
@@ -36,7 +37,6 @@
 4. Local model as the offline fallback (a 4-bit 7B model fits the 6 GB card)
 5. Context awareness: the daemon follows compositor events and offers workspace layouts per activity
 6. Extending existing applications: side panels attached to an application's windows
-7. Offline install (all packages on the ISO)
 
 ## Not yet verified
 - Anything on real hardware

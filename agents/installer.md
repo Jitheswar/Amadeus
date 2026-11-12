@@ -16,6 +16,9 @@ The package lists say what is on the system, and `installer/amadeus-install` say
   Removing a package is as welcome as adding one.
 - **Lists, not script bodies.** The script reads the lists. It does not name packages,
   except where a package is conditional on detected hardware.
+- **The ISO carries every package the install needs.** `iso/mkiso.sh` collects them from
+  the package lists and the bundled applications. Anything the installer installs must come
+  from those, or the offline install breaks; the VM test installs without network to catch it.
 - **Repository order is a decision.** CachyOS repositories come before the Arch ones, and
   the processor-specific ones only when the processor supports them. The kernel is named
   once in the installer; boot entries, the NVIDIA module and the self-test follow it.
