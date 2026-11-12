@@ -6,7 +6,7 @@
 - Generated-app framework: manifest, sandbox, component library, lint, version history
 - Root mode: separate root helper, restricted or unrestricted, time limit, gone at shutdown
 - Installer: encrypted btrfs, snapshots on every package change, NVIDIA only when present
-- ISO build and VM test harness, both in a container; the full run passes: install, first boot, rollback from the system, rollback from the ISO
+- ISO build and VM test harness, both in a container; the full run passes (98 checks on 2026-11-12, CachyOS base and Hyprland): install, first boot, rollback from the system, rollback from the ISO
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
 - End-to-end AI request test on the installed system with a scripted model
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
@@ -28,16 +28,15 @@
 - Applications outside the Arch repositories built from publisher releases; no third-party repository
 
 ## In progress
-1. A full VM pass of everything since the last one: Hyprland, the CachyOS base, the bar, the install catalogue, capture
-2. `amadeus-update` in the VM; a real model driving the installed system
+1. `amadeus-update` in the VM; a real model driving the installed system
 
 ## Next
-3. First install on the real machine: NVIDIA power-down, PRIME offload, Wi-Fi, suspend
-4. Snapshots selectable in the boot menu
-5. Local model as the offline fallback (a 4-bit 7B model fits the 6 GB card)
-6. Context awareness: the daemon follows compositor events and offers workspace layouts per activity
-7. Extending existing applications: side panels attached to an application's windows
-8. Offline install (all packages on the ISO)
+2. First install on the real machine: NVIDIA power-down, PRIME offload, Wi-Fi, suspend
+3. Snapshots selectable in the boot menu
+4. Local model as the offline fallback (a 4-bit 7B model fits the 6 GB card)
+5. Context awareness: the daemon follows compositor events and offers workspace layouts per activity
+6. Extending existing applications: side panels attached to an application's windows
+7. Offline install (all packages on the ISO)
 
 ## Not yet verified
 - Anything on real hardware

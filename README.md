@@ -139,9 +139,8 @@ build.sh     entry point
 
 | | |
 |---|---|
-| Verified in a VM (72 checks, all passing) | UEFI boot and unattended encrypted install; first boot into the desktop (on niri at the time; Hyprland since); snapshots; sandbox, policy and audit log; AI requests end to end with a scripted model (tool run, approval, denial, opening an application, stop, undo of a whole task, two tasks in parallel, audit trail); the Amadeus panel opening and reaching the daemon; the Amadeus menu; Super+K; the agent skill and `ama discover`; the six applications from publisher releases; rollback from the running system, and rollback from the ISO, each followed by a clean boot |
-| Built, checked in the VM self-test but not yet passed | Everything since the last full pass: Hyprland, the bar's switches and drop-downs, the install catalogue, capture, the CachyOS base |
-| Not yet exercised | A real model driving the system (the VM has no provider login, so the model is scripted); clicking through the panel and bar by hand; the guided installer's screens and its Wi-Fi step (the VM test uses the unattended path behind it); `amadeus-update` |
+| Verified in a VM (98 checks, all passing) | UEFI boot and unattended encrypted install on the CachyOS base and kernel; first boot into the Hyprland desktop; the shell, picker, bar drop-downs, stay-awake and passwordless-administrator switches, notifications, clipboard history, scratchpad, screenshots and screen recording; every shortcut described and listed by Super+K; the install catalogue, web apps, harnesses through mise, defaults; snapshots, sandbox, policy and audit log; AI requests end to end with a scripted model; rollback from the running system and from the ISO, each followed by a clean boot |
+| Not yet exercised | A real model driving the system (the VM has no provider login, so the model is scripted); clicking through the panel and bar by hand; the guided installer's screens and its Wi-Fi step (the VM test uses the unattended path behind it); `amadeus-update`; Setup > GPU modes |
 | Decided, not yet built | A mark on windows the AI is working in |
 | Never tested | Real hardware: the NVIDIA driver and power path, Dynamic Boost, Wi-Fi, suspend |
 
