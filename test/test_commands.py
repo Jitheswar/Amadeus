@@ -394,6 +394,16 @@ esac""")
         out = self.run_cmd("amadeus-keys", "--print", env={"AMADEUS_HYPR_CONFIG": str(self.tmp / "none.lua")})
         self.assert_ok(out)
 
+    def test_keys_follow_relative_dofile_paths(self):
+        d = self.tmp / "hypr"
+        (d / "nested").mkdir(parents=True)
+        (d / "main.lua").write_text('dofile("more.lua")\n')
+        (d / "more.lua").write_text('dofile("nested/deep.lua")\n')
+        (d / "nested/deep.lua").write_text('o.bind("SUPER + SHIFT + R", "Relative bind", "true")\n')
+        out = self.run_cmd("amadeus-keys", "--print", env={"AMADEUS_HYPR_CONFIG": str(d / "main.lua")})
+        self.assert_ok(out)
+        self.assertRegex(out.stdout, r"(?m)^Super \+ Shift \+ R +Relative bind$")
+
     # ---- harnesses ----------------------------------------------------------
     def test_harness_list_install_run_and_remove(self):
         tool_bin = self.tmp / "installs/claude/2.1/bin"
