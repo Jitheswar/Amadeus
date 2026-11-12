@@ -12,6 +12,7 @@ mkdir -p /mnt/try && mount /dev/disk/by-label/AMADEUSTRY /mnt/try
   echo "amadeus daemon: $([[ -S $R/amadeus/daemon.sock ]] && echo running || echo missing)"
   echo "network: $(nmcli -t general status 2>&1 | head -1)"
   echo "writes to disks: $(grep -E ' (sd|vd|nvme)[a-z0-9]+ ' /proc/diskstats | awk '$10 > 0 {print $3}' | tr '\n' ' ')"
+  echo "dependency failures: $(journalctl -b --no-pager -o cat | grep -c 'Dependency failed for')"
   journalctl -b -p err --no-pager | tail -20
 } >/mnt/try/try.log 2>&1
 sudo -u $U env XDG_RUNTIME_DIR=$R WAYLAND_DISPLAY=wayland-1 grim /mnt/try/try.png 2>/dev/null

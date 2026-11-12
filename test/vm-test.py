@@ -91,6 +91,9 @@ if phase in ("all", "try"):
     print(log[:1500] or "the try session never reported", flush=True)
     if "TRY-OK" not in log:
         sys.exit(1)
+    if "dependency failures: 0" not in log:
+        print("the try boot reported failed dependencies", flush=True)
+        sys.exit(1)
 
 if phase in ("all", "install"):
     for f in (disk, auto, nvram):
