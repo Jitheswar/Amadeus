@@ -78,9 +78,11 @@ class Commands(unittest.TestCase):
         path = self.bin / name
         show = f"printf '%s' {shlex.quote(output)}" if output else ""
         path.write_text(f"""#!/bin/bash
-printf '%s' {shlex.quote(name)} >> "$AMADEUS_TEST_CALLS"
-for a in "$@"; do printf '\\t%s' "$a" >> "$AMADEUS_TEST_CALLS"; done
-printf '\\n' >> "$AMADEUS_TEST_CALLS"
+# One write per call: stand-ins run side by side in pipelines, and separate
+# writes to the shared log would interleave.
+line={shlex.quote(name)}
+for a in "$@"; do line+=$'\\t'"$a"; done
+printf '%s\\n' "$line" >> "$AMADEUS_TEST_CALLS"
 {show}
 {body}
 exit {rc}
