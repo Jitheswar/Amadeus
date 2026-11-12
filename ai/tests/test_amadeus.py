@@ -340,6 +340,7 @@ class HelperTest(unittest.TestCase):
                  ("write_file", {"path": "/etc/../root/x", "content": ""}), ("systemctl", {"action": "start", "unit": "a; rm -rf /"}),
                  ("systemctl", {"action": "mask", "unit": "x.service"}), ("systemctl", {"action": "stop", "unit": "amadeus-priv.service"}),
                  ("pacman", {"action": "install", "packages": ["--overwrite=*"]}), ("pacman", {"action": "install", "packages": []}),
+                 ("pacman", {"action": "install", "packages": ["-Syu"]}), ("systemctl", {"action": "start", "unit": "--now"}),
                  ("snapper", {"action": "undo", "frm": 5, "to": 2}), ("nope", {})]
         for op, args in cases:
             r = root.call(op, **args)

@@ -14,8 +14,8 @@ ap.add_argument("--ttl", type=int, default=0, help="minutes")
 ap.add_argument("--socket", default="/run/amadeus/priv.sock")
 A = ap.parse_args()
 START = time.time()
-UNIT = re.compile(r"^[\w@.:\\-]+$")
-PKG = re.compile(r"^[a-zA-Z0-9@._+-]+$")
+UNIT = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_@.:\\-]*$")
+PKG = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9@._+-]*$")
 PROTECTED = ("/etc/shadow", "/etc/gshadow", "/etc/passwd", "/etc/group", "/etc/sudoers", "/etc/sudoers.d", "/etc/pam.d",
              "/etc/polkit-1", "/etc/security", "/etc/ssh", "/etc/crypttab", "/etc/fstab", "/etc/amadeus")
 BACKUPS = "/var/lib/amadeus/backups"
