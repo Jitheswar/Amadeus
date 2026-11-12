@@ -254,6 +254,21 @@ esac""")
         self.wait_for("amadeus-terminal")
         self.assertEqual(self.calls_of("amadeus-terminal")[0], ["-e", "termapp"])
 
+    def test_launcher_reports_a_program_that_is_gone(self):
+        self.write_entry("gone", Name="Gone App", Exec="definitely-not-installed-app")
+        self.stub("amadeus-pick", output="Gone App\tgone", body="cat >/dev/null")
+        self.stub("notify-send")
+        p = self.run_cmd("amadeus-launcher")
+        self.assert_ok(p)
+        self.assertNotIn("Traceback", p.stderr)
+        self.assertIn("Could not open Gone App", " ".join(self.calls_of("notify-send")[-1]))
+        self.assertIn("definitely-not-installed-app was not found", " ".join(self.calls_of("notify-send")[-1]))
+
+    def test_launcher_hides_an_entry_whose_tryexec_is_missing(self):
+        self.write_entry("try", Name="Try App", Exec="whatever", TryExec="definitely-not-installed")
+        listed = self.run_cmd("amadeus-launcher", "--print").stdout
+        self.assertNotIn("Try App", listed)
+
     def test_launcher_hides_entries_that_ask_to_be_hidden(self):
         self.write_entry("visible", Name="Visible", Exec="visible")
         self.write_entry("hidden", Name="Hidden", Exec="hidden", NoDisplay="true")

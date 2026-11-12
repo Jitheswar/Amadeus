@@ -2,7 +2,7 @@
 # Application launcher: pick an installed application and start it; text that matches nothing goes to Amadeus.
 """Applications are read from the desktop entries installed now. Games and applications
 that ask for the dedicated GPU are started on the NVIDIA card; everything else on Intel."""
-import os, re, shlex, subprocess, sys
+import os, re, shlex, shutil, subprocess, sys
 from pathlib import Path
 
 DIRS = [Path.home() / ".local/share/applications", Path("/usr/local/share/applications"), Path("/usr/share/applications")]
@@ -20,7 +20,9 @@ def entries():
                 elif section == "[Desktop Entry]" and "=" in line:
                     k, v = line.split("=", 1)
                     e[k] = v
-            if e.get("Exec") and e.get("NoDisplay") != "true" and e.get("Hidden") != "true" and e.get("Type", "Application") == "Application":
+            if (e.get("Exec") and e.get("NoDisplay") != "true" and e.get("Hidden") != "true"
+                    and e.get("Type", "Application") == "Application"
+                    and (not e.get("TryExec") or shutil.which(e["TryExec"]))):
                 out[f.stem] = e
     return out
 
@@ -50,8 +52,13 @@ def start(e):
     cwd = Path(e.get("Path") or Path.home())
     if not cwd.is_dir():
         cwd = Path.home()
-    subprocess.Popen(argv, env=env, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL, start_new_session=True)
+    try:
+        subprocess.Popen(argv, env=env, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+    except OSError as error:
+        # A removed application must not take the launcher down with it.
+        reason = f"{argv[0]} was not found." if isinstance(error, FileNotFoundError) else str(error)
+        subprocess.run(["notify-send", "-a", "Amadeus", f"Could not open {e.get('Name', e['Exec'])}", reason], check=False)
 
 
 def main():
