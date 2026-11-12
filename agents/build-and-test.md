@@ -24,6 +24,9 @@ self-test that runs inside the installed system.
 - **`./build.sh preview` shows what the shell looks like**, not how windows behave: it
   runs in a stand-in compositor with a scripted model. Motion can only be judged on a
   real session.
+- **`./build.sh usb /dev/sdX` installs onto a USB drive** through a VM that sees only that
+  drive, with the guided installer in a window. Installs onto USB drives are portable: the
+  boot image covers any hardware and the NVIDIA driver is included.
 - **To try a compositor or package question quickly**, use `./build.sh shell` and install
   what you need inside the container.
 - The harness reuses downloaded packages from the build machine's cache read-only. It

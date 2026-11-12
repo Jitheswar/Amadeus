@@ -115,6 +115,13 @@ doing the build. Requirements: Docker and KVM.
 
 ## Install
 
+**To try it without touching the computer's own disk**, install onto a USB drive of
+32 GB or more from a computer that has Docker: `./build.sh usb /dev/sdX`. The installer
+appears in a window and the virtual machine running it sees only that drive. Then start
+the computer from the drive (F12 at the logo on Dell machines).
+
+**To install for good:**
+
 1. Write the ISO to a USB stick:
    `sudo dd if=out/amadeus-os-*.iso of=/dev/sdX bs=4M status=progress oflag=sync`
 2. Boot it (UEFI, Secure Boot off). The guided installer starts by itself: keyboard,

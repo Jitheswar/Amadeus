@@ -41,7 +41,14 @@ ask TIMEZONE "Time zone" "$(curl -fsm5 https://ipapi.co/timezone 2>/dev/null || 
 ask LOCALE "Locale" en_US.UTF-8
 ask KEYMAP "Console keymap" us
 ask EXTRAS "Install Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend and ProtonPlus (yes/no)" yes
+# A system on a USB drive is portable: it may start on a different computer from the one
+# installing it, so the boot image covers any hardware and the NVIDIA driver is included.
+PORTABLE=${PORTABLE:-auto}
+if [[ $PORTABLE == auto ]]; then
+  [[ $(lsblk -dno TRAN "$DISK") == usb || $(lsblk -dno RM "$DISK") == 1 ]] && PORTABLE=yes || PORTABLE=no
+fi
 NVIDIA=${NVIDIA:-auto}
+[[ $PORTABLE == yes && $NVIDIA == auto ]] && NVIDIA=yes
 if [[ $NVIDIA == auto ]]; then lspci -n | grep -E ' 03[0-9a-f]{2}: 10de:' >/dev/null && NVIDIA=yes || NVIDIA=no; fi
 
 if [[ $UNATTENDED == no ]]; then
@@ -198,6 +205,8 @@ else
   sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)/' $T/etc/mkinitcpio.conf
   CMD="root=UUID=$ROOT_UUID"
 fi
+# autodetect keeps only the drivers this computer needs; a portable system needs them all.
+[[ $PORTABLE == yes ]] && sed -i 's/^HOOKS=(\(.*\) autodetect /HOOKS=(\1 /' $T/etc/mkinitcpio.conf
 CMD+=" rootflags=subvol=@ rw quiet loglevel=3 nowatchdog ${EXTRA_CMDLINE:-}"
 ch mkinitcpio -P >/dev/null 2>&1 || ch mkinitcpio -P
 ch bootctl install --no-variables >/dev/null 2>&1 || ch bootctl install
