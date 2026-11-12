@@ -26,7 +26,9 @@ def main():
     if not qmllint:
         print("qmllint is not installed; QML syntax not checked", file=sys.stderr)
         return 0
-    files = sorted(ROOT.rglob("*.qml"))
+    # Build output is not part of the source tree and may contain generated copies.
+    ignored = {".git", "out", "pkg", "src"}
+    files = [p for p in sorted(ROOT.rglob("*.qml")) if not ignored & set(p.relative_to(ROOT).parts)]
     problems = []
     for path in files:
         p = subprocess.run([qmllint, str(path)], capture_output=True, text=True, timeout=30)
