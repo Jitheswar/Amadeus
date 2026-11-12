@@ -366,6 +366,35 @@ esac""")
         self.assertEqual(queries[0]["arg[]"], ["libsigc++"])
         self.assertIn("Name           : libsigc++", p.stdout)
 
+    @unittest.skipUnless(shutil.which("curl"), "the real curl is needed for the local server")
+    def test_aur_recipe_encodes_a_name_with_a_plus(self):
+        queries = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_GET(self):
+                queries.append(parse_qs(urlparse(self.path).query))
+                body = b"pkgname=libsigc++\n"
+                self.send_response(200)
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            (self.bin / "curl").unlink(missing_ok=True)
+            p = self.run_cmd("amadeus-aur", "recipe", "libsigc++",
+                             env={"AMADEUS_AUR": f"http://127.0.0.1:{server.server_port}"})
+        finally:
+            server.shutdown()
+            server.server_close()
+        self.assert_ok(p)
+        self.assertEqual(queries[0]["h"], ["libsigc++"])
+        self.assertIn("pkgname=libsigc++", p.stdout)
+
     def test_aur_list_uses_and_refreshes_its_cache(self):
         cache = self.tmp / "cache/amadeus-aur"
         cache.mkdir(parents=True)

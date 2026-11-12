@@ -77,7 +77,7 @@ case ${1:-} in
     fi
     cat "$f" ;;
   info)    info "${2:?name needed}" ;;
-  recipe)  curl -fsS "$AUR/cgit/aur.git/plain/PKGBUILD?h=${2:?name needed}" ;;
+  recipe)  curl -fsS --get "$AUR/cgit/aur.git/plain/PKGBUILD" --data-urlencode "h=${2:?name needed}" ;;
   install)
     shift; (( $# )) || { sed -n 3,8p "$0"; exit 1; }
     failed=0
