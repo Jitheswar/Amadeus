@@ -3,6 +3,7 @@ Uses throwaway directories; never touches the real config, apps or audit log."""
 import json, os, socket, subprocess, sys, tempfile, threading, time, unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from unittest import mock
 
 TMP = tempfile.mkdtemp(prefix="amadeus-test-")
 for k in ("CONFIG", "STATE", "DATA", "RUN"):
@@ -284,6 +285,20 @@ class DaemonTest(unittest.TestCase):
         out, err = self.d.execute("fs_read", {"path": "/etc/hostname"}, origin="app:x", allowed={"sys_status"})
         self.assertTrue(err)
         self.assertFalse(self.d.execute("sys_status", {}, origin="app:x", allowed={"sys_status"})[1])
+
+    def test_app_run_log_is_private(self):
+        apps.save("logapp", "Log", "", {"shell.qml": QML % "x"})
+        log = config.STATE / "app-logapp.log"
+        log.write_text("old")
+        log.chmod(0o644)
+        old = os.umask(0o022)
+        try:
+            with mock.patch("amadeus.daemon.subprocess.Popen"):
+                self.d.run_app("logapp")
+        finally:
+            os.umask(old)
+        self.assertEqual(log.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(log.read_text(), "")
 
 
 class TaskTest(unittest.TestCase):

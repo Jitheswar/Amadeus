@@ -178,8 +178,16 @@ class Daemon:
             srv.daemon_threads = True
             threading.Thread(target=srv.serve_forever, daemon=True).start()
             self.app_servers[app_id] = srv
-        subprocess.Popen(apps.command(app_id, sock), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=open(config.STATE / f"app-{app_id}.log", "w"), start_new_session=True)
+        argv = apps.command(app_id, sock)
+        log = config.STATE / f"app-{app_id}.log"
+        fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        os.fchmod(fd, 0o600)        # os.open's mode only applies when it creates the file
+        err = os.fdopen(fd, "w")
+        try:
+            subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=err, start_new_session=True)
+        finally:
+            err.close()
         audit.record("app_run", app=app_id, permissions=m["permissions"])
         return f"opened {m['name']}"
 
