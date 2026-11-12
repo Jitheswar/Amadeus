@@ -3,6 +3,7 @@ Uses throwaway directories; never touches the real config, apps or audit log."""
 import json, os, socket, subprocess, sys, tempfile, threading, time, unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from unittest import mock
 
 TMP = tempfile.mkdtemp(prefix="amadeus-test-")
 for k in ("CONFIG", "STATE", "DATA", "RUN"):
@@ -207,6 +208,21 @@ class ProviderTest(unittest.TestCase):
         self.assertNotIn("fallbacks", body)                                   # only sent to the official endpoint
         self.assertEqual(body["messages"][1]["content"][0]["type"], "thinking")   # thinking replayed unchanged
         self.assertEqual(body["messages"][2]["content"][0], {"type": "tool_result", "tool_use_id": "tu_1", "content": "7", "is_error": False})
+
+    def test_truncated_tool_call_is_not_replayed(self):
+        os.environ["T_KEY"] = "k"
+        from amadeus.providers.anthropic import Anthropic
+        p = Anthropic("anthropic", {"key_env": "T_KEY"})
+        reply = {"stop_reason": "max_tokens", "content": [
+            {"type": "text", "text": "partial"},
+            {"type": "tool_use", "id": "tu_1", "name": "echo", "input": {}}]}
+        with mock.patch("amadeus.providers.anthropic.post_json", return_value=reply):
+            turn = p.chat("s", [{"role": "user", "text": "go"}], [])
+        self.assertEqual(turn["calls"], [])
+        self.assertEqual([b["type"] for b in turn["raw"]], ["text"])
+        hist = [{"role": "user", "text": "go"},
+                {"role": "assistant", "text": turn["text"], "calls": turn["calls"], "raw": turn["raw"], "raw_from": "anthropic"}]
+        self.assertEqual([b["type"] for b in p._messages(hist)[1]["content"]], ["text"])
 
     def test_openai_compatible_tool_loop(self):
         from amadeus.providers.openai import OpenAICompat

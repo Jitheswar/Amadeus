@@ -44,6 +44,7 @@ class Anthropic:
         calls = [{"id": b["id"], "name": b["name"], "args": b.get("input") or {}} for b in blocks if b["type"] == "tool_use"]
         if stop == "max_tokens":
             calls = []   # a truncated tool call must not run
+            blocks = [b for b in blocks if b["type"] != "tool_use"]   # ...or be replayed without a result
             text += "\n[output limit reached]"
         # raw is replayed unchanged so thinking blocks stay valid.
         return {"text": text, "calls": calls, "raw": blocks, "stop": "tools" if calls else "end"}
