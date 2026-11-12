@@ -136,6 +136,8 @@ LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps)"
 for try in 1 2 3; do
   # shellcheck disable=SC2086
   pacstrap -C "$CONF" $T $LIST && break
+  # From the medium there is nothing to retry: a failure there is the disk, and the lines above name it.
+  [[ $OFFLINE == yes ]] && die "packages could not be written to $DISK. If the lines above say \"Input/output error\", the disk could not be written to; try another port or another disk"
   (( try < 3 )) || die "packages could not be downloaded; check the connection and run amadeus-install again"
   echo "  Download interrupted; trying again ($try of 2)."; sleep 5
 done
