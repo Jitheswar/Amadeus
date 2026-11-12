@@ -106,7 +106,7 @@ t "harness list comes from mise"               bash -c 'out=$(as bash -lc "amade
 t "defaults: terminal, editor, harness"        bash -c 'out=$(as amadeus-default); echo "$out"; echo "$out" | grep -q "terminal *foot" && echo "$out" | grep -q "harness *claude" && as amadeus-default editor nano | grep -q "Default editor: nano"'
 t "default harness resolves to a program"      bash -c 'as bash -lc "amadeus-harness run claude --version"'
 t "text files open with the default editor"    bash -c 'as xdg-mime query default text/plain | grep -q amadeus-editor'
-t "install catalogue resolves its sources"     bash -c 'for c in terminal browser editor ai development; do n=$(as bash -lc "amadeus-catalog $c" | wc -l); echo "$c $n"; [[ $n -ge 3 ]] || exit 1; done; as bash -lc "amadeus-catalog ai" | grep -q "^Claude Desktop  (installed)"'
+t "install catalogue resolves its sources"     bash -c 'for c in terminal browser editor ai development; do n=$(as bash -lc "amadeus-catalog $c" | wc -l); echo "$c $n"; [[ $n -ge 3 ]] || exit 1; done; as bash -lc "amadeus-catalog ai" | grep -q "^Claude Desktop  (AUR)  (installed)"'
 t "web app list works with none installed"     bash -c '! as amadeus-webapp list | grep .'
 t "web app can be added and removed"           bash -c 'as amadeus-webapp install "Self Test" example.org >/dev/null; as amadeus-webapp list | grep -q "^Self Test" && as amadeus-launcher --print | grep -q "^Self Test" && as amadeus-webapp remove "Self Test" >/dev/null && ! as amadeus-webapp list | grep -q "Self Test"'
 t "web app address keeps its percent signs"    bash -c 'as amadeus-webapp install Pct "https://example.org/a%20b" >/dev/null; grep -q "a%%20b" /home/'$U'/.local/share/applications/amadeus-webapp-pct.desktop && as amadeus-webapp remove Pct'

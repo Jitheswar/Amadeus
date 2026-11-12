@@ -58,6 +58,8 @@ case ${1:-} in
     [[ -f $DIR/$1.list ]] || { echo "No category called $1. Categories: $("$0" | paste -sd' ')"; exit 1; }
     grep -v '^#' "$DIR/$1.list" | while IFS=$'\t' read -r title sources; do
       src=$(resolve "$sources") || continue
+      # Say when the choice comes from a user recipe; the label is what the picker shows.
+      [[ $src == aur:* ]] && title+="  (AUR)"
       installed "$src" && title+="  (installed)"
       printf '%s\t%s\n' "$title" "$src"
     done ;;

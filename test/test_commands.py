@@ -298,7 +298,7 @@ esac""")
         listed = self.run_cmd("amadeus-catalog", "terminal", env=env)
         self.assert_ok(listed)
         self.assertIn("Foot  (installed)\tpacman:foot", listed.stdout)
-        self.assertIn("Kitty\taur:kitty-git", listed.stdout)
+        self.assertIn("Kitty  (AUR)\taur:kitty-git", listed.stdout)
         self.assertIn("Tool\tmise:opencode", listed.stdout)
         self.assertIn("terminal", self.run_cmd("amadeus-catalog", "nope", env=env).stdout)
 

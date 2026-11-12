@@ -1,5 +1,6 @@
 # Editors. Same format as terminal.list.
 Neovim	pacman:neovim
+Code (open source)	pacman:code
 Visual Studio Code	aur:visual-studio-code-bin
 Vim	pacman:vim
 Emacs	pacman:emacs-wayland pacman:emacs

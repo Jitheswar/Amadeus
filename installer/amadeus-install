@@ -40,7 +40,7 @@ ask TIMEZONE "Time zone" "$(curl -fsm5 https://ipapi.co/timezone 2>/dev/null || 
 [[ -f /usr/share/zoneinfo/$TIMEZONE ]] || die "unknown time zone $TIMEZONE"
 ask LOCALE "Locale" en_US.UTF-8
 ask KEYMAP "Console keymap" us
-ask EXTRAS "Install Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend and ProtonPlus (yes/no)" yes
+ask EXTRAS "Install the AUR-only extras (Brave Origin, Claude Desktop, herdr, LocalSend, ProtonPlus) and Claude Code (yes/no)" yes
 # A system on a USB drive is portable: it may start on a different computer from the one
 # installing it, so the boot image covers any hardware and the NVIDIA driver is included.
 PORTABLE=${PORTABLE:-auto}

@@ -125,7 +125,8 @@ gum confirm --default=yes --affirmative "Encrypt" --negative "Do not encrypt" \
 screen 6 "Anything else?"
 EXTRAS=yes
 gum confirm --default=yes --affirmative "Include them" --negative "Leave them out" \
-  "  Include Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend and ProtonPlus?" || EXTRAS=no
+  "  Include Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend and ProtonPlus?" \
+  "  (The first five are not in the official repositories; they come from their own releases via AUR recipes.)" || EXTRAS=no
 
 # ---- summary
 screen 7 "Ready"
