@@ -6,7 +6,7 @@ import Quickshell.Services.UPower
 import Quickshell.Services.Pipewire
 import Quickshell.Services.SystemTray
 
-// What drops down from the bar: calendar, power, Wi-Fi, Bluetooth, volume, brightness,
+// What drops down from the bar: calendar, power, Wi-Fi, Bluetooth, volume, display,
 // background applications, administrator access. One card, placed under what was clicked,
 // opening and closing as one motion.
 Scope {
@@ -40,6 +40,20 @@ Scope {
             Body { text: choice.note; color: pop.shell.dim; font.pixelSize: 12 }
             Icon { visible: choice.chosen; name: "check"; size: 14; color: pop.shell.accent; anchors.verticalCenter: parent.verticalCenter } }
         MouseArea { id: over; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: choice.picked() }
+    }
+    // A small selectable value, used for text size and scale.
+    component Pill: Rectangle {
+        id: pill
+        property string text: ""
+        property bool chosen: false
+        signal picked()
+        width: Math.max(52, label.implicitWidth + 20); height: 28; radius: 14
+        color: pill.chosen ? pop.shell.accent : (over.containsMouse ? pop.shell.raised : "transparent")
+        border.width: 1; border.color: pill.chosen ? pop.shell.accent : pop.shell.line
+        Behavior on color { ColorAnimation { duration: pop.shell.fast } }
+        Body { id: label; anchors.centerIn: parent; text: pill.text; font.pixelSize: 12
+               color: pill.chosen ? pop.shell.bg : pop.shell.fg }
+        MouseArea { id: over; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pill.picked() }
     }
     // An on/off switch whose knob slides.
     component Switch: Rectangle {
@@ -109,24 +123,59 @@ Scope {
         }
     }
     Component { id: volume
-        Column { id: vol; width: 260; spacing: 8
-            readonly property var sink: Pipewire.defaultAudioSink
+        Column { id: vol; width: 300; spacing: 6
+            readonly property var sink: pop.shell.demo ? null : Pipewire.defaultAudioSink
             Item { width: parent.width; height: 24
                 Title { text: "VOLUME"; x: 10; anchors.verticalCenter: parent.verticalCenter }
-                Body { text: vol.sink && vol.sink.audio ? Math.round(vol.sink.audio.volume * 100) + "%" : ""; color: pop.shell.dim; font.features: { "tnum": 1 }
+                Body { text: pop.shell.demo ? Math.round(pop.shell.vol * 100) + "%"
+                                           : (vol.sink && vol.sink.audio ? Math.round(vol.sink.audio.volume * 100) + "%" : "")
+                       color: pop.shell.dim; font.features: { "tnum": 1 }
                        anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter } } }
             Item { width: parent.width - 20; x: 10; height: 28
-                Slider { value: vol.sink && vol.sink.audio ? vol.sink.audio.volume : 0
-                         onMoved: v => { if (vol.sink && vol.sink.audio) vol.sink.audio.volume = v } } }
-            Choice { icon: "volume-off"; text: "Mute"; chosen: !!(vol.sink && vol.sink.audio && vol.sink.audio.muted); onPicked: if (vol.sink && vol.sink.audio) vol.sink.audio.muted = !vol.sink.audio.muted }
+                Slider { value: pop.shell.demo ? pop.shell.vol : (vol.sink && vol.sink.audio ? vol.sink.audio.volume : 0)
+                         onMoved: v => { if (!pop.shell.demo && vol.sink && vol.sink.audio) vol.sink.audio.volume = v } } }
+            Choice { icon: "volume-off"; text: "Mute"
+                     chosen: pop.shell.demo ? false : !!(vol.sink && vol.sink.audio && vol.sink.audio.muted)
+                     onPicked: if (!pop.shell.demo && vol.sink && vol.sink.audio) vol.sink.audio.muted = !vol.sink.audio.muted }
+            Title { text: "OUTPUT"; x: 10; topPadding: 4 }
+            Repeater { model: pop.shell.outputs.slice(0, 6)
+                Choice { required property var modelData; icon: "volume"
+                         text: modelData.description || modelData.nickname || modelData.name
+                         chosen: pop.shell.demo ? modelData.id === 1 : Pipewire.defaultAudioSink === modelData
+                         onPicked: if (!pop.shell.demo) Pipewire.preferredDefaultAudioSink = modelData } }
+            Body { x: 10; visible: pop.shell.outputs.length === 0; color: pop.shell.dim; font.pixelSize: 12; height: 24; verticalAlignment: Text.AlignVCenter
+                   text: "No output devices" }
+            Title { text: "INPUT"; x: 10; topPadding: 4 }
+            Repeater { model: pop.shell.inputs.slice(0, 6)
+                Choice { required property var modelData; icon: "mic"
+                         text: modelData.description || modelData.nickname || modelData.name
+                         chosen: pop.shell.demo ? modelData.id === 3 : Pipewire.defaultAudioSource === modelData
+                         onPicked: if (!pop.shell.demo) Pipewire.preferredDefaultAudioSource = modelData } }
+            Body { x: 10; visible: pop.shell.inputs.length === 0; color: pop.shell.dim; font.pixelSize: 12; height: 24; verticalAlignment: Text.AlignVCenter
+                   text: "No input devices" }
         }
     }
-    Component { id: brightness
-        Column { width: 260; spacing: 8
+    Component { id: display
+        Column { id: disp; width: 300; spacing: 8
             Item { width: parent.width; height: 24
-                Title { text: "BRIGHTNESS"; x: 10; anchors.verticalCenter: parent.verticalCenter }
-                Body { text: Math.round(pop.shell.bright * 100) + "%"; color: pop.shell.dim; font.features: { "tnum": 1 }; anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter } } }
-            Item { width: parent.width - 20; x: 10; height: 28; Slider { value: pop.shell.bright; onMoved: v => pop.shell.setBright(Math.max(0.02, v)) } }
+                Title { text: "BRIGHTNESS"; x: 10; anchors.verticalCenter: parent.verticalCenter; visible: pop.shell.hasBattery }
+                Body { text: Math.round(pop.shell.bright * 100) + "%"; color: pop.shell.dim; font.features: { "tnum": 1 }; visible: pop.shell.hasBattery
+                       anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter } } }
+            Item { width: parent.width - 20; x: 10; height: 28; visible: pop.shell.hasBattery
+                Slider { value: pop.shell.bright; onMoved: v => pop.shell.setBright(Math.max(0.02, v)) } }
+            Title { text: "TEXT SIZE"; x: 10 }
+            Row { x: 10; spacing: 6
+                Repeater { model: [90, 100, 110, 125, 150]
+                    Pill { required property int modelData; text: modelData + "%"; chosen: pop.shell.textSize === modelData
+                           onPicked: pop.shell.setTextSize(modelData) } } }
+            Title { text: "SCALE"; x: 10; topPadding: 4 }
+            Row { x: 10; spacing: 6
+                Repeater { model: [1, 1.25, 1.5, 1.75, 2]
+                    Pill { required property real modelData; text: Math.round(modelData * 100) + "%"
+                           chosen: Math.abs(pop.shell.scale - modelData) < 0.01
+                           onPicked: pop.shell.setScale(modelData) } } }
+            Choice { icon: "display"; text: "More display settings…"
+                     onPicked: { pop.shell.pop = ""; pop.shell.run(["amadeus-display"]) } }
         }
     }
     Component { id: wifi
@@ -176,7 +225,7 @@ Scope {
             Choice { visible: pop.shell.sudoOn; icon: "lock"; text: "Turn off now"; onPicked: { pop.shell.run(["amadeus-sudo", "off"]); pop.shell.pop = "" } }
         }
     }
-    readonly property var panels: ({ calendar: calendar, power: power, volume: volume, brightness: brightness, wifi: wifi, bluetooth: bluetooth, tray: tray, sudo: sudo })
+    readonly property var panels: ({ calendar: calendar, power: power, volume: volume, display: display, wifi: wifi, bluetooth: bluetooth, tray: tray, sudo: sudo })
 
     PanelWindow {
         visible: pop.open || pop.t > 0.01

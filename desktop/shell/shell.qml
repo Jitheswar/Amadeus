@@ -63,7 +63,7 @@ ShellRoot {
 
     // ---- bar layout: ~/.config/amadeus/bar.json lists widget ids for left, center and right
     property var layout: ({ left: ["workspaces", "title"], center: ["sudo", "awake", "clock", "weather"],
-                            right: ["record", "gpu", "tray", "bluetooth", "network", "volume", "brightness", "battery", "power", "amadeus"] })
+                            right: ["record", "gpu", "tray", "bluetooth", "network", "volume", "display", "battery", "power", "amadeus"] })
     FileView {
         path: Quickshell.env("HOME") + "/.config/amadeus/bar.json"
         watchChanges: true
@@ -81,7 +81,7 @@ ShellRoot {
         popX = item.mapToItem(null, item.width / 2, 0).x
         pop = name
         if (name === "wifi") scan.running = true
-        if (name === "brightness") readBright.running = true
+        if (name === "display") { readBright.running = true; readText.running = true; readScale.running = true }
     }
     Popover { shell: root }
 
@@ -107,11 +107,27 @@ ShellRoot {
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property real vol: demo ? 0.45 : (sink && sink.audio ? sink.audio.volume : 0)
     readonly property bool muted: !demo && !!(sink && sink.audio && sink.audio.muted)
+    // The devices in the sound panel. PipeWire owns the list; the preview uses stand-ins.
+    readonly property var demoOutputs: [{ id: 1, description: "Built-in speakers" },
+                                        { id: 2, description: "HDMI output" }]
+    readonly property var demoInputs: [{ id: 3, description: "Built-in microphone" }]
+    readonly property var outputs: demo ? demoOutputs : Pipewire.nodes.values.filter(n => !n.isStream && (n.type & PwNodeType.AudioSink))
+    readonly property var inputs: demo ? demoInputs : Pipewire.nodes.values.filter(n => !n.isStream && (n.type & PwNodeType.AudioSource))
 
     property real bright: 0.7
     Process { id: readBright; command: ["brightnessctl", "-m"]
               stdout: SplitParser { onRead: line => { const f = line.split(","); if (f.length > 3) root.bright = parseInt(f[3]) / 100 } } }
     function setBright(v) { bright = v; run(["brightnessctl", "-q", "set", Math.round(v * 100) + "%"]) }
+
+    // The display panel follows the commands it runs; they are also the manual for them.
+    property int textSize: 100
+    property real scale: 1.0
+    Process { id: readText; command: ["amadeus-display", "text"]
+              stdout: SplitParser { onRead: line => { const n = parseInt(line); if (n > 0) root.textSize = n } } }
+    Process { id: readScale; command: ["amadeus-display", "scale"]
+              stdout: SplitParser { onRead: line => { const v = parseFloat(line); if (v > 0) root.scale = v } } }
+    function setTextSize(p) { textSize = p; run(["amadeus-display", "text", p + "%"]) }
+    function setScale(v) { scale = v; run(["amadeus-display", "scale", String(v)]) }
 
     property bool wifiOn: demo
     property var nets: demo ? [{ name: "Home", signal: 82, secure: true, active: true }] : []
@@ -125,7 +141,7 @@ ShellRoot {
     // NetworkManager says when something changed; only then is the list read again.
     Process { command: ["nmcli", "monitor"]; running: !root.demo; stdout: SplitParser { onRead: line => rescan.restart() } }
     Timer { id: rescan; interval: 800; onTriggered: scan.running = true }
-    Component.onCompleted: if (!demo) { scan.running = true; readBright.running = true }
+    Component.onCompleted: if (!demo) { scan.running = true; readBright.running = true; readText.running = true; readScale.running = true }
 
     property string sudoRaw: ""
     readonly property bool sudoOn: sudoRaw !== ""
@@ -248,7 +264,7 @@ ShellRoot {
         Tool { icon: root.wifiOn && root.activeNet ? "wifi" : (root.wired ? "wired" : "wifi-off"); panel: "wifi"; alert: !root.activeNet && !root.wired } }
     Component { id: wVolume
         Tool { icon: root.muted ? "volume-off" : (root.vol < 0.4 ? "volume-low" : "volume"); panel: "volume"; opacity: root.muted ? 0.6 : 1 } }
-    Component { id: wBrightness; Tool { shown: root.hasBattery; icon: "sun"; panel: "brightness" } }
+    Component { id: wDisplay; Tool { icon: "display"; panel: "display" } }
     Component { id: wBattery
         Tool { shown: root.hasBattery; icon: !root.demo && !UPower.onBattery ? "bolt" : "battery"; reading: root.batteryPct + "%"; panel: "power"; alert: root.lowBattery } }
     Component { id: wPower; Tool { shown: !root.hasBattery; icon: "power"; panel: "power" } }
@@ -263,7 +279,7 @@ ShellRoot {
                 Label { text: "Amadeus"; font.weight: Font.Medium; color: over.containsMouse ? root.bg : root.accent } }
             MouseArea { id: over; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.run(["ama", "panel"]) } } }
     readonly property var widgets: ({ workspaces: wWorkspaces, record: wRecord, title: wTitle, sudo: wSudo, awake: wAwake, clock: wClock, weather: wWeather, gpu: wGpu,
-                                      tray: wTray, bluetooth: wBluetooth, network: wNetwork, volume: wVolume, brightness: wBrightness,
+                                      tray: wTray, bluetooth: wBluetooth, network: wNetwork, volume: wVolume, display: wDisplay,
                                       battery: wBattery, power: wPower, amadeus: wAmadeus })
 
     component Section: Row {

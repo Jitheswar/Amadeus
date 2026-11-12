@@ -1,6 +1,7 @@
 #!/bin/bash
 # Display setup: resolution, refresh rate, scaling and text size.
 #   amadeus-display                 choose a display, then its resolution or scale, from menus
+#   amadeus-display scale [VALUE]   show or set the focused display's scale (for example 1.25)
 #   amadeus-display text [SIZE]     show or set text size for applications (for example 110%)
 # Resolution and scale are written to ~/.config/hypr/display.lua. The whole desktop
 # configuration is checked first; a setting the desktop rejects is not kept.
@@ -8,32 +9,13 @@ set -euo pipefail
 conf=${XDG_CONFIG_HOME:-$HOME/.config}/hypr
 file=$conf/display.lua
 
-if [[ ${1:-} == text ]]; then
-  now=$(gsettings get org.gnome.desktop.interface text-scaling-factor 2>/dev/null || echo 1.0)
-  [[ -n ${2:-} ]] || { awk -v n="$now" 'BEGIN { printf "%d%%\n", n * 100 + 0.5 }'; exit 0; }
-  gsettings set org.gnome.desktop.interface text-scaling-factor "$(awk -v p="${2%\%}" 'BEGIN { printf "%.2f", p / 100 }')"
-  echo "Text size: ${2%\%}%"; exit 0
-fi
-
-monitors=$(hyprctl -j monitors)
-name=$(python3 -c 'import json, sys; print("\n".join(m["name"] for m in json.load(sys.stdin)))' <<<"$monitors" |
-  { mapfile -t o; (( ${#o[@]} == 1 )) && echo "${o[0]}" || printf '%s\n' "${o[@]}" | amadeus-pick Display; }) || exit 0
-what=$(printf 'Resolution\nScale' | amadeus-pick "$name") || exit 0
-if [[ $what == Resolution ]]; then
-  value=$(python3 -c 'import json, sys; print("\n".join(next(m for m in json.load(sys.stdin) if m["name"] == sys.argv[1])["availableModes"]))' "$name" <<<"$monitors" |
-    sed 's/Hz$//' | amadeus-pick "Resolution of $name") || exit 0
-  key=mode
-else
-  value=$(printf '%s\n' 1 1.25 1.5 1.6 1.75 2 | amadeus-pick "Scale of $name") || exit 0
-  key=scale
-fi
-
-# Keep the other setting for this display, replace the one being changed.
-mkdir -p "$conf"; touch "$file"
-old=$(mktemp)                       # byte for byte, so a rejected change really is no change
-cat "$file" >"$old"
-trap 'rm -f "$old"' EXIT
-python3 - "$file" "$name" "$key" "$value" "$monitors" <<'PY'
+save() {  # NAME KEY VALUE MONITORS: write one setting, check the whole configuration, keep it or go back
+  local name=$1 key=$2 value=$3 monitors=$4
+  mkdir -p "$conf"; touch "$file"
+  old=$(mktemp)                       # byte for byte, so a rejected change really is no change
+  cat "$file" >"$old"
+  trap 'rm -f "$old"' EXIT
+  python3 - "$file" "$name" "$key" "$value" "$monitors" <<'PY'
 import json, re, sys
 path, name, key, value, monitors = sys.argv[1:]
 text = open(path).read()
@@ -49,9 +31,43 @@ for n, v in settings.items():
             'hl.monitor({ output = "%s", mode = "%s", position = "auto", scale = %s })' % (n, v["mode"], v["scale"])]
 open(path, "w").write("\n".join(out) + "\n")
 PY
-if [[ -f $conf/hyprland.lua ]] && ! Hyprland --verify-config --config "$conf/hyprland.lua" 2>&1 | grep 'config ok' >/dev/null; then
-  cat "$old" >"$file"
-  notify-send -a Amadeus "Display setting not applied" "The desktop rejected $key $value for $name; nothing was changed."; exit 1
+  if [[ -f $conf/hyprland.lua ]] && ! Hyprland --verify-config --config "$conf/hyprland.lua" 2>&1 | grep 'config ok' >/dev/null; then
+    cat "$old" >"$file"
+    notify-send -a Amadeus "Display setting not applied" "The desktop rejected $key $value for $name; nothing was changed."; exit 1
+  fi
+  hyprctl reload >/dev/null
+  notify-send -a Amadeus "$name: $key $value"
+}
+
+if [[ ${1:-} == text ]]; then
+  now=$(gsettings get org.gnome.desktop.interface text-scaling-factor 2>/dev/null || echo 1.0)
+  [[ -n ${2:-} ]] || { awk -v n="$now" 'BEGIN { printf "%d%%\n", n * 100 + 0.5 }'; exit 0; }
+  gsettings set org.gnome.desktop.interface text-scaling-factor "$(awk -v p="${2%\%}" 'BEGIN { printf "%.2f", p / 100 }')"
+  echo "Text size: ${2%\%}%"; exit 0
 fi
-hyprctl reload >/dev/null
-notify-send -a Amadeus "$name: $key $value"
+
+if [[ ${1:-} == scale ]]; then
+  monitors=$(hyprctl -j monitors)
+  name=$(python3 -c 'import json, sys; ms = json.load(sys.stdin); f = [m for m in ms if m.get("focused")] or ms; print(f[0]["name"])' <<<"$monitors")
+  now=$(python3 -c 'import json, sys; ms = json.load(sys.stdin); f = [m for m in ms if m.get("focused")] or ms; print(f[0]["scale"])' <<<"$monitors")
+  [[ -n ${2:-} ]] || { printf '%s\n' "$now"; exit 0; }
+  value=${2}
+  awk -v v="$value" 'BEGIN { exit !(v + 0 >= 0.5 && v + 0 <= 3) }' ||
+    { echo "Scale must be a number from 0.5 to 3, for example 1.25." >&2; exit 1; }
+  save "$name" scale "$value" "$monitors"
+  exit 0
+fi
+
+monitors=$(hyprctl -j monitors)
+name=$(python3 -c 'import json, sys; print("\n".join(m["name"] for m in json.load(sys.stdin)))' <<<"$monitors" |
+  { mapfile -t o; (( ${#o[@]} == 1 )) && echo "${o[0]}" || printf '%s\n' "${o[@]}" | amadeus-pick Display; }) || exit 0
+what=$(printf 'Resolution\nScale' | amadeus-pick "$name") || exit 0
+if [[ $what == Resolution ]]; then
+  value=$(python3 -c 'import json, sys; print("\n".join(next(m for m in json.load(sys.stdin) if m["name"] == sys.argv[1])["availableModes"]))' "$name" <<<"$monitors" |
+    sed 's/Hz$//' | amadeus-pick "Resolution of $name") || exit 0
+  key=mode
+else
+  value=$(printf '%s\n' 1 1.25 1.5 1.6 1.75 2 | amadeus-pick "Scale of $name") || exit 0
+  key=scale
+fi
+save "$name" "$key" "$value" "$monitors"

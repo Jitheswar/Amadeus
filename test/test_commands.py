@@ -694,6 +694,24 @@ cat >/dev/null
         self.assertEqual(self.calls_of("gsettings")[-1],
                          ["set", "org.gnome.desktop.interface", "text-scaling-factor", "1.25"])
 
+    def test_display_scale_of_the_focused_monitor(self):
+        self.hyprctl_json()
+        self.stub("Hyprland", output="config ok")
+        self.stub("notify-send")
+        hyprland = self.config / "hypr/hyprland.lua"
+        hyprland.parent.mkdir(parents=True)
+        hyprland.write_text("-- config\n")
+        self.assertEqual(self.run_cmd("amadeus-display", "scale").stdout.strip(), "1.0")
+        self.assert_ok(self.run_cmd("amadeus-display", "scale", "1.25"))
+        written = (self.config / "hypr/display.lua").read_text()
+        self.assertIn('hl.monitor({ output = "eDP-1", mode = "1920x1080@60.00", position = "auto", scale = 1.25 })', written)
+        self.assertEqual(self.calls_of("hyprctl")[-1], ["reload"])
+        self.assertIn("eDP-1: scale 1.25", " ".join(self.calls_of("notify-send")[-1]))
+
+    def test_display_scale_refuses_a_bad_value(self):
+        self.hyprctl_json()
+        self.assertNotEqual(self.run_cmd("amadeus-display", "scale", "8").returncode, 0)
+
     def test_screenshot_screen_is_saved_and_copied(self):
         self.hyprctl_json()
         self.stub("xdg-user-dir", output=str(self.home / "Pictures"))
