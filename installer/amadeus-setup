@@ -86,12 +86,17 @@ done
 
 # ---- you
 screen 3 "Who will use this computer?"
-while :; do
-  FULL=$(input --header "  Your name" --placeholder "shown on the login screen") || exit 1
-  USERNAME=$(input --header "  User name" --value "$(tr 'A-Z' 'a-z' <<<"${FULL%% *}" | tr -cd 'a-z0-9_-')") || exit 1
-  [[ $USERNAME =~ ^[a-z_][a-z0-9_-]{0,30}$ ]] && break
-  fail "A user name is lower-case letters, digits, - and _, starting with a letter."
-done
+FULL=$(input --header "  Your name" --placeholder "as it should appear on the login screen") || exit 1
+# The name you sign in with comes from your name; change it only if you want something else.
+USERNAME=$(tr 'A-Z' 'a-z' <<<"${FULL%% *}" | tr -cd 'a-z0-9_-')
+if [[ $USERNAME =~ ^[a-z_][a-z0-9_-]{0,30}$ ]] && gum confirm --affirmative "Yes" --negative "Choose another" "  You will sign in as $USERNAME."; then :
+else
+  while :; do
+    USERNAME=$(input --header "  The name you sign in with" --placeholder "lower-case letters and digits") || exit 1
+    [[ $USERNAME =~ ^[a-z_][a-z0-9_-]{0,30}$ ]] && break
+    fail "Use lower-case letters, digits, - and _, starting with a letter."
+  done
+fi
 while :; do
   PASSWORD=$(input --password --header "  Password (also unlocks the disk)") || exit 1
   again=$(input --password --header "  The same password again") || exit 1
