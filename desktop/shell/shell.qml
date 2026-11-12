@@ -244,8 +244,8 @@ ShellRoot {
                shown: root.demo || !!a; icon: root.demo || (a && a.enabled) ? "bluetooth" : "bluetooth-off"; panel: "bluetooth"
                lit: !!(a && a.enabled && Bluetooth.devices.values.some(d => d.connected)); opacity: root.demo || (a && a.enabled) ? 1 : 0.6 } }
     Component { id: wNetwork
-        Tool { icon: root.wifiOn && root.activeNet ? "wifi" : "wifi-off"; panel: "wifi"; alert: !root.activeNet && !root.wired
-               reading: root.activeNet ? "" : (root.wired ? "" : "") } }
+        // A cable connection shows as such; a crossed-out Wi-Fi mark means there is no connection at all.
+        Tool { icon: root.wifiOn && root.activeNet ? "wifi" : (root.wired ? "wired" : "wifi-off"); panel: "wifi"; alert: !root.activeNet && !root.wired } }
     Component { id: wVolume
         Tool { icon: root.muted ? "volume-off" : (root.vol < 0.4 ? "volume-low" : "volume"); panel: "volume"; opacity: root.muted ? 0.6 : 1 } }
     Component { id: wBrightness; Tool { shown: root.hasBattery; icon: "sun"; panel: "brightness" } }
