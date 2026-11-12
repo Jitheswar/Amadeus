@@ -1,13 +1,13 @@
 ---
 name: amadeus
-description: Configure and manage an Amadeus OS system. Use when asked to change, inspect, fix, install, remove, update or roll back anything on this machine: desktop, shortcuts, panels, windows, packages, services, GPU, AI providers, permissions, generated apps, snapshots. Triggers: Amadeus, ama, niri, desktop, keybinding, bar, widget, workspace, install, update, rollback, snapshot, root mode, provider, NVIDIA.
+description: Configure and manage an Amadeus OS system. Use when asked to change, inspect, fix, install, remove, update or roll back anything on this machine: desktop, shortcuts, panels, windows, packages, services, GPU, AI providers, permissions, generated apps, snapshots. Triggers: Amadeus, ama, Hyprland, desktop, keybinding, bar, widget, workspace, install, update, rollback, snapshot, root mode, provider, NVIDIA.
 ---
 
 # Managing an Amadeus OS system
 
 This skill does not describe the system. It tells you how to find out what the system
 is, because the system changes with every update and anything written here would go
-stale. **Look first, every time. Do not rely on what you remember about Amadeus, niri,
+stale. **Look first, every time. Do not rely on what you remember about Amadeus, Hyprland,
 or Arch from training or from an earlier session.**
 
 ## 1. Get the map
@@ -33,9 +33,9 @@ If `ama` is missing, this is not an Amadeus system; stop and say so.
 | Every file a package owns | `pacman -Qlq <package>` |
 | Which package owns a file | `pacman -Qo <path>` |
 | What is installed on purpose | `pacman -Qqe` |
-| What the desktop is doing now | `niri msg --json windows`, `workspaces`, `outputs`, `focused-window` |
-| What the desktop can do | `niri msg action --help`, then `niri msg action <name> --help` |
-| Whether a desktop config is valid | `niri validate -c <file>` |
+| What the desktop is doing now | `hyprctl -j clients`, `workspaces`, `monitors`, `activewindow` |
+| Every shortcut and what it does | `hyprctl -j binds` (each carries a description) |
+| Whether a desktop config loads | `Hyprland --verify-config --config <file>` |
 | What a service is and does | `systemctl cat <unit>`, `systemctl status <unit>` (add `--user` for session units) |
 | What happened | `journalctl -b -p warning`, `ama audit` |
 | Whether the machine is healthy | `ama doctor` |
@@ -53,7 +53,7 @@ These are properties of the design, not details that drift.
 2. **Prefer the system's own tools to editing files.** When the map lists a tool or
    command for the job (shortcuts, bar layout, default applications, providers), use
    it: those paths validate the change, record it in the audit log, and can undo it.
-3. **Validate before you apply.** For the desktop, run `niri validate`. A rejected
+3. **Validate before you apply.** For the desktop, run `Hyprland --verify-config`. A rejected
    config must not be left in place. For anything else, find the checker the same way
    you found the command.
 4. **System changes are snapshotted and reversible.** Package changes take a snapshot

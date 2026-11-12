@@ -1,7 +1,7 @@
 #!/bin/bash
 # Draw the desktop shell and the Amadeus panel in a headless compositor and save pictures to out/preview/.
-# Runs in the builder container. The compositor here is a stand-in (sway), so this shows how
-# the shell looks, not how windows are arranged; a scripted model answers the panel.
+# Runs in the builder container. The compositor here is a stand-in (sway) and the shell runs with
+# stand-in values (AMADEUS_DEMO), so this shows how the shell looks, not how windows behave.
 set -u
 export HOME=/tmp/home XDG_RUNTIME_DIR=/tmp/xdg PATH=/tmp/fake:/src/desktop/bin:/src/ai/bin:$PATH
 export AMADEUS_DEMO=1 WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 QT_QPA_PLATFORM=wayland
@@ -12,17 +12,6 @@ ln -sfn /src/desktop/shell /usr/share/amadeus-os/shell
 cp /src/desktop/theme/theme.json /usr/share/amadeus-os/theme.json
 cp /src/desktop/shell/bar.default.json $HOME/.config/amadeus/bar.json
 
-# A stand-in for the real compositor's event stream, so the bar has workspaces and a window title to show.
-cat >/tmp/fake/niri <<'N'
-#!/bin/bash
-if [[ "$*" == *event-stream* ]]; then
-  echo '{"WorkspacesChanged":{"workspaces":[{"id":1,"idx":1,"name":null,"output":"X","is_active":true,"is_focused":true},{"id":2,"idx":2,"name":null,"output":"X","is_active":false,"is_focused":false},{"id":3,"idx":3,"name":null,"output":"X","is_active":false,"is_focused":false}]}}'
-  echo '{"WindowsChanged":{"windows":[{"id":7,"title":"brief.txt — Notes","app_id":"notes","workspace_id":1,"is_focused":true}]}}'
-  exec sleep infinity
-fi
-[[ "$*" == *focused-window* ]] && echo '{"id":7,"title":"sales-q3.csv — Files","app_id":"files"}'
-exit 0
-N
 chmod +x /tmp/fake/*
 
 cat >/tmp/sway.conf <<'S'

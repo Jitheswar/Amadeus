@@ -1,0 +1,37 @@
+#!/bin/bash
+# Choose part of the screen and print it as "X,Y WxH": drag an area, click a window, or click empty space for the whole screen.
+#   amadeus-area            choose on the live screen
+#   amadeus-area --freeze   hold the screen still while choosing (for screenshots)
+# Escape prints nothing and exits 1.
+set -uo pipefail
+freeze=""
+if [[ ${1:-} == --freeze ]]; then hyprpicker -r -z >/dev/null 2>&1 & freeze=$!; sleep 0.15; fi
+trap '[[ -n $freeze ]] && kill "$freeze" 2>/dev/null' EXIT
+
+# The screen and the windows on it, in the compositor's own coordinates.
+rects=$(python3 -c '
+import json, subprocess
+q = lambda w: json.loads(subprocess.run(["hyprctl", "-j", w], capture_output=True, text=True).stdout)
+mons = q("monitors"); f = next(m for m in mons if m["focused"]); ws = f["activeWorkspace"]["id"]
+for m in mons:
+    if m["activeWorkspace"]["id"] == ws:
+        w, h = int(m["width"] / m["scale"]), int(m["height"] / m["scale"])
+        if m["transform"] in (1, 3): w, h = h, w
+        print("%d,%d %dx%d" % (m["x"], m["y"], w, h))
+for c in q("clients"):
+    if c["workspace"]["id"] == ws and not c.get("hidden"):
+        print("%d,%d %dx%d" % (*c["at"], *c["size"]))')
+
+picked=$(slurp -b '#0f0e0d66' -c '#ffa14aff' -s '#ffa14a1a' -B '#ffa14a14' -w 2 <<<"$rects") || exit 1
+[[ $picked =~ ^(-?[0-9]+),(-?[0-9]+)\ ([0-9]+)x([0-9]+)$ ]] || exit 1
+x=${BASH_REMATCH[1]} y=${BASH_REMATCH[2]} w=${BASH_REMATCH[3]} h=${BASH_REMATCH[4]}
+# A drag is an area. A click is the smallest window or screen under the pointer.
+if (( w > 4 || h > 4 )); then echo "$picked"; exit 0; fi
+best="" best_area=0
+while read -r r; do
+  [[ $r =~ ^(-?[0-9]+),(-?[0-9]+)\ ([0-9]+)x([0-9]+)$ ]] || continue
+  (( x >= BASH_REMATCH[1] && x < BASH_REMATCH[1] + BASH_REMATCH[3] && y >= BASH_REMATCH[2] && y < BASH_REMATCH[2] + BASH_REMATCH[4] )) || continue
+  area=$(( BASH_REMATCH[3] * BASH_REMATCH[4] ))
+  if [[ -z $best ]] || (( area < best_area )); then best=$r best_area=$area; fi
+done <<<"$rects"
+[[ -n $best ]] && echo "$best" || exit 1

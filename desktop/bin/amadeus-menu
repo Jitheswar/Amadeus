@@ -1,6 +1,6 @@
 #!/bin/bash
-# The Amadeus menu (Super+Space): Apps, Install, Remove, Update, Setup, System, About.
-# Usage: amadeus-menu [apps|install|remove|update|setup|system|about]
+# The Amadeus menu (Super+Space): Apps, Trigger, Install, Remove, Update, Setup, System, About.
+# Usage: amadeus-menu [apps|trigger|install|remove|update|setup|system|about]
 pick()   { amadeus-pick "$@"; }
 term()   { amadeus-terminal --title "Amadeus: $1" -e bash -c "$2; echo; read -rsn1 -p 'Press any key to close.'"; }
 quoted() { local out; out=$(xargs -d '\n' printf '%q ' <<<"$1"); printf '%s' "$out"; }
@@ -99,7 +99,7 @@ defaults_menu() {
 # Every file a user is meant to edit, found by looking: what exists is offered.
 config_menu() {
   local c=${XDG_CONFIG_HOME:-$HOME/.config} f lines=""
-  for f in "Desktop and shortcuts:$c/niri/config.kdl" "Display:$c/niri/display.kdl" "Added by Amadeus:$c/niri/amadeus.kdl" \
+  for f in "Desktop and shortcuts:$c/hypr/hyprland.lua" "Display:$c/hypr/display.lua" "Added by Amadeus:$c/hypr/amadeus.lua" \
            "Bar layout:$c/amadeus/bar.json" "Look and motion:$c/amadeus/theme.json" "Defaults:$c/amadeus/defaults" \
            "AI providers and permissions:$c/amadeus/config.toml" "Terminal (foot):$c/foot/foot.ini" "Lock screen:$c/swaylock/config" \
            "Idle and sleep:$c/swayidle/config" "About screen:$c/fastfetch/config.jsonc" "Default applications:$c/mimeapps.list" \
@@ -108,6 +108,25 @@ config_menu() {
   done
   local choice; choice=$(printf '%s' "$lines" | pick --preview 'head -c 6000 "${1##*	}" 2>/dev/null || echo "Not created yet. Choosing it starts a new file."' "Edit") || exit 0
   [[ -n $choice ]] && exec amadeus-editor "${choice##*$'\t'}"
+}
+
+trigger_menu() {
+  case $(printf '%s\n' Capture | pick "Trigger") in
+    Capture)
+      local recording=""
+      [[ -f ${XDG_RUNTIME_DIR:-/tmp}/amadeus-record.pid ]] && kill -0 "$(cat "${XDG_RUNTIME_DIR:-/tmp}/amadeus-record.pid")" 2>/dev/null && recording=1
+      local options=("Screenshot"$'\t'"area")
+      if [[ -n $recording ]]; then options+=("Stop recording"$'\t'"stop")
+      else options+=("Record the screen, no sound"$'\t'"rec-screen" "Record with the computer's sound, no microphone"$'\t'"rec-desktop-audio"
+                     "Record with the computer's sound and the microphone"$'\t'"rec-all"); fi
+      local choice; choice=$(printf '%s\n' "${options[@]}" | pick "Capture") || exit 0
+      sleep 0.2                      # let the menu leave the screen before it is captured
+      case ${choice##*$'\t'} in
+        area|screen|window) exec amadeus-screenshot "${choice##*$'\t'}" ;;
+        stop) exec amadeus-record stop ;;
+        rec-*) mode=${choice##*$'\t'}; exec amadeus-record "${mode#rec-}" ;;
+      esac ;;
+  esac
 }
 
 setup_menu() {
@@ -120,8 +139,9 @@ setup_menu() {
   esac
 }
 
-case ${1:-$(printf '%s\n' Apps Install Remove Update Setup System About | pick "Amadeus")} in
+case ${1:-$(printf '%s\n' Apps Trigger Install Remove Update Setup System About | pick "Amadeus")} in
   Apps|apps)         exec amadeus-launcher ;;
+  Trigger|trigger)   trigger_menu ;;
   Install|install)   install_menu ;;
   Remove|remove)     remove_menu ;;
   Update|update)

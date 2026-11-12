@@ -2,7 +2,7 @@
 
 Read `AGENTS.md` first, especially "Refresh pattern" and "Command naming".
 
-`desktop/` builds the `amadeus-desktop` package: compositor defaults in `desktop/niri/`,
+`desktop/` builds the `amadeus-desktop` package: compositor defaults in `desktop/hypr/`,
 the shell (bar, picker, notifications) in `desktop/shell/`, system commands in `desktop/bin/`, and the files every new
 user starts with in `desktop/skel/`.
 
@@ -11,9 +11,9 @@ user starts with in `desktop/skel/`.
 - **Two layers.** Defaults are shipped and replaced on update. The user's file includes
   them. Never put something the user would want to change only in the shipped file with
   no way to override it, and never make an update depend on editing a user's file.
-- **The compositor config must validate.** Check it with the compositor's own validator
-  inside the build container (see [build-and-test.md](build-and-test.md));
-  the syntax changes between releases, so check against the installed version, not memory.
+- **The compositor config must load.** Check it with `Hyprland --verify-config --config FILE`;
+  the configuration language changes between releases, so check against the installed
+  version, not memory. Every shortcut is made with `o.bind` and carries a description.
 - **Key bindings** are defined once, in the shipped defaults, each with an overlay title.
   Before adding one, read that file for conflicts.
 - **The bar's layout is data.** A new widget is a component plus an id in the widget

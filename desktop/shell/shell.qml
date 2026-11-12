@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import Quickshell.Wayland
 import Quickshell.Bluetooth
 import Quickshell.Services.UPower
@@ -57,11 +58,12 @@ ShellRoot {
         // For automation and tests: open a drop-down at a horizontal position, or close it with "".
         function popover(name: string, x: int): void { root.popX = x; root.pop = name }
         function awake(on: bool): void { root.awake = on }
+        function recording(on: bool): void { root.recording = on }
     }
 
     // ---- bar layout: ~/.config/amadeus/bar.json lists widget ids for left, center and right
     property var layout: ({ left: ["workspaces", "title"], center: ["sudo", "awake", "clock", "weather"],
-                            right: ["gpu", "tray", "bluetooth", "network", "volume", "brightness", "battery", "power", "amadeus"] })
+                            right: ["record", "gpu", "tray", "bluetooth", "network", "volume", "brightness", "battery", "power", "amadeus"] })
     FileView {
         path: Quickshell.env("HOME") + "/.config/amadeus/bar.json"
         watchChanges: true
@@ -146,43 +148,14 @@ ShellRoot {
               onExited: { root.gpuOn = hw.seen.indexOf("active") >= 0; root.wired = hw.seen.indexOf("wired") >= 0; hw.seen = [] } }
     Timer { interval: 30000; running: !root.demo; repeat: true; triggeredOnStart: true; onTriggered: hw.running = true }
 
-    // ---- compositor state, kept current from niri's event stream
-    property var workspaces: []
-    property var windows: ({})
-    property var focusedId: null
-    readonly property string focusedTitle: focusedId !== null && windows[focusedId] ? (windows[focusedId].title || "") : ""
-    function onEvent(e) {
-        if (e.WorkspacesChanged) root.workspaces = e.WorkspacesChanged.workspaces.slice().sort((a, b) => a.idx - b.idx)
-        else if (e.WorkspaceActivated) {
-            const id = e.WorkspaceActivated.id
-            const hit = root.workspaces.find(w => w.id === id)
-            if (hit) root.workspaces = root.workspaces.map(w => w.output !== hit.output ? w
-                : Object.assign({}, w, { is_active: w.id === id, is_focused: e.WorkspaceActivated.focused ? w.id === id : w.is_focused }))
-        }
-        else if (e.WindowsChanged) {
-            const m = {}; let f = null
-            for (const w of e.WindowsChanged.windows) { m[w.id] = w; if (w.is_focused) f = w.id }
-            root.windows = m; root.focusedId = f
-        }
-        else if (e.WindowOpenedOrChanged) {
-            const w = e.WindowOpenedOrChanged.window, m = Object.assign({}, root.windows)
-            m[w.id] = w; root.windows = m
-            if (w.is_focused) root.focusedId = w.id
-        }
-        else if (e.WindowClosed) {
-            const m = Object.assign({}, root.windows); delete m[e.WindowClosed.id]; root.windows = m
-            if (root.focusedId === e.WindowClosed.id) root.focusedId = null
-        }
-        else if (e.WindowFocusChanged) root.focusedId = e.WindowFocusChanged.id
-    }
-    Process {
-        id: events
-        command: ["niri", "msg", "--json", "event-stream"]
-        running: true
-        stdout: SplitParser { onRead: line => { try { root.onEvent(JSON.parse(line)) } catch (e) {} } }
-        onExited: restart.start()
-    }
-    Timer { id: restart; interval: 2000; onTriggered: events.running = true }
+    // ---- compositor state: Hyprland's own events, through the shell toolkit
+    readonly property var demoSpaces: [{ id: 1, name: "1" }, { id: 2, name: "2" }, { id: 3, name: "3" }]
+    readonly property string focusedTitle: demo ? "brief.txt — Notes" : (Hyprland.activeToplevel ? Hyprland.activeToplevel.title : "")
+    function isActive(w) { return demo ? w.id === 1 : !!(Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === w.id) }
+    function lua(expr) { run(["hyprctl", "dispatch", expr]) }
+
+    // ---- screen recording, reported by amadeus-record
+    property bool recording: false
 
     // ---- bar widgets
     component Label: Text { color: root.fg; font.pixelSize: 13; font.family: root.font; verticalAlignment: Text.AlignVCenter
@@ -216,12 +189,13 @@ ShellRoot {
     Component { id: wWorkspaces
         Row { spacing: 6
             Repeater {
-                model: root.workspaces
+                model: root.demo ? root.demoSpaces : Hyprland.workspaces
                 // The active workspace is a wide lit pill; the others are small dots that grow when pointed at.
                 Rectangle {
                     id: dot
                     required property var modelData
-                    readonly property bool active: modelData.is_active
+                    readonly property bool active: root.isActive(modelData)
+                    visible: modelData.id > 0          // the scratchpad and other special workspaces have no dot
                     anchors.verticalCenter: parent.verticalCenter
                     width: active ? 26 : (hit.containsMouse ? 14 : 8); height: 8; radius: 4
                     color: active ? root.accent : (hit.containsMouse ? root.fg : root.dim)
@@ -230,7 +204,7 @@ ShellRoot {
                     Behavior on color { ColorAnimation { duration: root.fast } }
                     Behavior on opacity { NumberAnimation { duration: root.fast } }
                     MouseArea { id: hit; anchors.fill: parent; anchors.margins: -8; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: root.run(["niri", "msg", "action", "focus-workspace", String(dot.modelData.idx)]) }
+                                onClicked: root.lua('hl.dsp.focus({ workspace = "' + dot.modelData.id + '" })') }
                 }
             }
         }
@@ -261,6 +235,8 @@ ShellRoot {
             Icon { size: 16; color: root.dim; anchors.verticalCenter: parent.verticalCenter
                    name: /rain|drizzle|shower|thunder/i.test(parent.parts[1] || "") ? "rain" : (/sun|clear/i.test(parent.parts[1] || "") ? "sun" : "cloud") }
             Label { text: (parent.parts[0] || "").trim(); color: root.dim; font.features: { "tnum": 1 } } } }
+    Component { id: wRecord
+        Tool { shown: root.recording; icon: "record"; reading: "Stop"; alert: true; onAct: root.run(["amadeus-record", "stop"]) } }
     Component { id: wGpu; Tool { shown: root.gpuOn; icon: "bolt"; reading: "NVIDIA"; alert: true } }
     Component { id: wTray; Tool { shown: SystemTray.items.values.length > 0; icon: "layers"; reading: String(SystemTray.items.values.length); panel: "tray" } }
     Component { id: wBluetooth
@@ -286,7 +262,7 @@ ShellRoot {
                 Rectangle { width: 6; height: 6; radius: 3; anchors.verticalCenter: parent.verticalCenter; color: over.containsMouse ? root.bg : root.accent }
                 Label { text: "Amadeus"; font.weight: Font.Medium; color: over.containsMouse ? root.bg : root.accent } }
             MouseArea { id: over; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.run(["ama", "panel"]) } } }
-    readonly property var widgets: ({ workspaces: wWorkspaces, title: wTitle, sudo: wSudo, awake: wAwake, clock: wClock, weather: wWeather, gpu: wGpu,
+    readonly property var widgets: ({ workspaces: wWorkspaces, record: wRecord, title: wTitle, sudo: wSudo, awake: wAwake, clock: wClock, weather: wWeather, gpu: wGpu,
                                       tray: wTray, bluetooth: wBluetooth, network: wNetwork, volume: wVolume, brightness: wBrightness,
                                       battery: wBattery, power: wPower, amadeus: wAmadeus })
 

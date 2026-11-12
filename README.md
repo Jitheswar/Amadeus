@@ -23,6 +23,7 @@ It is built for one machine: Core i5-13450HX, RTX 3050 6 GB with Intel UHD graph
 | **AI layer** | One daemon through which every AI action passes: capability policy, approval for destructive actions, tamper-evident audit log, undo. Works with a Claude subscription or API key, OpenAI-compatible APIs, OpenRouter, Codex, and local models. |
 | **Root mode** | The AI has no root access by default. `ama root on` grants it; it ends at shutdown at the latest and must be turned on again. |
 | **Generated apps** | The AI writes small applications from a shared component library. Each runs in its own sandbox with only the permissions its manifest declares, and keeps a version history. |
+| **Desktop** | Hyprland, with a bar, launcher, menus and notifications drawn by the system's own shell; a scratchpad that floats over everything; screenshots and screen recording built in. |
 | **Look** | Its own identity: warm black with a single amber accent, floating rounded surfaces, and short, decisive motion. One theme file drives the shell, the panel and every generated app. |
 | **Applications** | Steam, ProtonPlus, Brave Origin, Claude Desktop, Claude Code (through mise, like every AI coding harness), Discord, Telegram, herdr, LocalSend, LibreOffice, mpv, plus a terminal, file manager, document viewer, image viewer and camera. Nothing else. |
 
@@ -63,11 +64,12 @@ means that window.
 | `ama doctor` | check drivers, GPU, sandbox, providers and applications |
 | `ama discover` | a live map of the system: commands, files, tools, permissions |
 | `Super+K` | every keyboard shortcut and system command, searchable |
-| `Super+Space` | the Amadeus menu: Apps, Install, Remove, Update, Setup, System, About |
+| `Super+Space` | the Amadeus menu: Apps, Trigger, Install, Remove, Update, Setup, System, About |
 | `Super+Shift+Enter` | your default AI coding harness, in a terminal |
 | `Super+C` · `Super+V` · `Super+Ctrl+V` | copy and paste that work the same everywhere, terminals included · clipboard history |
-| `Super+S` · `Super+Alt+S` | show the scratchpad · send the focused window to it |
-| `Print` · `Shift+Print` · `Alt+Print` | screenshot of an area · the whole screen · the focused window |
+| `Super+S` · `Super+Alt+S` | show or hide the scratchpad over everything · send the focused window to it |
+| `Print` | screenshot: the screen freezes; drag an area, click a window, or click empty space for the whole screen. Saved and copied. |
+| `Alt+Print` | record the screen (no sound, the computer's sound, or that and the microphone), or stop recording. A red mark in the bar also stops it. |
 | `Super+Escape` | lock, suspend, hibernate, log out, restart, shut down |
 | `Super+Z` · `Super+A` | the Amadeus panel · the panel, about the focused window |
 | `amadeus-update` | update the system and the applications from the AUR |
@@ -95,6 +97,7 @@ rearrange it, or edit it.
 | **Install** | Terminals, browsers, editors, AI desktop apps, development tools, AI coding harnesses, web apps, any package, anything from the AUR. Each list shows details beside it and marks what is installed. Software comes from the system repositories when it is there, and from an AUR recipe of the publisher's own build only when it is not. |
 | **Remove** | Packages, harnesses and tools, web apps. |
 | **Update** | Everything, or only what mise manages. |
+| **Trigger** | Capture: screenshot, and the three kinds of screen recording. |
 | **Setup** | Display resolution and scaling, text size, defaults (terminal, editor, harness, browser, and what opens each kind of file), and Config, which opens any of the system's configuration files in your editor. |
 | **System** | Lock, suspend, hibernate, log out, restart, shut down. |
 | **About** | The facts about this machine. |
@@ -114,9 +117,11 @@ doing the build. Requirements: Docker and KVM.
 
 1. Write the ISO to a USB stick:
    `sudo dd if=out/amadeus-os-*.iso of=/dev/sdX bs=4M status=progress oflag=sync`
-2. Boot it (UEFI, Secure Boot off) and connect to the network.
-3. Run `amadeus-install`. It asks for the disk, a user name and a password, then
-   **erases that disk**. Packages are downloaded during the install.
+2. Boot it (UEFI, Secure Boot off). The guided installer starts by itself: keyboard,
+   Wi-Fi if there is no cable, your name and password, time zone, disk, encryption,
+   applications, then a summary.
+3. Nothing is written until you type the disk's name at the summary. Then it installs,
+   which takes about ten minutes and downloads packages, and offers to restart.
 
 ## Repository
 
@@ -134,8 +139,9 @@ build.sh     entry point
 
 | | |
 |---|---|
-| Verified in a VM (72 checks, all passing) | UEFI boot and unattended encrypted install; first boot into the niri desktop; snapshots; sandbox, policy and audit log; AI requests end to end with a scripted model (tool run, approval, denial, opening an application, stop, undo of a whole task, two tasks in parallel, audit trail); the Amadeus panel opening and reaching the daemon; the Amadeus menu; Super+K; the agent skill and `ama discover`; the six applications from publisher releases; rollback from the running system, and rollback from the ISO, each followed by a clean boot |
-| Not yet exercised | A real model driving the system (the VM has no provider login, so the model is scripted); clicking through the panel by hand; `amadeus-update`; the interactive installer prompts |
+| Verified in a VM (72 checks, all passing) | UEFI boot and unattended encrypted install; first boot into the desktop (on niri at the time; Hyprland since); snapshots; sandbox, policy and audit log; AI requests end to end with a scripted model (tool run, approval, denial, opening an application, stop, undo of a whole task, two tasks in parallel, audit trail); the Amadeus panel opening and reaching the daemon; the Amadeus menu; Super+K; the agent skill and `ama discover`; the six applications from publisher releases; rollback from the running system, and rollback from the ISO, each followed by a clean boot |
+| Built, checked in the VM self-test but not yet passed | Everything since the last full pass: Hyprland, the bar's switches and drop-downs, the install catalogue, capture, the CachyOS base |
+| Not yet exercised | A real model driving the system (the VM has no provider login, so the model is scripted); clicking through the panel and bar by hand; the guided installer's screens and its Wi-Fi step (the VM test uses the unattended path behind it); `amadeus-update` |
 | Decided, not yet built | A mark on windows the AI is working in |
 | Never tested | Real hardware: the NVIDIA driver and power path, Dynamic Boost, Wi-Fi, suspend |
 

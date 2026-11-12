@@ -1,64 +1,55 @@
 #!/usr/bin/python3
 # Keyboard shortcuts and system commands (Super+K): a searchable list read from the live configuration.
-"""Nothing here is a stored list. Shortcuts are parsed from the desktop configuration as it
-is now (system defaults, your own file, and what Amadeus added), and commands are the
-amadeus-* programs installed, each with its own description.
+"""Nothing here is a stored list. Shortcuts are asked from the running desktop (so the ones
+you or Amadeus added appear at once), or read from a configuration file when no desktop is
+running; commands are the amadeus-* programs installed, each with its own description.
   amadeus-keys            show the list in a searchable menu
   amadeus-keys --print    print it"""
-import os, re, subprocess, sys
+import json, os, re, subprocess, sys
 from pathlib import Path
 
-CONFIG = Path(os.environ.get("AMADEUS_NIRI_CONFIG", Path.home() / ".config/niri/config.kdl"))
-BIND = re.compile(r'^\s*([A-Za-z0-9_]+(?:\+[A-Za-z0-9_]+)*)((?:\s+[a-z-]+=(?:"[^"]*"|\S+))*)\s*\{\s*(.*?)\s*;?\s*\}\s*$')
-INCLUDE = re.compile(r'^\s*include\s+(?:optional=true\s+)?"([^"]+)"')
-KEYS = {"Mod": "Super", "Return": "Enter", "Slash": "/", "Comma": ",", "Period": ".", "Minus": "-", "Equal": "=",
-        "WheelScrollDown": "Scroll down", "WheelScrollUp": "Scroll up", "Print": "Print Screen",
+CONFIG = os.environ.get("AMADEUS_HYPR_CONFIG")
+MASKS = [(64, "Super"), (4, "Ctrl"), (8, "Alt"), (1, "Shift")]
+KEYS = {"RETURN": "Enter", "Return": "Enter", "SPACE": "Space", "ESCAPE": "Escape", "PRINT": "Print Screen", "Print": "Print Screen",
         "XF86AudioRaiseVolume": "Volume up", "XF86AudioLowerVolume": "Volume down", "XF86AudioMute": "Mute",
         "XF86AudioMicMute": "Mute microphone", "XF86MonBrightnessUp": "Brightness up", "XF86MonBrightnessDown": "Brightness down",
-        "XF86AudioPlay": "Play / pause", "XF86AudioNext": "Next track", "XF86AudioPrev": "Previous track"}
+        "XF86AudioPlay": "Play / pause", "XF86AudioNext": "Next track", "XF86AudioPrev": "Previous track",
+        "mouse:272": "Left drag", "mouse:273": "Right drag", "LEFT": "Left", "RIGHT": "Right", "UP": "Up", "DOWN": "Down"}
 
 
-def binds(path, seen=None, out=None):
-    """Shortcuts in configuration order; a later definition of the same keys replaces an earlier one."""
-    seen, out = seen if seen is not None else set(), out if out is not None else {}
-    path = Path(os.path.expanduser(str(path)))
-    if path in seen or not path.is_file():
-        return out
-    seen.add(path)
-    inside = False
-    for line in path.read_text(errors="replace").splitlines():
-        if line.strip().startswith("//"):
-            continue
-        m = INCLUDE.match(line)
-        if m and not inside:
-            target = Path(os.path.expanduser(m.group(1)))
-            binds(target if target.is_absolute() else path.parent / target, seen, out)
-        elif re.match(r"^\s*binds\s*\{\s*$", line):
-            inside = True
-        elif inside and line.strip() == "}":
-            inside = False
-        elif inside:
-            m = BIND.match(line)
+def pretty(mods, key):
+    return " + ".join(mods + [KEYS.get(key, key.upper() if len(key) == 1 else key)])
+
+
+def live():
+    p = subprocess.run(["hyprctl", "-j", "binds"], capture_output=True, text=True)
+    if p.returncode:
+        return None
+    try:
+        binds = json.loads(p.stdout)
+    except json.JSONDecodeError:
+        return None
+    return [(pretty([n for bit, n in MASKS if b["modmask"] & bit], b["key"]), b["description"]) for b in binds if b.get("description")]
+
+
+def from_file(path):
+    """o.bind("KEYS", "Description", ...) lines, following dofile()."""
+    out, seen = {}, set()
+    def read(p):
+        p = Path(p)
+        if p in seen or not p.is_file():
+            return
+        seen.add(p)
+        for line in p.read_text(errors="replace").splitlines():
+            m = re.search(r'dofile\("([^"]+)"\)', line)
             if m:
-                keys, props, action = m.groups()
-                title = re.search(r'hotkey-overlay-title="([^"]*)"', props)
-                out.pop(keys, None)
-                out[keys] = title.group(1) if title else describe(action)
-    return out
-
-
-def describe(action):
-    words = re.findall(r'"([^"]*)"|(\S+)', action)
-    words = [a or b for a, b in words]
-    if not words:
-        return ""
-    if words[0] in ("spawn", "spawn-sh"):
-        return "Run: " + " ".join(words[1:])
-    return (words[0].replace("-", " ").capitalize() + " " + " ".join(words[1:])).strip()
-
-
-def pretty(keys):
-    return " + ".join(KEYS.get(k, k) for k in keys.split("+"))
+                read(m.group(1))
+            m = re.match(r'\s*o\.bind\("([^"]+)",\s*"([^"]*)"', line)
+            if m:
+                parts = [x.strip() for x in m.group(1).split("+")]
+                out[m.group(1)] = (pretty([x.capitalize() for x in parts[:-1]], parts[-1]), m.group(2))
+    read(path)
+    return list(out.values())
 
 
 def commands():
@@ -74,7 +65,7 @@ def commands():
 
 
 def main():
-    rows = [(pretty(k), v) for k, v in binds(CONFIG).items()]
+    rows = from_file(CONFIG) if CONFIG else (live() or from_file(Path.home() / ".config/hypr/hyprland.lua"))
     cmds = commands()
     width = max([len(k) for k, _ in rows] + [len(c) for c, _ in cmds] + [10])
     lines = [f"{k:<{width}}   {v}" for k, v in rows] + [f"{c:<{width}}   {d}  (command)" for c, d in cmds]

@@ -1,0 +1,63 @@
+#!/bin/bash
+# Record the screen to Videos. Alt+Print stops a recording, or offers the kinds of recording when none is running.
+#   amadeus-record [screen | desktop-audio | all]   start: no sound · the computer's sound · its sound and your microphone
+#   amadeus-record stop                             stop and save
+#   amadeus-record toggle                           stop if recording, otherwise choose a kind from a menu
+# When starting, drag an area, click a window, or click empty space for the whole screen; Escape cancels.
+# The Intel GPU encodes the video; the processor takes over where it cannot.
+set -uo pipefail
+run=${XDG_RUNTIME_DIR:-/tmp}
+pidfile=$run/amadeus-record.pid namefile=$run/amadeus-record.file
+dir="$(xdg-user-dir VIDEOS 2>/dev/null || echo "$HOME/Videos")"
+bar() { quickshell ipc -p /usr/share/amadeus-os/shell call shell recording "$1" >/dev/null 2>&1; }
+running() { [[ -f $pidfile ]] && kill -0 "$(cat "$pidfile")" 2>/dev/null; }
+
+stop() {
+  local pid file; pid=$(cat "$pidfile"); file=$(cat "$namefile" 2>/dev/null)
+  kill -INT "$pid"                       # the recorder finishes the file on SIGINT
+  for _ in $(seq 100); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  kill -0 "$pid" 2>/dev/null && { kill -KILL "$pid"; notify-send -u critical -a "Screen recording" "Recording did not stop cleanly" "The file may be incomplete."; }
+  rm -f "$pidfile" "$namefile"; bar false
+  [[ -s $file ]] || return
+  # A frame from the start of the video, so the notification shows what was recorded.
+  local preview=$run/amadeus-record-preview.png
+  ffmpeg -y -loglevel quiet -ss 0.3 -i "$file" -vframes 1 -vf "scale='min(320,iw)':-2" "$preview" 2>/dev/null
+  local length; length=$(ffprobe -v quiet -show_entries format=duration -of csv=p=0 "$file" | awk '{ printf "%d:%02d", $1 / 60, $1 % 60 }')
+  local action; action=$(notify-send -a "Screen recording" ${preview:+-i "$preview"} -A open=Open -A folder="Show in folder" \
+    "Recording saved" "$(basename "$file") · ${length:-?} · $(du -h "$file" | cut -f1)")
+  case $action in open) xdg-open "$file" ;; folder) xdg-open "$dir" ;; esac
+}
+
+mode=${1:-toggle}
+if running; then [[ $mode == stop || $mode == toggle ]] && stop; exit 0; fi
+case $mode in
+  stop) exit 0 ;;
+  toggle)
+    choice=$(printf '%s\n' "No sound"$'\t'screen "The computer's sound"$'\t'desktop-audio "The computer's sound and the microphone"$'\t'all |
+      amadeus-pick "Record the screen with") || exit 0
+    sleep 0.2; exec "$0" "${choice##*$'\t'}" ;;
+  screen) audio=() ;;
+  desktop-audio) audio=(-a default_output) ;;
+  all) audio=(-a "default_output|default_input") ;;
+  *) sed -n 2,8p "$0"; exit 1 ;;
+esac
+
+geometry=$(amadeus-area) || exit 0
+read -r at size <<<"$geometry"
+target=(-w region -region "${size}+${at/,/+}")
+# A whole screen is recorded by name: full resolution, no scaling.
+whole=$(hyprctl -j monitors | python3 -c '
+import json, sys
+for m in json.load(sys.stdin):
+    if sys.argv[1] == "%d,%d %dx%d" % (m["x"], m["y"], m["width"] / m["scale"], m["height"] / m["scale"]): print(m["name"])' "$geometry")
+[[ -n $whole ]] && target=(-w "$whole")
+
+mkdir -p "$dir"
+file="$dir/screenrecording-$(date +%Y-%m-%d_%H-%M-%S).mp4"
+gpu-screen-recorder "${target[@]}" "${audio[@]}" -f 60 -fm cfr -k auto -fallback-cpu-encoding yes -o "$file" >/dev/null 2>&1 &
+echo $! >"$pidfile"; echo "$file" >"$namefile"
+for _ in $(seq 30); do [[ -f $file ]] && break; running || break; sleep 0.1; done
+if ! running; then
+  rm -f "$pidfile" "$namefile" "$file"; notify-send -u critical -a "Screen recording" "Recording could not start"; exit 1
+fi
+bar true

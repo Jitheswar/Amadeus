@@ -9,7 +9,7 @@ case $choice in
   Lock) swaylock -f ;;
   Suspend) systemctl suspend ;;
   Hibernate) systemctl hibernate ;;
-  "Log out") niri msg action quit --skip-confirmation ;;
+  "Log out") uwsm stop ;;
   Restart) systemctl reboot ;;
   "Shut down") systemctl poweroff ;;
 esac

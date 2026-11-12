@@ -6,17 +6,17 @@ pass=0 fail=0
 ok()   { echo "PASS  $1"; pass=$((pass+1)); }
 bad()  { echo "FAIL  $1 ${2:+— $2}"; fail=$((fail+1)); }
 t()    { local name=$1; shift; local out; if out=$("$@" 2>&1); then ok "$name"; else bad "$name" "$(echo "$out" | tail -2 | tr '\n' ' ')"; fi; }
-as()   { sudo -u $U env XDG_RUNTIME_DIR=$R DBUS_SESSION_BUS_ADDRESS=unix:path=$R/bus WAYLAND_DISPLAY=wayland-1 NIRI_SOCKET="$(ls $R/niri.*.sock 2>/dev/null | head -1)" HOME=/home/$U PATH=/usr/bin "$@"; }
+as()   { sudo -u $U env XDG_RUNTIME_DIR=$R DBUS_SESSION_BUS_ADDRESS=unix:path=$R/bus WAYLAND_DISPLAY=wayland-1 HYPRLAND_INSTANCE_SIGNATURE="$(ls $R/hypr 2>/dev/null | head -1)" HOME=/home/$U PATH=/usr/bin "$@"; }
 export U R; export -f as
 echo "AMADEUS-SELFTEST-BEGIN"
-for _ in $(seq 60); do [[ -S $R/amadeus/daemon.sock ]] && pgrep -x niri >/dev/null && break; sleep 2; done
+for _ in $(seq 60); do [[ -S $R/amadeus/daemon.sock ]] && pgrep -x Hyprland >/dev/null && break; sleep 2; done
 sleep 8
 mkdir -p /mnt/auto; mount /dev/disk/by-label/AMADEUSAUTO /mnt/auto 2>/dev/null
 STAGE=$(cat /mnt/auto/stage 2>/dev/null || echo 1)
 healthy() {
   t "root is btrfs subvolume @"                bash -c 'findmnt -no FSTYPE,OPTIONS / | grep -qE "btrfs.*subvol=/@(,|$)"'
   t "no failed system units"                   bash -c '[[ -z $(systemctl --failed --no-legend) ]]'
-  t "niri is running"                          pgrep -x niri
+  t "Hyprland is running"                      pgrep -x Hyprland
   t "kernel on the boot partition matches"     bash -c 'cmp /boot/vmlinuz-linux-cachyos /usr/lib/modules/*/vmlinuz'
   t "snapshot history carried over"            bash -c 'snapper -c root list | grep -q "fresh install"'
   t "previous system kept"                     bash -c 'amadeus-rollback list | grep -q before-rollback'
@@ -25,10 +25,10 @@ finish() {
   echo "AMADEUS-SELFTEST-END stage=$STAGE pass=$pass fail=$fail"
   sleep 1
   if [[ $STAGE == 1 ]]; then
-    as niri msg action screenshot-screen --write-to-disk true 2>/dev/null; sleep 2; cp "$(ls -t /home/$U/Pictures/Screenshots/*.png 2>/dev/null | head -1)" /mnt/auto/desktop.png 2>/dev/null
+    as grim /tmp/desktop.png 2>/dev/null && cp /tmp/desktop.png /mnt/auto/desktop.png
     journalctl -b -p warning --no-pager | tail -60 >/mnt/auto/journal-warnings.log
   fi
-  (( fail )) && { as niri msg outputs; journalctl -b --no-pager _COMM=niri | tail -60; } >/mnt/auto/desktop-debug.log 2>&1
+  (( fail )) && { as hyprctl monitors; as hyprctl configerrors; journalctl -b -p warning --no-pager | tail -60; } >/mnt/auto/desktop-debug.log 2>&1
   cp /var/log/amadeus-selftest.log /mnt/auto/selftest-$STAGE.log
   echo "$1" >/mnt/auto/stage
   sync; umount /mnt/auto
@@ -65,7 +65,7 @@ t "root account is locked"                     bash -c 'passwd -S root | grep -q
 t "CachyOS kernel is running"                  bash -c 'uname -r | grep -q cachyos'
 t "CachyOS repositories come first"            bash -c 'pacman-conf --repo-list | head -1 | grep -q cachyos && pacman -Q cachyos-settings linux-cachyos'
 t "multilib enabled (Steam)"                   bash -c 'pacman -Sl multilib | head -1 | grep -q multilib'
-t "core packages installed"                    pacman -Q niri quickshell steam libreoffice-fresh amadeus amadeus-desktop snap-pac
+t "core packages installed"                    pacman -Q hyprland quickshell steam libreoffice-fresh amadeus amadeus-desktop snap-pac
 echo "--- snapshots"
 t "snapshot of the fresh install exists"       bash -c 'snapper -c root list | grep -q "fresh install"'
 before=$(snapper -c root list | wc -l)
@@ -76,7 +76,7 @@ n=$(snapper -c root list | awk '$3=="pre"{p=$1} END{print p}')
 t "rollback removes the package again"         bash -c "snapper -c root undochange $n..$((n+1)) >/dev/null && ! test -e /usr/bin/tree"
 echo "--- desktop session"
 t "greeter service running"                    systemctl is-active greetd
-t "niri is running"                            pgrep -x niri
+t "Hyprland is running"                        pgrep -x Hyprland
 t "shell is running"                           pgrep -f 'quickshell -p /usr/share/amadeus-os/shell'
 shell() { as quickshell ipc -p /usr/share/amadeus-os/shell call "$@"; }; export -f shell
 t "picker shows a list and returns the choice" bash -c '(printf "alpha\nbeta\n" | as amadeus-pick Test >/tmp/pick.out 2>&1 &); sleep 2; s=$(shell shell state); echo "$s"; echo "$s" | grep -q "\"picker\":true,\"pickerItems\":2" && shell pick choose beta && sleep 1 && grep -qx beta /tmp/pick.out'
@@ -88,7 +88,7 @@ t "notifications are shown by the shell"       bash -c 'as notify-send "Self-tes
 t "launcher lists installed applications"      bash -c 'as amadeus-launcher --print | grep -q "^Steam"'
 t "no separate launcher or notification program" bash -c '! pacman -Q fuzzel mako 2>/dev/null | grep -q .'
 t "AUR lookup works"                           bash -c 'as amadeus-aur info protonplus | grep -q "^Name"'
-t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/niri/default.kdl'
+t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/hypr/default.lua'
 t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
 t "system look applies to applications"        bash -c 'as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark && fc-match sans-serif | grep -qi inter && test -f /usr/share/amadeus-os/theme.json'
 t "Claude Code installed through mise"         bash -c 'as bash -lc "mise ls --global" | grep -q "^claude" && as bash -lc "claude --version"'
@@ -98,11 +98,21 @@ t "default harness resolves to a program"      bash -c 'as bash -lc "amadeus-har
 t "text files open with the default editor"    bash -c 'as xdg-mime query default text/plain | grep -q amadeus-editor'
 t "install catalogue resolves its sources"     bash -c 'for c in terminal browser editor ai development; do n=$(as bash -lc "amadeus-catalog $c" | wc -l); echo "$c $n"; [[ $n -ge 3 ]] || exit 1; done; as bash -lc "amadeus-catalog ai" | grep -q "^Claude Desktop  (installed)"'
 t "web app can be added and removed"           bash -c 'as amadeus-webapp install "Self Test" example.org >/dev/null; as amadeus-webapp list | grep -q "^Self Test" && as amadeus-launcher --print | grep -q "^Self Test" && as amadeus-webapp remove "Self Test" >/dev/null && ! as amadeus-webapp list | grep -q "Self Test"'
-t "scratchpad workspace exists"                bash -c 'as niri msg --json workspaces | grep -q "\"name\":\"scratchpad\""'
 t "clipboard history records copies"           bash -c 'echo amadeus-clip-test | as wl-copy; sleep 1; as cliphist list | grep -q amadeus-clip-test'
 t "system menu and about are present"          bash -c 'test -x /usr/bin/amadeus-power-menu && as fastfetch | grep -q "Amadeus OS"'
-t "desktop config is valid"                    as niri validate -c /home/$U/.config/niri/config.kdl
-t "compositor answers over IPC"                bash -c 'out=$(as niri msg --json workspaces 2>&1); echo "$out" | grep -q idx || { echo "sock=$(ls $R/niri.*.sock 2>&1) out=$out"; false; }'
+t "desktop config has no errors"             bash -c '[[ -z $(as hyprctl configerrors | tr -d "[:space:]") ]]'
+t "every shortcut has a description"           bash -c 'as hyprctl -j binds | python3 -c "import json,sys; b=json.load(sys.stdin); missing=[x[\"key\"] for x in b if not x[\"mouse\"] and not x[\"description\"]]; print(missing); assert len(b) > 40 and not missing"'
+t "screenshot is saved and copied"             bash -c 'as amadeus-screenshot screen & sleep 3; ls /home/'$U'/Pictures/Screenshots/screenshot-*.png >/dev/null && as wl-paste --list-types | grep -q image/png'
+rec_test() {   # starts a recording of the first screen as amadeus-record would, then stops it through amadeus-record
+  local mon; mon=$(as hyprctl -j monitors | python3 -c 'import json, sys; print(json.load(sys.stdin)[0]["name"])')
+  as bash -c "gpu-screen-recorder -w $mon -f 30 -fallback-cpu-encoding yes -o /tmp/amadeus-rec.mp4 >/dev/null 2>&1 & echo \$! >\$XDG_RUNTIME_DIR/amadeus-record.pid; echo /tmp/amadeus-rec.mp4 >\$XDG_RUNTIME_DIR/amadeus-record.file"
+  sleep 4; timeout 20 bash -c "$(declare -f as); as amadeus-record stop" >/dev/null 2>&1 & sleep 6
+  test -s /tmp/amadeus-rec.mp4
+}
+t "screen recording saves when stopped"        rec_test
+t "scratchpad shows and hides"                 bash -c 'as hyprctl dispatch "hl.dsp.workspace.toggle_special(\"scratchpad\")" >/dev/null; sleep 0.5; as hyprctl -j monitors | grep -q "special:scratchpad" && as hyprctl dispatch "hl.dsp.workspace.toggle_special(\"scratchpad\")" >/dev/null'
+t "Super+K reads the live shortcuts"           bash -c 'as amadeus-keys --print | grep -q "^Super + K .*Shortcuts"' 
+t "compositor answers over IPC"                bash -c 'as hyprctl -j workspaces | grep -q "\"id\""'
 t "X11 applications supported"                 bash -c 'ls /tmp/.X11-unix/ | grep -q "^X"'
 echo "--- Amadeus"
 t "daemon running in the user session"         test -S $R/amadeus/daemon.sock

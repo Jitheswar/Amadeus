@@ -14,26 +14,29 @@
 - Bar with drawn icons and drop-down panels: calendar, power mode (automatic by cable and charge), Wi-Fi, Bluetooth, volume, brightness, background apps, stay awake, timed passwordless administrator access, weather
 - Install catalogue: terminals, browsers, editors, AI desktop apps and development tools, each from the system repositories first and an AUR recipe of the publisher's build otherwise; web apps
 - Amadeus menu: Setup (display, text size, defaults, config), System, About
-- Shortcuts: universal copy and paste, clipboard history, scratchpad, screenshots, move window to workspace
+- Shortcuts: universal copy and paste, clipboard history, overlay scratchpad, move window to workspace
+- Capture: freeze-and-choose screenshots saved and copied; screen recording with no sound, the computer's sound, or both with the microphone; Trigger > Capture menu
+- Guided installer that starts when the USB stick boots
 - AI coding harnesses through mise (install, remove, update, run); defaults for terminal, editor and harness
 - Own visual identity and motion system from one theme file; headless preview of the shell
 - Launcher, menus and notifications drawn by the shell; text in the launcher that matches no application goes to Amadeus
 - Install menu for Arch packages and the AUR with a details pane; `amadeus-aur` with recipe review
 - Shortcut and command list (Super+K), read from the live configuration
 - Amadeus menu (Super+Space): Apps, Install, Remove, Update, Defaults
-- Desktop on niri: defaults, bar driven by the compositor's event stream, AI-managed include file that is validated before it is applied
+- Desktop on Hyprland (moved from niri): defaults, bar driven by the compositor's events, AI-managed file checked with `Hyprland --verify-config` before it is kept
 - Applications outside the Arch repositories built from publisher releases; no third-party repository
 
 ## In progress
-1. `amadeus-update` in the VM; a real model driving the installed system
+1. A full VM pass of everything since the last one: Hyprland, the CachyOS base, the bar, the install catalogue, capture
+2. `amadeus-update` in the VM; a real model driving the installed system
 
 ## Next
-2. First install on the real machine: NVIDIA power-down, PRIME offload, Wi-Fi, suspend
-3. Snapshots selectable in the boot menu
-4. Local model as the offline fallback (a 4-bit 7B model fits the 6 GB card)
-5. Context awareness: the daemon follows compositor events and offers workspace layouts per activity
-6. Extending existing applications: side panels attached to an application's windows
-7. Offline install (all packages on the ISO)
+3. First install on the real machine: NVIDIA power-down, PRIME offload, Wi-Fi, suspend
+4. Snapshots selectable in the boot menu
+5. Local model as the offline fallback (a 4-bit 7B model fits the 6 GB card)
+6. Context awareness: the daemon follows compositor events and offers workspace layouts per activity
+7. Extending existing applications: side panels attached to an application's windows
+8. Offline install (all packages on the ISO)
 
 ## Not yet verified
 - Anything on real hardware

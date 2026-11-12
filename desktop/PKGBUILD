@@ -1,16 +1,16 @@
 pkgname=amadeus-desktop
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="Amadeus OS desktop: niri defaults, shell (bar, picker, notifications), system tools and user skeleton"
+pkgdesc="Amadeus OS desktop: Hyprland defaults, shell (bar, picker, notifications), system tools and user skeleton"
 arch=(any)
 license=(MIT)
-depends=(niri xwayland-satellite quickshell foot swaylock swayidle polkit-gnome wl-clipboard cliphist wtype fastfetch brightnessctl networkmanager wireplumber upower power-profiles-daemon bluez polkit xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
+depends=(hyprland uwsm quickshell foot swaylock swayidle polkit-gnome grim slurp hyprpicker satty gpu-screen-recorder ffmpeg wl-clipboard cliphist wtype fastfetch brightnessctl networkmanager wireplumber upower power-profiles-daemon bluez polkit xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
 options=(!debug)
 install=amadeus-desktop.install
 
 package() {
   local src="$startdir"
-  install -Dm644 "$src/niri/default.kdl" -t "$pkgdir/usr/share/amadeus-os/niri/"
+  install -Dm644 "$src/hypr/default.lua" -t "$pkgdir/usr/share/amadeus-os/hypr/"
   install -Dm644 "$src"/shell/*.qml -t "$pkgdir/usr/share/amadeus-os/shell/"
   install -Dm755 "$src"/bin/* -t "$pkgdir/usr/bin/"
   # Passwordless administrator access is a switch the user turns on from the bar; this is its root side.

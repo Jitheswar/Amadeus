@@ -72,7 +72,7 @@ for g in guides + ["README.md"] + sorted(f for f in files if f.startswith("docs/
 # 5. One palette. Files that cannot read the theme file must only use its colours.
 import json
 palette = {v.lstrip("#").lower() for v in json.loads(Path("desktop/theme/theme.json").read_text()).values() if isinstance(v, str) and v.startswith("#")}
-for f, pattern in (("desktop/niri/default.kdl", r'"#([0-9a-fA-F]{6})'), ("desktop/skel/.config/swaylock/config", r"=([0-9a-fA-F]{6})\b"),
+for f, pattern in (("desktop/hypr/default.lua", r'rgba?\(([0-9a-fA-F]{6})'), ("desktop/skel/.config/swaylock/config", r"=([0-9a-fA-F]{6})\b"),
                    ("desktop/skel/.config/foot/foot.ini", r"^(?:background|foreground|selection-\w+)=([0-9a-fA-F]{6})"),
                    ("ai/shell/components/Theme.qml", r'"#([0-9a-fA-F]{6})"'), ("desktop/shell/shell.qml", r'"#([0-9a-fA-F]{6})"')):
     for c in set(re.findall(pattern, Path(f).read_text(), re.M)):
@@ -81,9 +81,9 @@ for f, pattern in (("desktop/niri/default.kdl", r'"#([0-9a-fA-F]{6})'), ("deskto
 
 # 5b. The shortcut list reads the shipped desktop defaults.
 p = subprocess.run([sys.executable, "desktop/bin/amadeus-keys", "--print"], capture_output=True, text=True,
-                   env=dict(os.environ, AMADEUS_NIRI_CONFIG="desktop/niri/default.kdl"))
+                   env=dict(os.environ, AMADEUS_HYPR_CONFIG="desktop/hypr/default.lua"))
 keys = p.stdout.splitlines()
-if p.returncode or len(keys) < 40 or not any(l.startswith("Super + K ") for l in keys) or not any("Terminal" in l for l in keys):
+if p.returncode or len(keys) < 30 or not any(l.startswith("Super + K ") for l in keys) or not any("Terminal" in l for l in keys):
     bad("desktop/bin/amadeus-keys did not list the shipped shortcuts:\n" + (p.stderr or p.stdout)[-600:])
 
 # 6. Unit tests.

@@ -81,17 +81,42 @@ on it.
 - Video decode: `intel-media-driver` (VA-API) on Intel; `libva-nvidia-driver` when an
   application runs on NVIDIA.
 
-## Compositor: niri
+## Compositor: Hyprland
 
 The compositor is what the AI rearranges, so the deciding questions are: can a bad
 change break the session, and does the interface stay the same across updates?
 
 | Candidate | For | Against |
 |---|---|---|
-| **niri** | Config is validated before it is applied and reloaded live; a bad file leaves the running config in place, and `niri validate` checks one in advance. Includes (25.11+) let AI-managed settings live in their own file. Versioned JSON IPC with an event stream. Opening a window never resizes the others, so arranged workspaces stay arranged. Built-in overview, screenshots and Xwayland integration, so fewer packages. | Younger than Sway. No tearing support yet. |
+| **Hyprland** | The owner's choice, and the most runtime control: every setting, rule and shortcut can be changed live from its Lua configuration and its IPC. Special workspaces give a true scratchpad that floats over everything. Smooth, configurable animation. Every shortcut can carry a description, which Super+K reads live. | Replaced its configuration language within the past year; on a rolling distribution such a change lands on the user. |
+| niri | Validates a config before applying it; windows never resize each other. | No overlay scratchpad; the owner prefers Hyprland. Used here for a few days before this decision and replaced. |
 | Sway | The most proven Wayland compositor; complete, stable IPC. | Manual tiling tree is easy to scramble; no animation or rounding without a fork. |
-| Hyprland | Most runtime control. | Replaced its entire configuration language within the past year; on a rolling distribution every such change lands on the user. |
 | KDE Plasma, GNOME, COSMIC | Complete desktops. | Not minimal; the shell cannot be reshaped as data. |
+
+The risk is handled the same way for every writer of configuration: the user's file
+includes the shipped defaults, anything Amadeus writes goes into its own file, and every
+change is checked with `Hyprland --verify-config` against the whole configuration before
+it is kept, then applied with a reload. A rejected change leaves the old one in place.
+
+## Capture: screenshots and recording
+
+- **Screenshots** freeze the screen (hyprpicker), then one gesture chooses: drag for an
+  area, click a window for that window, click empty space for the whole screen (slurp
+  with the windows and screens offered as targets). The image is saved, copied to the
+  clipboard, and announced with Open and Edit (satty for annotating).
+- **Recording** uses gpu-screen-recorder: the Intel GPU encodes, the processor takes over
+  where it cannot, and it captures the computer's sound and the microphone separately or
+  mixed. Over wf-recorder (encodes on the processor; one audio source). A red mark in the
+  bar shows while recording and stops it when clicked; the saved notification carries a
+  frame from the video.
+
+## Installation
+
+The USB stick starts a guided installer by itself (gum, styled with the system palette):
+keyboard, Wi-Fi when there is no cable, name and password, computer name, time zone
+(detected), disk, encryption, applications, then a summary. Nothing is written until the
+disk's name is typed at the summary. It hands its answers to the same `amadeus-install`
+that the unattended VM test drives, so the tested path and the guided path are one path.
 
 ## Desktop shell and generated applications: Quickshell (QML)
 
@@ -128,7 +153,7 @@ read by the shell, the Amadeus panel and every generated app.
   background the shell draws itself: no wallpaper image and no wallpaper program.
 - **Motion: short and decisive.** Three durations (110, 180, 260 ms) and one easing
   curve that arrives fast and settles gently. Window movement uses critically damped
-  springs, so windows follow the hand and never bounce. Opening and closing are a single
+  curves that arrive fast and settle without overshoot, so windows never bounce. Opening and closing are a single
   motion driven by one value, so a surface can be interrupted halfway and reverse.
   Nothing animates for longer than a quarter of a second, and nothing animates that
   does not explain where something came from or went.

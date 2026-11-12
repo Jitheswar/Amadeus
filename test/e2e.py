@@ -98,9 +98,9 @@ def check(name, ok, detail=""):
     print(f"{'PASS' if ok else 'FAIL'}  {name}{'' if ok else ' — ' + str(detail)[:300]}", flush=True)
 
 
-def niri(*args):
+def hyprctl(*args):
     try:
-        return json.loads(subprocess.run(["niri", "msg", "--json", *args], capture_output=True, text=True).stdout or "null")
+        return json.loads(subprocess.run(["hyprctl", "-j", *args], capture_output=True, text=True).stdout or "null")
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -135,13 +135,13 @@ def main():
         r, err, ev = c.ask("launch", "e2e-launch")
         opened = None
         for _ in range(20):
-            opened = next((w for w in niri("windows") or [] if w.get("app_id") == "foot"), None)
+            opened = next((w for w in hyprctl("clients") or [] if w.get("class") == "foot"), None)
             if opened:
                 break
             time.sleep(0.5)
         check("the AI opens an application on the desktop", bool(opened), err or r)
         if opened:
-            subprocess.run(["niri", "msg", "action", "close-window", "--id", str(opened["id"])])
+            subprocess.run(["hyprctl", "dispatch", 'hl.dsp.window.close({ window = "address:%s" })' % opened["address"]])
 
         rid = c.send("ask", prompt="E2E:slow", session="e2e-slow", interactive=True)
         time.sleep(1)

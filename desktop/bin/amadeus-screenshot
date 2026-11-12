@@ -1,0 +1,31 @@
+#!/bin/bash
+# Take a screenshot: saved to Pictures/Screenshots, copied to the clipboard, announced with Open and Edit.
+#   amadeus-screenshot          the screen freezes; drag an area, click a window, or click empty space for the whole screen (Print)
+#   amadeus-screenshot screen   the whole screen at once
+#   amadeus-screenshot window   the focused window at once
+# Pressing Print again while choosing, or Escape, takes nothing.
+set -uo pipefail
+lock=${XDG_RUNTIME_DIR:-/tmp}/amadeus-screenshot.pid
+# The same key opens and closes the chooser.
+if [[ -f $lock ]] && kill -0 "$(cat "$lock")" 2>/dev/null; then pkill -P "$(cat "$lock")"; exit 0; fi
+echo $$ >"$lock"; trap 'rm -f "$lock"' EXIT
+
+dir="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Screenshots"
+mkdir -p "$dir"
+file="$dir/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png"
+case ${1:-area} in
+  area)   geometry=$(amadeus-area --freeze) || exit 0 ;;
+  screen) geometry=$(hyprctl -j monitors | python3 -c 'import json, sys
+m = next(m for m in json.load(sys.stdin) if m["focused"]); print("%d,%d %dx%d" % (m["x"], m["y"], m["width"] / m["scale"], m["height"] / m["scale"]))') ;;
+  window) geometry=$(hyprctl -j activewindow | python3 -c 'import json, sys; w = json.load(sys.stdin); print("%d,%d %dx%d" % (*w["at"], *w["size"]))') || exit 1 ;;
+  *) sed -n 2,6p "$0"; exit 1 ;;
+esac
+sleep 0.05                                   # let the frozen overlay leave the screen
+grim -g "$geometry" "$file" || { notify-send -a Screenshot "Screenshot failed"; exit 1; }
+wl-copy --type image/png <"$file"
+rm -f "$lock"
+action=$(notify-send -a Screenshot -i "$file" -A open=Open -A edit=Edit "Screenshot copied" "Saved as $(basename "$file")")
+case $action in
+  open) xdg-open "$file" ;;
+  edit) satty --filename "$file" --output-filename "$file" --copy-command wl-copy --early-exit ;;
+esac

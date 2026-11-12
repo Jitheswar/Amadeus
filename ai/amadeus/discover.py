@@ -45,7 +45,7 @@ def build():
     files_all = [f for fs in owned.values() for f in fs]
     cfg = config.load()
     user_files = [config.CONFIG / "config.toml", config.CONFIG / "bar.json", config.CONFIG / "theme.json",
-                  Path.home() / ".config/niri/config.kdl", Path.home() / ".config/niri/amadeus.kdl"]
+                  Path.home() / ".config/hypr/hyprland.lua", Path.home() / ".config/hypr/amadeus.lua"]
     osr = _os_release()
     return {
         "system": {"name": osr.get("PRETTY_NAME", "").strip('"'), "kernel": os.uname().release, "amadeus": __version__,
@@ -62,8 +62,9 @@ def build():
             "every file a package installed": "pacman -Qlq amadeus amadeus-desktop",
             "what a command does": "<command> --help, or read it: these are short scripts",
             "packages installed on purpose": "pacman -Qqe",
-            "the desktop right now": "niri msg --json windows | workspaces | outputs",
-            "every desktop action and setting": "niri msg action --help; niri validate checks a config",
+            "the desktop right now": "hyprctl -j clients | workspaces | monitors | activewindow",
+            "every shortcut, with its description": "hyprctl -j binds",
+            "whether a desktop config loads": "Hyprland --verify-config --config FILE",
             "what the AI has done": "ama audit; ama audit verify",
             "snapshots": "amadeus-rollback",
             "health": "ama doctor",
