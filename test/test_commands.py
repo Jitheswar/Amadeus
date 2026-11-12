@@ -87,10 +87,21 @@ exit {rc}
 """)
         path.chmod(0o755)
 
-    def run_cmd(self, *argv, env=None, timeout=30):
+    def run_cmd(self, *argv, env=None, timeout=30, input=None):
         script = BIN / argv[0]
         return subprocess.run([str(script), *map(str, argv[1:])], capture_output=True, text=True,
-                              env=dict(self.env, **(env or {})), cwd=self.tmp, timeout=timeout)
+                              env=dict(self.env, **(env or {})), cwd=self.tmp, timeout=timeout, input=input)
+
+    def picker(self, *answers, rc=0):
+        """A picker that answers each call in turn; the caller sees one line per call."""
+        state = self.tmp / "picker.answers"
+        cases = "\n".join(f"  {i}) printf '%s\\n' {shlex.quote(a)} ;;" for i, a in enumerate(answers, 1))
+        self.stub("amadeus-pick", rc=rc, body=f"""n=$(cat {state} 2>/dev/null || echo 0); n=$((n + 1)); echo $n >{state}
+cat >/dev/null
+case $n in
+{cases}
+  *) exit 1 ;;
+esac""")
 
     def stop_stray_recorder(self, pidfile):
         try:
@@ -412,6 +423,58 @@ esac""")
         self.stub("amadeus-pick", output="Harnesses and tools only", body="cat >/dev/null")
         self.assert_ok(self.run_cmd("amadeus-menu", "update"))
         self.assertIn("amadeus-harness update", self.calls_of("amadeus-terminal")[-1][-1])
+
+    # ---- the picker itself and the menu that drives it -----------------------
+    def test_pick_passes_the_list_through_the_shell_and_prints_the_choice(self):
+        seen = self.tmp / "pick"
+        self.stub("quickshell", body=f"""cp "$8" {seen}.in
+printf '%s' "${{10}}" > {seen}.options
+( sleep 0.05; printf 'ok\\nbeta\\n' > "$9" ) &""")
+        p = self.run_cmd("amadeus-pick", "--multi", "--preview", 'printf %s "$1"', "--hint", "more", "Pick one",
+                         input="alpha\nbeta\n")
+        self.assert_ok(p)
+        self.assertEqual(p.stdout, "beta\n")
+        self.assertEqual(Path(str(seen) + ".in").read_text(), "alpha\nbeta\n")
+        options = json.loads(Path(str(seen) + ".options").read_text())
+        self.assertEqual(options, {"multi": True, "allowNew": False, "preview": 'printf %s "$1"',
+                                    "preview2": "", "hint": "more", "newLabel": ""})
+
+    def test_pick_returns_new_text_and_cancel(self):
+        self.stub("quickshell", body="""( sleep 0.05; printf 'new\\ntyped text\\n' > "$9" ) &""")
+        p = self.run_cmd("amadeus-pick", "--new", "Name", input="")
+        self.assertEqual((p.returncode, p.stdout), (2, "typed text\n"))
+        self.stub("quickshell", body="""( sleep 0.05; printf 'cancel\\n' > "$9" ) &""")
+        p = self.run_cmd("amadeus-pick", "Choose", input="")
+        self.assertEqual((p.returncode, p.stdout), (1, ""))
+
+    def test_pick_says_so_when_the_shell_is_not_running(self):
+        self.stub("quickshell", rc=1)
+        p = self.run_cmd("amadeus-pick", "Choose", input="")
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("desktop shell is not running", p.stderr)
+
+    def test_menu_routes_capture_to_the_screenshot_tool(self):
+        self.picker("Capture", "Screenshot\tarea")
+        self.stub("amadeus-screenshot")
+        p = self.run_cmd("amadeus-menu", "trigger")
+        self.assert_ok(p)
+        self.assertEqual(self.calls_of("amadeus-screenshot"), [["area"]])
+
+    def test_menu_builds_a_remove_command_without_running_it(self):
+        self.picker("Packages", "htop")
+        self.stub("pacman", body="[[ $1 == -Qqe ]] && printf 'htop\\n'")
+        self.stub("amadeus-terminal")
+        p = self.run_cmd("amadeus-menu", "remove")
+        self.assert_ok(p)
+        self.assertIn("sudo pacman -Rns -- htop", " ".join(self.calls_of("amadeus-terminal")[-1]))
+        self.assertEqual(self.calls_of("sudo"), [])
+
+    def test_menu_routes_to_display_setup(self):
+        self.picker("Display")
+        self.stub("amadeus-display")
+        p = self.run_cmd("amadeus-menu", "setup")
+        self.assert_ok(p)
+        self.assertEqual(self.calls_of("amadeus-display"), [[]])
 
     # ---- capture, display and small helpers ---------------------------------
     def hyprctl_json(self, monitors=None, clients=None, active=None):
