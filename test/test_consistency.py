@@ -153,6 +153,38 @@ class ComponentTest(unittest.TestCase):
             self.assertTrue((directory / file).is_file(), f"qmldir's {name} points at missing {file}")
 
 
+class IconTest(unittest.TestCase):
+    def test_every_icon_used_is_drawn(self):
+        paths = set(re.findall(r'"([a-z0-9-]+)":\s*"M', read(ROOT / "desktop/shell/Icon.qml")))
+        self.assertTrue(paths)
+        files = list((ROOT / "desktop/shell").glob("*.qml")) + list((ROOT / "ai/shell").rglob("*.qml"))
+        for path in files:
+            for line in read(path).splitlines():
+                for expression in re.findall(r"\b(?:icon|name):\s*([^;\n}]+)", line):
+                    for name in re.findall(r'"([a-z][a-z0-9-]+)"', expression):
+                        self.assertIn(name, paths, f"{path.name} uses icon {name!r}, which Icon.qml does not draw")
+
+
+class UseTest(unittest.TestCase):
+    def test_every_theme_property_used_exists(self):
+        theme = read(ROOT / "ai/shell/components/Theme.qml")
+        known = set(re.findall(r"(?:readonly\s+)?property\s+\w+\s+(\w+)\s*:", theme))
+        known |= set(re.findall(r"function\s+(\w+)", theme))
+        self.assertIn("accent", known)
+        for path in list((ROOT / "ai/shell").rglob("*.qml")) + list((ROOT / "desktop/shell").glob("*.qml")):
+            for name in set(re.findall(r"Theme\.(\w+)", read(path))):
+                self.assertIn(name, known, f"{path.name} uses Theme.{name}, which Theme.qml does not define")
+
+
+class CoverageTest(unittest.TestCase):
+    def test_every_shipped_command_is_exercised(self):
+        tests = read(ROOT / "test/selftest.sh") + read(ROOT / "test/test_commands.py")
+        commands = sorted(p.name for p in BIN.iterdir() if p.is_file())
+        self.assertGreaterEqual(len(commands), 20)
+        for name in commands:
+            self.assertIn(name, tests, f"{name} is not exercised by the self-test or the command tests")
+
+
 class PackageListTest(unittest.TestCase):
     def lists(self):
         return {p: [w for line in read(p).splitlines() if not line.startswith("#") for w in line.split()]
