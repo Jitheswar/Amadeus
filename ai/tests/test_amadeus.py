@@ -88,6 +88,14 @@ class AppsTest(unittest.TestCase):
         self.assertIn("one", (apps.app_dir("demo") / "shell.qml").read_text())
         self.assertEqual(len(apps.history("demo")), 4)
 
+    def test_rollback_removes_files_added_later(self):
+        apps.save("roll", "Roll", "", {"shell.qml": QML % "one"})
+        apps.save("roll", files={"extra.js": "var a = 1\n"})
+        m = apps.rollback("roll")
+        self.assertEqual(m["version"], 3)
+        self.assertIn("one", (apps.app_dir("roll") / "shell.qml").read_text())
+        self.assertFalse((apps.app_dir("roll") / "extra.js").exists())
+
     def test_broken_update_is_rejected_and_old_version_kept(self):
         apps.save("keep", "Keep", "", {"shell.qml": QML % "good"})
         with self.assertRaises(apps.AppError):
