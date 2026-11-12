@@ -230,6 +230,28 @@ class ProviderTest(unittest.TestCase):
         with self.assertRaises(providers.ProviderError):
             Anthropic("nokey", {"key_env": "AMADEUS_NO_SUCH_KEY"}).chat("s", [{"role": "user", "text": "x"}], [])
 
+    def test_claude_cli_does_not_deadlock_on_stderr(self):
+        """Claude Code can log more than a pipe buffer to stderr. If it is not drained
+        while stdout is read, the child blocks and the provider never returns."""
+        fake = Path(TMP) / "fake-claude"
+        fake.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, sys\n"
+            "sys.stderr.write('x' * 200000)\n"
+            "sys.stderr.flush()\n"
+            "print(json.dumps({'type': 'result', 'result': 'done'}))\n"
+        )
+        fake.chmod(0o755)
+        code = ("import sys\n"
+                f"sys.path.insert(0, {str(ROOT)!r})\n"
+                "from amadeus.providers.cli import ClaudeCLI\n"
+                f"print(ClaudeCLI('claude-cli', {{'command': {str(fake)!r}}}).run("
+                "'s', [{'role': 'user', 'text': 'hi'}], 'sess', lambda *a: None))\n")
+        p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=15,
+                           env=dict(os.environ, PYTHONPATH=str(ROOT)))
+        self.assertEqual(p.returncode, 0, p.stderr[-1000:])
+        self.assertEqual(p.stdout.strip(), "done")
+
 
 class DaemonTest(unittest.TestCase):
     @classmethod
