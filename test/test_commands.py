@@ -5,7 +5,9 @@ Every external program these commands talk to is a stand-in: nothing here starts
 session, changes a package, asks for a password or touches the user's own files.
 The commands are run from the repository, in a throwaway HOME, with a PATH whose
 first entry holds the stand-ins and whose result is checked."""
-import gzip, json, os, re, shlex, shutil, subprocess, tempfile, time, unittest
+import gzip, json, os, re, shlex, shutil, subprocess, tempfile, threading, time, unittest
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs, urlparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -331,6 +333,67 @@ esac""")
         self.assertIn("Needs          : libfoo", info.stdout)
         recipe = self.run_cmd("amadeus-aur", "recipe", "demo")
         self.assertEqual(recipe.stdout, "pkgname=demo\n")
+
+    @unittest.skipUnless(shutil.which("curl"), "the real curl is needed for the local server")
+    def test_aur_rpc_encodes_a_name_with_a_plus(self):
+        """A + in a package name is a space in a raw query string; curl must encode it."""
+        queries = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_GET(self):
+                queries.append(parse_qs(urlparse(self.path).query))
+                body = json.dumps({"results": [{"Name": "libsigc++", "Version": "1.0", "Description": "",
+                                                "URL": "", "Maintainer": "m", "NumVotes": 1, "Popularity": 0,
+                                                "LastModified": 0, "OutOfDate": None, "Depends": [], "MakeDepends": []}]}).encode()
+                self.send_response(200)
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            (self.bin / "curl").unlink(missing_ok=True)      # this test needs the real curl against localhost
+            p = self.run_cmd("amadeus-aur", "info", "libsigc++",
+                             env={"AMADEUS_AUR": f"http://127.0.0.1:{server.server_port}"})
+        finally:
+            server.shutdown()
+            server.server_close()
+        self.assert_ok(p)
+        self.assertEqual(queries[0]["arg[]"], ["libsigc++"])
+        self.assertIn("Name           : libsigc++", p.stdout)
+
+    @unittest.skipUnless(shutil.which("curl"), "the real curl is needed for the local server")
+    def test_aur_recipe_encodes_a_name_with_a_plus(self):
+        queries = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_GET(self):
+                queries.append(parse_qs(urlparse(self.path).query))
+                body = b"pkgname=libsigc++\n"
+                self.send_response(200)
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            (self.bin / "curl").unlink(missing_ok=True)
+            p = self.run_cmd("amadeus-aur", "recipe", "libsigc++",
+                             env={"AMADEUS_AUR": f"http://127.0.0.1:{server.server_port}"})
+        finally:
+            server.shutdown()
+            server.server_close()
+        self.assert_ok(p)
+        self.assertEqual(queries[0]["h"], ["libsigc++"])
+        self.assertIn("pkgname=libsigc++", p.stdout)
 
     def test_aur_list_uses_and_refreshes_its_cache(self):
         cache = self.tmp / "cache/amadeus-aur"
