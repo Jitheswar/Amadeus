@@ -90,6 +90,7 @@ t "launcher lists installed applications"      bash -c 'as amadeus-launcher --pr
 t "no separate launcher or notification program" bash -c '! pacman -Q fuzzel mako 2>/dev/null | grep -q .'
 t "AUR lookup works"                           bash -c 'as amadeus-aur info protonplus | grep -q "^Name"'
 t "AUR leaves repository packages to pacman"  bash -c 'out=$(as amadeus-aur install foot 2>&1); echo "$out"; grep -q "system repositories" <<<"$out"'
+t "AUR build tools installed"                  pacman -Q base-devel fakeroot debugedit
 t "mirror ranking reports the official choice" bash -c 'as amadeus-mirrors --print | grep -q "^Server = "'
 t "sound services are running"                 bash -c 'as systemctl --user is-active --quiet pipewire.socket pipewire-pulse.socket wireplumber.service'
 t "terminal configuration is valid"            bash -c 'as foot --check-config'

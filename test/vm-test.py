@@ -95,7 +95,7 @@ if phase in ("all", "try"):
         print("the try boot reported failed dependencies", flush=True)
         sys.exit(1)
     # The terminal, the Install menu and sound are what the try session is judged on first.
-    for good in ("foot config: ok", "sound: active active active "):
+    for good in ("foot config: ok", "sound: active active active ", "aur build tools: 2"):
         if good not in log:
             print(f"the try session reported '{good}' missing", flush=True)
             sys.exit(1)

@@ -14,6 +14,7 @@ mkdir -p /mnt/try && mount /dev/disk/by-label/AMADEUSTRY /mnt/try
   echo "shell: $(pgrep -af 'quickshell -p /usr/share/amadeus-os/shell' | grep -c quickshell)"
   echo "amadeus daemon: $([[ -S $R/amadeus/daemon.sock ]] && echo running || echo missing)"
   echo "package lists: $(pacman -Slq 2>/dev/null | wc -l)"
+  echo "aur build tools: $(pacman -Q fakeroot debugedit 2>/dev/null | wc -l)"
   echo "catalogue entries: $(as amadeus-catalog terminal 2>/dev/null | wc -l)"
   if as foot --check-config --config /home/$U/.config/foot/foot.ini >/dev/null 2>&1; then
     echo "foot config: ok"

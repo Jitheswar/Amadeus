@@ -5,7 +5,8 @@
 #   amadeus-aur recipe NAME         the build recipe, which is what you are trusting
 #   amadeus-aur install NAME...     build and install; a package the repositories already have is refused
 #   amadeus-aur update              rebuild installed AUR packages that have a newer version
-# AUR recipes are written by users, not by Arch. Run as your user; it asks for the password when needed.
+# AUR recipes are written by users, not by Arch. Building needs base-devel (fakeroot, debugedit).
+# Run as your user; it asks for the password when needed.
 set -euo pipefail
 AUR=https://aur.archlinux.org
 cache=${XDG_CACHE_HOME:-$HOME/.cache}/amadeus-aur
@@ -51,6 +52,13 @@ build() {  # NAME: build and install, AUR dependencies first
     echo "  $name is in the system repositories; they come first. Install it with: sudo pacman -S $name"
     return 1
   fi
+  local tool
+  for tool in fakeroot debugedit; do
+    command -v "$tool" >/dev/null 2>&1 || {
+      echo "  $name needs $tool to build. Install the build tools with: sudo pacman -S --needed base-devel"
+      return 1
+    }
+  done
   fetch "$name" || return 1
   for dep in $(sed -nE 's/^\s*(make|check)?depends(_x86_64)? = ([^<>=: ]+).*/\3/p' "$cache/$name/.SRCINFO" | sort -u); do
     pacman -T "$dep" >/dev/null 2>&1 && continue          # already satisfied
