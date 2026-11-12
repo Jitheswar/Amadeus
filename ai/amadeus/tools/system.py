@@ -94,7 +94,7 @@ def sys_services(a, ctx):
     return clip(sh(cmd).stdout)
 
 
-UNIT_RE = re.compile(r"^[\w@.:\\-]+$")
+UNIT_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_@.:\\-]*$")
 
 
 @tool("sys_service_control", "Start, stop, restart, enable or disable a systemd unit. User units run directly; system units need root mode.",
@@ -102,12 +102,17 @@ UNIT_RE = re.compile(r"^[\w@.:\\-]+$")
        "scope": {"type": "string", "enum": ["user", "system"]}}, required=("unit", "action", "scope"),
       cap="sys.manage", risk=lambda a: "modify" if a.get("scope") == "user" else "privileged")
 def sys_service_control(a, ctx):
-    if not UNIT_RE.match(a["unit"]):
+    if a.get("action") not in ("start", "stop", "restart", "enable", "disable", "reload"):
+        raise ToolError("invalid action")
+    if a.get("scope") not in ("user", "system"):
+        raise ToolError("invalid scope")
+    unit = a.get("unit")
+    if not isinstance(unit, str) or not UNIT_RE.match(unit):
         raise ToolError("invalid unit name")
     if a["scope"] == "user":
-        p = sh(["systemctl", "--user", a["action"], a["unit"]], timeout=60, check=True)
+        p = sh(["systemctl", "--user", a["action"], unit], timeout=60, check=True)
         return p.stdout or "done"
-    return root.call("systemctl", action=a["action"], unit=a["unit"])
+    return root.call("systemctl", action=a["action"], unit=unit)
 
 
 @tool("sys_journal", "Read the system journal. Filter by unit, priority (0-7) or a time such as '10 min ago'.",
@@ -136,7 +141,7 @@ def sys_packages(a, ctx):
     return clip(out) or "(nothing)"
 
 
-PKG_RE = re.compile(r"^[a-zA-Z0-9@._+-]+$")
+PKG_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9@._+-]*$")
 
 
 @tool("pkg_manage", "Install, remove or upgrade packages with pacman. A btrfs snapshot is taken before and after, so the change can be rolled back. Needs root mode.",
@@ -144,7 +149,7 @@ PKG_RE = re.compile(r"^[a-zA-Z0-9@._+-]+$")
       required=("action",), cap="pkg.manage", risk="privileged")
 def pkg_manage(a, ctx):
     pk = a.get("packages", [])
-    if any(not PKG_RE.match(p) for p in pk):
+    if not isinstance(pk, list) or any(not isinstance(p, str) or not PKG_RE.match(p) for p in pk):
         raise ToolError("invalid package name")
     return root.call("pacman", action=a["action"], packages=pk)
 

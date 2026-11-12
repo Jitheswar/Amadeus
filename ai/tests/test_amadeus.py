@@ -319,6 +319,25 @@ class TaskTest(unittest.TestCase):
         self.assertFalse(d.stop("nope"))
 
 
+class SystemToolTest(unittest.TestCase):
+    def test_option_like_names_are_refused(self):
+        from amadeus.tools import system
+        self.assertTrue(system.UNIT_RE.match("getty@tty1.service"))
+        self.assertTrue(system.PKG_RE.match("lib32-glibc"))
+        for unit in ("--now", "-H", ".service"):
+            with self.assertRaises(T.ToolError, msg=unit):
+                system.sys_service_control({"action": "start", "unit": unit, "scope": "user"}, None)
+        for pkg in ("-Syu", "--overwrite=*", ".hidden"):
+            with self.assertRaises(T.ToolError, msg=pkg):
+                system.pkg_manage({"action": "install", "packages": [pkg]}, None)
+        with self.assertRaises(T.ToolError):
+            system.sys_service_control({"action": "--now", "unit": "demo.service", "scope": "user"}, None)
+        with self.assertRaises(T.ToolError):
+            system.sys_service_control({"action": "start", "unit": "demo.service", "scope": "bogus"}, None)
+        with self.assertRaises(T.ToolError):
+            system.pkg_manage({"action": "install", "packages": "htop"}, None)
+
+
 class HelperTest(unittest.TestCase):
     """The root helper, run unprivileged: validation must refuse before anything executes."""
     @classmethod
