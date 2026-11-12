@@ -229,6 +229,7 @@ def provider_cmd(c, args):
         key = getpass.getpass(f"API key for {args[1]} (stored in ~/.config/amadeus/secrets, mode 600): ").strip()
         f = config.CONFIG / "secrets" / args[1]
         fd = os.open(f, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        os.fchmod(fd, 0o600)        # os.open's mode only applies when it creates the file
         os.write(fd, key.encode())
         os.close(fd)
         return print("saved")
