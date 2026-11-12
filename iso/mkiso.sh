@@ -34,8 +34,9 @@ echo "==> Collecting every package the installation needs, so it works without i
 # x86-64-v3 processors, which this machine has; others install from the internet instead.
 OFF=/tmp/offline ROOT=/tmp/offroot
 rm -rf $OFF $ROOT && mkdir -p $OFF $ROOT/db
+pacman-key --init >/dev/null 2>&1; pacman-key --populate archlinux >/dev/null 2>&1
 pacman -U --noconfirm --needed $REPO/cachyos-keyring-*.pkg.tar.zst $REPO/cachyos-mirrorlist-*.pkg.tar.zst $REPO/cachyos-v3-mirrorlist-*.pkg.tar.zst >/dev/null
-pacman-key --init >/dev/null 2>&1; pacman-key --populate archlinux cachyos >/dev/null 2>&1
+pacman-key --populate cachyos >/dev/null 2>&1
 {
   echo "[options]"; echo "Architecture = x86_64 x86_64_v3"; echo "SigLevel = Required DatabaseOptional"; echo "LocalFileSigLevel = Optional"
   echo "ParallelDownloads = 8"; echo "CacheDir = $OFF/"
