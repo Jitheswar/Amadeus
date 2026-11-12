@@ -1,6 +1,6 @@
 #!/bin/bash
 # Amadeus OS installer. Erases one disk and installs the system onto it.
-#   amadeus-install                 interactive
+#   amadeus-install                 plain questions in the terminal (amadeus-setup is the guided way)
 #   amadeus-install answers.conf    unattended (shell variables, see the README)
 set -euo pipefail
 SHARE=/usr/share/amadeus-install
@@ -157,7 +157,7 @@ ch locale-gen >/dev/null
 echo "LANG=$LOCALE" >$T/etc/locale.conf
 echo "KEYMAP=$KEYMAP" >$T/etc/vconsole.conf
 
-ch useradd -m -G wheel,video,input -s /bin/bash "$USERNAME"
+ch useradd -m -G wheel,video,input -s /bin/bash ${FULLNAME:+-c "$FULLNAME"} "$USERNAME"
 printf '%s:%s\n' "$USERNAME" "$PASSWORD" | ch chpasswd
 ch passwd -l root >/dev/null
 echo '%wheel ALL=(ALL:ALL) ALL' >$T/etc/sudoers.d/10-wheel; chmod 440 $T/etc/sudoers.d/10-wheel
@@ -172,7 +172,7 @@ cat >$T/etc/greetd/config.toml <<G
 [terminal]
 vt = 1
 [default_session]
-command = "tuigreet --time --remember --asterisks --greeting 'Amadeus OS · El Psy Kongroo' --theme 'border=yellow;title=yellow;greet=white;prompt=yellow;input=white;time=gray;action=gray;button=yellow;container=black' --cmd niri-session"
+command = "tuigreet --time --remember --asterisks --greeting 'Amadeus OS · El Psy Kongroo' --theme 'border=yellow;title=yellow;greet=white;prompt=yellow;input=white;time=gray;action=gray;button=yellow;container=black' --cmd 'uwsm start hyprland-uwsm.desktop'"
 user = "greeter"
 G
 

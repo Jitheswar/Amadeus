@@ -1,12 +1,8 @@
 
-  Amadeus OS installer
-  El Psy Kongroo.
+  Amadeus OS installer · El Psy Kongroo.
 
-  Connect to the internet if you are on Wi-Fi:
-      iwctl station wlan0 connect "NETWORK NAME"
-
-  Then install (this erases the disk you choose):
-      amadeus-install
+  The guided installer starts on its own. To start it again:
+      amadeus-setup
 
   Already installed and it no longer starts? Go back to a snapshot:
       amadeus-rollback

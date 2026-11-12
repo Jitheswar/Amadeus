@@ -32,17 +32,21 @@ cp -r /usr/share/archiso/configs/releng $P
 A=$P/airootfs
 install -d $A/opt $A/usr/local/bin $A/usr/share/amadeus-install $A/etc/systemd/system/multi-user.target.wants
 cp -r $REPO $A/opt/amadeus-repo
-install -m755 $SRC/installer/amadeus-install $SRC/iso/live/amadeus-autoinstall $SRC/desktop/bin/amadeus-rollback $A/usr/local/bin/
+install -m755 $SRC/installer/amadeus-install $SRC/installer/amadeus-setup $SRC/iso/live/amadeus-autoinstall $SRC/desktop/bin/amadeus-rollback $A/usr/local/bin/
 install -m644 $SRC/installer/packages.* $A/usr/share/amadeus-install/
 install -m644 $SRC/iso/live/amadeus-autoinstall.service $A/etc/systemd/system/
 ln -sf ../amadeus-autoinstall.service $A/etc/systemd/system/multi-user.target.wants/
 cp $SRC/iso/live/motd $A/etc/motd
 echo amadeus-live >$A/etc/hostname
-printf 'pciutils\nrsync\n' >>$P/packages.x86_64
+printf 'pciutils\nrsync\ngum\n' >>$P/packages.x86_64
+# The guided installer starts by itself on the first screen, unless an unattended install is under way.
+cat >>$A/root/.zlogin <<'Z'
+if [[ $(tty) == /dev/tty1 && ! -e /dev/disk/by-label/AMADEUSAUTO ]]; then amadeus-setup; fi
+Z
 
 label="AMADEUS_$(date +%Y%m)"
 sed -i "s|^iso_name=.*|iso_name=\"amadeus-os\"|; s|^iso_label=.*|iso_label=\"$label\"|; s|^iso_publisher=.*|iso_publisher=\"Amadeus OS\"|; s|^iso_application=.*|iso_application=\"Amadeus OS installer\"|; s|^install_dir=.*|install_dir=\"amadeus\"|" $P/profiledef.sh
-sed -i 's|^file_permissions=(|file_permissions=(\n  ["/usr/local/bin/amadeus-install"]="0:0:755"\n  ["/usr/local/bin/amadeus-autoinstall"]="0:0:755"\n  ["/usr/local/bin/amadeus-rollback"]="0:0:755"|' $P/profiledef.sh
+sed -i 's|^file_permissions=(|file_permissions=(\n  ["/usr/local/bin/amadeus-install"]="0:0:755"\n  ["/usr/local/bin/amadeus-autoinstall"]="0:0:755"\n  ["/usr/local/bin/amadeus-setup"]="0:0:755"\n  ["/usr/local/bin/amadeus-rollback"]="0:0:755"|' $P/profiledef.sh
 # Boot menu: our name, and a serial console so the ISO can be tested headless.
 for f in $P/efiboot/loader/entries/*.conf $P/syslinux/*.cfg $P/grub/*.cfg; do
   [[ -f $f ]] || continue

@@ -1,0 +1,133 @@
+#!/bin/bash
+# Guided installation of Amadeus OS: starts by itself when the USB stick boots, asks a few questions, then installs.
+# Every answer has a sensible default. Nothing on any disk changes until you confirm the summary.
+# Leave at any time with Ctrl+C; you get a shell, and `amadeus-setup` starts again.
+set -uo pipefail
+ACCENT='#ffa14a' DIM='#9c948a' FG='#f1ebe1' BAD='#ff6b5e'
+export GUM_INPUT_CURSOR_FOREGROUND=$ACCENT GUM_INPUT_PROMPT_FOREGROUND=$ACCENT GUM_INPUT_HEADER_FOREGROUND=$FG \
+       GUM_CHOOSE_CURSOR_FOREGROUND=$ACCENT GUM_CHOOSE_SELECTED_FOREGROUND=$ACCENT GUM_CHOOSE_HEADER_FOREGROUND=$FG \
+       GUM_FILTER_INDICATOR_FOREGROUND=$ACCENT GUM_FILTER_MATCH_FOREGROUND=$ACCENT GUM_FILTER_HEADER_FOREGROUND=$FG \
+       GUM_FILTER_PROMPT_FOREGROUND=$ACCENT GUM_CONFIRM_PROMPT_FOREGROUND=$FG GUM_CONFIRM_SELECTED_BACKGROUND=$ACCENT \
+       GUM_CONFIRM_SELECTED_FOREGROUND='#0f0e0d' GUM_SPIN_SPINNER_FOREGROUND=$ACCENT
+
+STEPS=(Keyboard Internet You Time Disk Apps)
+# Every page: the wordmark with the worldline number, then the steps as one line, lit up to where you are.
+screen() {   # screen STEP_NUMBER (1-6, 0 for none, 7 for all done) [HEADING]
+  local at=${1:-0} i mark colour line=""
+  clear; echo
+  gum join --horizontal \
+    "$(gum style --margin "0 0 0 2" --foreground "$ACCENT" --bold "A M A D E U S")" \
+    "$(gum style --margin "0 0 0 4" --foreground "$DIM" "worldline")" \
+    "$(gum style --margin "0 0 0 1" --foreground "$ACCENT" "1.048596")"
+  if (( at > 0 )); then
+    for i in "${!STEPS[@]}"; do
+      if (( i + 1 < at )); then mark="●" colour=$ACCENT; elif (( i + 1 == at )); then mark="◉" colour=$FG; else mark="○" colour=$DIM; fi
+      line+="$(gum style --foreground "$colour" "$mark ${STEPS[$i]}")"
+      (( i < ${#STEPS[@]} - 1 )) && line+="$(gum style --foreground "$( (( i + 1 < at )) && echo "$ACCENT" || echo "$DIM")" " ─── ")"
+    done
+    echo; gum style --margin "0 2" "$line"
+  fi
+  [[ -n ${2:-} ]] && { echo; gum style --margin "0 2" --foreground "$FG" --bold "${2}"; }
+  echo
+}
+note() { gum style --margin "0 2" --foreground "$DIM" "$@"; }
+fail() { gum style --margin "1 2" --foreground "$BAD" "$@"; }
+input() { gum input --width 50 --prompt "  › " "$@"; }
+
+# ---- welcome
+screen 0
+gum style --margin "1 2" --padding "1 3" --border thick --border-foreground "$ACCENT" --foreground "$FG" \
+  "This installs Amadeus OS on this computer." "" \
+  "Six short questions, then about ten minutes of installing." "Nothing changes on any disk until you confirm at the end."
+gum style --margin "0 2" --foreground "$DIM" --italic "El Psy Kongroo."
+echo; gum confirm --affirmative "Begin" --negative "Not now" "  Ready?" || { clear; echo "Run amadeus-setup to begin."; exit 0; }
+
+# ---- keyboard
+screen 1 "Which keyboard do you type on?"
+KEYMAP=$( { echo us; localectl list-keymaps 2>/dev/null | grep -vx us; } | gum filter --height 12 --placeholder "Type to search" --header "  Keyboard layout") || KEYMAP=us
+loadkeys "$KEYMAP" 2>/dev/null
+
+# ---- network
+online() { curl -fsm6 -o /dev/null https://geo.mirror.pkgbuild.com; }
+while ! online; do
+  screen 2 "Connect to the internet"
+  dev=$(iwctl device list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '$2 == "station" || /station/ {print $1; exit}')
+  [[ -z $dev ]] && dev=$(ls /sys/class/net | grep -m1 '^wl')
+  if [[ -z $dev ]]; then
+    fail "No internet connection and no Wi-Fi found." ; note "Plug in a network cable, then press Enter."; read -r; continue
+  fi
+  iwctl station "$dev" scan 2>/dev/null; sleep 2
+  net=$(iwctl station "$dev" get-networks 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | tail -n +5 | sed 's/^[ >]*//' |
+        awk 'NF >= 3 { $NF = ""; $(NF) = ""; sub(/[ \t]+(psk|open|8021x)[ \t]*$/, ""); print }' | sed 's/[[:space:]]*$//' | grep . |
+        gum choose --height 12 --header "  Choose a Wi-Fi network") || continue
+  pass=$(input --password --header "  Password for $net (leave empty if it has none)")
+  if [[ -n $pass ]]; then iwctl --passphrase "$pass" station "$dev" connect "$net" 2>/dev/null
+  else iwctl station "$dev" connect "$net" 2>/dev/null; fi
+  gum spin --title "  Connecting to $net" -- sleep 5
+  online || { fail "Could not reach the internet through $net."; sleep 2; }
+done
+
+# ---- you
+screen 3 "Who will use this computer?"
+while :; do
+  FULL=$(input --header "  Your name" --placeholder "shown on the login screen") || exit 1
+  USERNAME=$(input --header "  User name" --value "$(tr 'A-Z' 'a-z' <<<"${FULL%% *}" | tr -cd 'a-z0-9_-')") || exit 1
+  [[ $USERNAME =~ ^[a-z_][a-z0-9_-]{0,30}$ ]] && break
+  fail "A user name is lower-case letters, digits, - and _, starting with a letter."
+done
+while :; do
+  PASSWORD=$(input --password --header "  Password (also unlocks the disk)") || exit 1
+  again=$(input --password --header "  The same password again") || exit 1
+  [[ -n $PASSWORD && $PASSWORD == "$again" ]] && break
+  fail "Empty, or the two did not match."
+done
+HOSTNAME=$(input --header "  Name of this computer" --value "amadeus") || exit 1
+HOSTNAME=${HOSTNAME:-amadeus}
+
+# ---- time
+screen 4 "Where are you?"
+guess=$(curl -fsm5 https://ipapi.co/timezone 2>/dev/null); [[ -f /usr/share/zoneinfo/$guess ]] || guess=UTC
+TIMEZONE=$( { echo "$guess"; timedatectl list-timezones | grep -vx "$guess"; } | gum filter --height 12 --placeholder "Type a city" --header "  Time zone (detected: $guess)") || TIMEZONE=$guess
+
+# ---- disk
+screen 5 "Where should Amadeus live?"
+line=$(lsblk -dpno NAME,SIZE,MODEL,TRAN | grep -vE '^/dev/(loop|sr|zram)' | grep -v "$(findmnt -no SOURCE /run/archiso/bootmnt 2>/dev/null | sed 's/[0-9]*$//; s/p$//')" |
+       awk '{ name = $1; size = $2; $1 = $2 = ""; printf "%-14s %8s  %s\n", name, size, $0 }' |
+       gum choose --height 8 --header "  Install on which disk? Everything on it will be erased.") || exit 1
+DISK=${line%% *}
+ENCRYPT=yes
+gum confirm --default=yes --affirmative "Encrypt" --negative "Do not encrypt" \
+  "  Encrypt the disk? Recommended: without the password nobody can read it, even with the disk in hand." || ENCRYPT=no
+
+# ---- applications
+screen 6 "Anything else?"
+EXTRAS=yes
+gum confirm --default=yes --affirmative "Include them" --negative "Leave them out" \
+  "  Include Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend and ProtonPlus?" || EXTRAS=no
+
+# ---- summary
+screen 7 "Ready"
+gum style --margin "0 2" --border thick --border-foreground "$ACCENT" --padding "1 3" --foreground "$FG" \
+  "Name          $FULL ($USERNAME)" "Computer      $HOSTNAME" "Keyboard      $KEYMAP" "Time zone     $TIMEZONE" \
+  "Disk          $line" "Encrypted     $ENCRYPT" "Applications  $([[ $EXTRAS == yes ]] && echo included || echo "left out")"
+echo
+gum style --margin "0 2" --foreground "$BAD" "Everything on ${DISK#/dev/} will be permanently erased."
+confirm=$(input --header "  Type ${DISK#/dev/} to install, or leave empty to go back" --placeholder "${DISK#/dev/}") || exit 1
+[[ $confirm == "${DISK#/dev/}" ]] || exec "$0"
+
+# ---- install
+answers=$(mktemp /run/amadeus-answers.XXXXXX); chmod 600 "$answers"
+{ printf '%s=%q\n' DISK "$DISK" HOSTNAME "$HOSTNAME" USERNAME "$USERNAME" FULLNAME "$FULL" PASSWORD "$PASSWORD" \
+    ENCRYPT "$ENCRYPT" TIMEZONE "$TIMEZONE" LOCALE en_US.UTF-8 KEYMAP "$KEYMAP" EXTRAS "$EXTRAS"; } >"$answers"
+unset PASSWORD again
+clear
+if amadeus-install "$answers"; then
+  rm -f "$answers"
+  screen 7 "Installed"
+  gum style --margin "0 2" --foreground "$FG" "Amadeus OS is installed. Remove the USB stick, then restart." "" "El Psy Kongroo."
+  echo; gum confirm --affirmative "Restart now" --negative "Stay here" "  " && reboot
+else
+  rm -f "$answers"
+  fail "The installation stopped. The reason is just above, and in /var/log/amadeus-install.log."
+  note "Nothing is installed. Fix what it says, then run amadeus-setup to start again."
+fi

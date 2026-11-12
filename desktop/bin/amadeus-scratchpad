@@ -1,7 +1,0 @@
-#!/bin/bash
-# Scratchpad: a workspace set aside for windows you want out of the way but one key from view.
-#   amadeus-scratchpad            show it, or go back to where you were (Super+S)
-#   amadeus-scratchpad send       put the focused window there (Super+Alt+S)
-if [[ ${1:-} == send ]]; then exec niri msg action move-window-to-workspace --focus false scratchpad; fi
-current=$(niri msg --json workspaces | python3 -c 'import json, sys; print(next((w.get("name") or "" for w in json.load(sys.stdin) if w.get("is_focused")), ""))')
-if [[ $current == scratchpad ]]; then niri msg action focus-workspace-previous; else niri msg action focus-workspace scratchpad; fi

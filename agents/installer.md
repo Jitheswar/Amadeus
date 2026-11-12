@@ -2,8 +2,11 @@
 
 Read `AGENTS.md` first.
 
-`installer/` is the definition of the system: the package lists say what is on it, and
-`installer/amadeus-install` says how the disk is laid out and configured.
+`installer/` is the definition of the system. `amadeus-setup` is the guided front end the
+USB stick starts; it only asks questions and hands the answers to `amadeus-install`, which
+also runs unattended. Keep all installing in `amadeus-install`.
+
+The package lists say what is on the system, and `installer/amadeus-install` says how the disk is laid out and configured.
 
 ## Rules
 
