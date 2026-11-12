@@ -16,7 +16,7 @@ browser() {  # a browser that can open a site as an app: the default if it can, 
   def=$(xdg-settings get default-web-browser 2>/dev/null || true)
   exe=$(sed -n 's/^Exec=\([^ ]*\).*/\1/p' "/usr/share/applications/$def" 2>/dev/null | head -1)
   for c in "$exe" brave-origin brave chromium google-chrome-stable helium-browser vivaldi; do
-    [[ -n $c ]] && command -v "$c" >/dev/null && "$c" --version 2>/dev/null | grep -qiE 'brave|chrom|helium|vivaldi' && { echo "$c"; return; }
+    [[ -n $c ]] && command -v "$c" >/dev/null && "$c" --version 2>/dev/null | grep -iE 'brave|chrom|helium|vivaldi' >/dev/null && { echo "$c"; return; }
   done
   return 1
 }

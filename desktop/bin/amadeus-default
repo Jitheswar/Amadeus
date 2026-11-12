@@ -18,6 +18,7 @@ choices() {
     editor)    for e in $EDITORS; do command -v "$e" >/dev/null && echo "$e"; done ;;
     harness)   amadeus-harness installed 2>/dev/null | grep -Fxf <(grep -v '^#' /usr/share/amadeus-os/harnesses.list | cut -f1) || true ;;
   esac
+  return 0           # the last "is it installed?" test failing is not a failure of the list
 }
 
 kind=${1:-}
@@ -28,7 +29,9 @@ case $kind in
       "") get "$kind" ;;
       --choices) choices "$kind" ;;
       *)
-        choices "$kind" | grep -qxF "$2" || { echo "$2 is not an installed $kind. Choices:"; choices "$kind" | sed 's/^/  /'; exit 1; }
+        # Read the whole list first: grep -q stops early, which pipefail would report as a failure.
+        list=$(choices "$kind")
+        grep -qxF "$2" <<<"$list" || { echo "$2 is not an installed $kind. Choices:"; sed 's/^/  /' <<<"$list"; exit 1; }
         mkdir -p "$(dirname "$file")"; touch "$file"
         { grep -v "^${kind^^}=" "$file" || true; echo "${kind^^}=$2"; } >"$file.new" && mv "$file.new" "$file"
         echo "Default $kind: $2" ;;

@@ -42,7 +42,7 @@ ask LOCALE "Locale" en_US.UTF-8
 ask KEYMAP "Console keymap" us
 ask EXTRAS "Install Brave Origin, Claude Desktop, Claude Code, herdr, LocalSend and ProtonPlus (yes/no)" yes
 NVIDIA=${NVIDIA:-auto}
-if [[ $NVIDIA == auto ]]; then lspci -n | grep -qE ' 03[0-9a-f]{2}: 10de:' && NVIDIA=yes || NVIDIA=no; fi
+if [[ $NVIDIA == auto ]]; then lspci -n | grep -E ' 03[0-9a-f]{2}: 10de:' >/dev/null && NVIDIA=yes || NVIDIA=no; fi
 
 if [[ $UNATTENDED == no ]]; then
   say "This will permanently erase everything on $DISK:"
@@ -92,7 +92,7 @@ pacman -U --noconfirm --needed /opt/amadeus-repo/cachyos-keyring-*.pkg.tar.zst /
 pacman-key --populate cachyos >/dev/null 2>&1
 # Packages built for newer processors are used when this processor can run them.
 ARCH="x86_64" REPOS=""
-if /lib/ld-linux-x86-64.so.2 --help | grep -q 'x86-64-v3 (supported'; then
+if /lib/ld-linux-x86-64.so.2 --help | grep 'x86-64-v3 (supported' >/dev/null; then
   ARCH="x86_64 x86_64_v3"
   REPOS=$(for r in cachyos-v3 cachyos-core-v3 cachyos-extra-v3; do printf '[%s]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n' "$r"; done)
 fi

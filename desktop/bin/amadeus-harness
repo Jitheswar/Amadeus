@@ -53,7 +53,8 @@ case ${1:-} in
       name=${name##*$'\t'}
       echo "==> $(label "$name")"
       # Tools published as npm packages need Node, which mise also provides.
-      if mise registry "$name" 2>/dev/null | head -1 | grep -q '^npm:' && ! mise which node >/dev/null 2>&1; then
+      source=$(mise registry "$name" 2>/dev/null || true)
+      if [[ ${source%%$'\n'*} == *npm:* ]] && ! mise which node >/dev/null 2>&1; then
         mise use --global node@lts
       fi
       mise use --global "$name@latest" || echo "    $name could not be installed."

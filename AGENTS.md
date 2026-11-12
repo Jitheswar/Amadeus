@@ -41,6 +41,9 @@ bindings) into prose. Point to the file or the command that produces it.
 - `#!/bin/bash`. Line 2 is a comment saying what the program does in one sentence:
   `ama discover` shows that line to users and agents as the program's description.
 - `set -euo pipefail` in anything that changes the system.
+  With pipefail, never end a pipeline in `grep -q` or `head`: they stop reading early and
+  the pipeline then fails although the match was found. Use `grep ... >/dev/null`, or read
+  the output into a variable first.
 - Two-space indent. `[[ ]]`, not `[ ]`. Quote expansions unless word splitting is the point.
 - Lower-case for locals, upper-case for settings a caller or answers file provides.
 - Messages are for the user of the machine: say what happened and what to do, in plain

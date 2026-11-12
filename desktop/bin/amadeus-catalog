@@ -26,7 +26,7 @@ resolve() {
 installed() {
   case $1 in
     pacman:*|aur:*) local n=${1#*:}; pacman -Q "${n%%+*}" >/dev/null 2>&1 ;;
-    mise:*) mise ls --global "${1#mise:}" 2>/dev/null | grep -q . ;;
+    mise:*) [[ -n $(mise ls --global "${1#mise:}" 2>/dev/null) ]] ;;
   esac
 }
 

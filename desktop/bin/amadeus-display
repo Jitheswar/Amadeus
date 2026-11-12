@@ -47,7 +47,7 @@ for n, v in settings.items():
             'hl.monitor({ output = "%s", mode = "%s", position = "auto", scale = %s })' % (n, v["mode"], v["scale"])]
 open(path, "w").write("\n".join(out) + "\n")
 PY
-if [[ -f $conf/hyprland.lua ]] && ! Hyprland --verify-config --config "$conf/hyprland.lua" 2>&1 | grep -q 'config ok'; then
+if [[ -f $conf/hyprland.lua ]] && ! Hyprland --verify-config --config "$conf/hyprland.lua" 2>&1 | grep 'config ok' >/dev/null; then
   printf '%s' "$old" >"$file"
   notify-send -a Amadeus "Display setting not applied" "The desktop rejected $key $value for $name; nothing was changed."; exit 1
 fi
