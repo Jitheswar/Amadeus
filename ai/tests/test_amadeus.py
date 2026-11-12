@@ -230,6 +230,38 @@ class ProviderTest(unittest.TestCase):
         with self.assertRaises(providers.ProviderError):
             Anthropic("nokey", {"key_env": "AMADEUS_NO_SUCH_KEY"}).chat("s", [{"role": "user", "text": "x"}], [])
 
+    def test_retry_after_http_date_is_understood(self):
+        from amadeus.providers.http import post_json
+        hits = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers.get("content-length", 0)))
+                hits.append(1)
+                if len(hits) == 1:
+                    self.send_response(429)
+                    self.send_header("retry-after", "Wed, 21 Oct 2015 07:28:00 GMT")
+                    self.send_header("content-length", "0")
+                    self.end_headers()
+                else:
+                    data = b'{"ok": true}'
+                    self.send_response(200)
+                    self.send_header("content-length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+
+            def log_message(self, *a):
+                pass
+
+        srv = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            self.assertEqual(post_json(f"http://127.0.0.1:{srv.server_port}/x", {}, {}), {"ok": True})
+        finally:
+            srv.shutdown()
+            srv.server_close()
+        self.assertEqual(len(hits), 2)
+
 
 class DaemonTest(unittest.TestCase):
     @classmethod
