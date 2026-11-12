@@ -44,9 +44,19 @@ def record(kind, **fields):
 
 def read(n=50):
     p = _path()
-    if not p.exists():
+    if not p.exists() or n <= 0:
         return []
-    return [json.loads(l) for l in p.read_text().splitlines()[-n:]]
+    out = []
+    for line in reversed(p.read_text().splitlines()):
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue        # verify() reports the bad line; the viewer still shows the rest
+        if isinstance(rec, dict) and "ts" in rec and "kind" in rec:
+            out.append(rec)
+            if len(out) >= n:
+                break
+    return out[::-1]
 
 
 def verify():
