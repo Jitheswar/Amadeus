@@ -14,7 +14,7 @@ STEPS=(Keyboard Internet You Time Disk Apps)
 # Every page: the wordmark with the worldline number, then the steps as one line, lit up to where you are.
 screen() {   # screen STEP_NUMBER (1-6, 0 for none, 7 for all done) [HEADING]
   local at=${1:-0} i mark colour line=""
-  clear; echo
+  [[ -n ${NOCLEAR:-} ]] || clear; echo
   gum join --horizontal \
     "$(gum style --margin "0 0 0 2" --foreground "$ACCENT" --bold "A M A D E U S")" \
     "$(gum style --margin "0 0 0 4" --foreground "$DIM" "worldline")" \
@@ -33,6 +33,16 @@ screen() {   # screen STEP_NUMBER (1-6, 0 for none, 7 for all done) [HEADING]
 note() { gum style --margin "0 2" --foreground "$DIM" "$@"; }
 fail() { gum style --margin "1 2" --foreground "$BAD" "$@"; }
 input() { gum input --width 50 --prompt "  › " "$@"; }
+
+# On the boot screen: a larger font, and the console's sixteen colours replaced by the system's
+# own, so warm black, amber and off-white come out exactly (a terminal shows these as they are).
+if [[ $(tty) == /dev/tty* ]]; then
+  setfont ter-v24b 2>/dev/null || setfont ter-v22b 2>/dev/null
+  for c in 0:0f0e0d 1:ff6b5e 3:ffa14a 7:d9d2c7 8:9c948a 9:ff6b5e 11:ffa14a 15:f1ebe1; do printf '\e]P%x%s' "${c%%:*}" "${c#*:}"; done
+  printf '\e[?25l'; trap 'printf "\e[?25h"' EXIT
+fi
+export GUM_INPUT_PLACEHOLDER_FOREGROUND=$DIM GUM_FILTER_PLACEHOLDER_FOREGROUND=$DIM GUM_CHOOSE_ITEM_FOREGROUND=$FG \
+       GUM_CONFIRM_UNSELECTED_FOREGROUND=$DIM GUM_FILTER_TEXT_FOREGROUND=$FG
 
 # ---- welcome
 screen 0
@@ -115,19 +125,49 @@ gum style --margin "0 2" --foreground "$BAD" "Everything on ${DISK#/dev/} will b
 confirm=$(input --header "  Type ${DISK#/dev/} to install, or leave empty to go back" --placeholder "${DISK#/dev/}") || exit 1
 [[ $confirm == "${DISK#/dev/}" ]] || exec "$0"
 
-# ---- install
+# ---- install: a progress page instead of a scroll of package names
 answers=$(mktemp /run/amadeus-answers.XXXXXX); chmod 600 "$answers"
 { printf '%s=%q\n' DISK "$DISK" HOSTNAME "$HOSTNAME" USERNAME "$USERNAME" FULLNAME "$FULL" PASSWORD "$PASSWORD" \
     ENCRYPT "$ENCRYPT" TIMEZONE "$TIMEZONE" LOCALE en_US.UTF-8 KEYMAP "$KEYMAP" EXTRAS "$EXTRAS"; } >"$answers"
 unset PASSWORD again
+LOG=/var/log/amadeus-install.log; : >"$LOG"
+amadeus-install "$answers" >/dev/null 2>&1 & job=$!
+# The installer announces each phase with a "==>" line; these are the ones shown, in order.
+PHASES=("Partitioning:Preparing the disk" "Encrypting:Encrypting" "Installing packages:Installing Amadeus OS" "Configuring:Setting it up for you"
+        "Boot loader:Making it start" "Snapshots:Turning on snapshots" "Claude Code:Adding Claude Code")
+frame=0 spin='◐◓◑◒' start=$SECONDS
 clear
-if amadeus-install "$answers"; then
-  rm -f "$answers"
+while kill -0 "$job" 2>/dev/null; do
+  now=$(grep -a '==>' "$LOG" | tail -1 | sed 's/\x1b\[[0-9;]*m//g; s/.*==> //')
+  last=$(tail -c 4000 "$LOG" | tr '\r' '\n' | sed 's/\x1b\[[0-9;]*m//g' | grep -av '^\s*$' | tail -1 | cut -c1-70)
+  printf '\e[H'
+  NOCLEAR=1 screen 7 "Installing"
+  reached=-1
+  for i in "${!PHASES[@]}"; do [[ $now == "${PHASES[$i]%%:*}"* ]] && reached=$i; done
+  for i in "${!PHASES[@]}"; do
+    p=${PHASES[$i]#*:}
+    [[ $i == 1 && $ENCRYPT != yes ]] && continue
+    [[ $i == 6 && $EXTRAS != yes ]] && continue
+    if (( i < reached )); then gum style --margin "0 4" --foreground "$ACCENT" "●  $p"
+    elif (( i == reached )); then gum style --margin "0 4" --foreground "$FG" --bold "${spin:frame%4:1}  $p"
+    else gum style --margin "0 4" --foreground "$DIM" "○  $p"; fi
+  done
+  echo
+  gum style --margin "0 4" --foreground "$DIM" "$(printf '%d:%02d' $(( (SECONDS - start) / 60 )) $(( (SECONDS - start) % 60 )))   ${last:- }"
+  printf '\e[J'
+  frame=$((frame + 1)); sleep 0.25
+done
+wait "$job"; code=$?
+rm -f "$answers"
+if (( code == 0 )); then
   screen 7 "Installed"
-  gum style --margin "0 2" --foreground "$FG" "Amadeus OS is installed. Remove the USB stick, then restart." "" "El Psy Kongroo."
+  gum style --margin "0 2" --padding "1 3" --border thick --border-foreground "$ACCENT" --foreground "$FG" \
+    "Amadeus OS is on ${DISK#/dev/}." "" "Remove the USB stick, then restart." "The first start asks for the password you chose."
+  gum style --margin "0 2" --foreground "$DIM" --italic "El Psy Kongroo."
   echo; gum confirm --affirmative "Restart now" --negative "Stay here" "  " && reboot
 else
-  rm -f "$answers"
-  fail "The installation stopped. The reason is just above, and in /var/log/amadeus-install.log."
-  note "Nothing is installed. Fix what it says, then run amadeus-setup to start again."
+  screen 7 "The installation stopped"
+  gum style --margin "0 2" --foreground "$BAD" "Nothing is installed. The last lines of the log say why:"
+  echo; tail -n 15 "$LOG" | sed 's/\x1b\[[0-9;]*m//g' | gum style --margin "0 4" --foreground "$DIM"
+  echo; note "The full log is /var/log/amadeus-install.log. Run amadeus-setup to start again."
 fi
