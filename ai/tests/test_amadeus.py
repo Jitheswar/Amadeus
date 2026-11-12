@@ -94,6 +94,18 @@ class AppsTest(unittest.TestCase):
             apps.save("keep", files={"shell.qml": "import QtQuick\nItem { this is not qml"})
         self.assertIn("good", (apps.app_dir("keep") / "shell.qml").read_text())
 
+    def test_failed_new_app_leaves_nothing(self):
+        with self.assertRaises(AttributeError):
+            apps.save("txnew", "Tx", "", "shell.qml")
+        self.assertFalse(apps.app_dir("txnew").exists())
+
+    def test_failed_update_keeps_the_previous_version(self):
+        apps.save("tx", "Tx", "", {"shell.qml": QML % "one"})
+        with self.assertRaises(AttributeError):
+            apps.save("tx", files="shell.qml")
+        self.assertIn("one", (apps.app_dir("tx") / "shell.qml").read_text())
+        self.assertEqual(apps.manifest("tx")["version"], 1)
+
     def test_file_names_cannot_escape(self):
         for bad in ("../evil.qml", "/etc/x.qml", "manifest.json", "Amadeus/Theme.qml", ".git/config", "a.sh"):
             with self.assertRaises(apps.AppError, msg=bad):
