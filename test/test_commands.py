@@ -5,7 +5,7 @@ Every external program these commands talk to is a stand-in: nothing here starts
 session, changes a package, asks for a password or touches the user's own files.
 The commands are run from the repository, in a throwaway HOME, with a PATH whose
 first entry holds the stand-ins and whose result is checked."""
-import json, os, re, shlex, shutil, subprocess, tempfile, time, unittest
+import gzip, json, os, re, shlex, shutil, subprocess, tempfile, time, unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -310,6 +310,75 @@ esac""")
         self.assertEqual(self.calls_of("sudo"), [["pacman", "-S", "--needed", "--", "foot"]])
         self.assertEqual(self.calls_of("amadeus-aur")[-1], ["install", "kitty-git"])
         self.assertEqual(self.calls_of("amadeus-harness"), [["install", "opencode"]])
+
+    # ---- AUR -----------------------------------------------------------------
+    def test_aur_info_and_recipe_come_from_the_aur(self):
+        record = {"results": [{"Name": "demo", "Version": "1.2-3", "Description": "A demo", "URL": "https://example.org",
+                               "Maintainer": "someone", "NumVotes": 7, "Popularity": 1.25, "LastModified": 0,
+                               "OutOfDate": None, "Depends": ["libfoo"], "MakeDepends": ["cmake"]}]}
+        self.stub("curl", body=f"""case "$*" in
+  *rpc/v5/info*) cat <<'JSON'
+{json.dumps(record)}
+JSON
+    ;;
+  *cgit/aur.git/plain/PKGBUILD*) printf 'pkgname=demo\\n' ;;
+esac""")
+        info = self.run_cmd("amadeus-aur", "info", "demo")
+        self.assert_ok(info)
+        self.assertIn("Name           : demo", info.stdout)
+        self.assertIn("Version        : 1.2-3", info.stdout)
+        self.assertIn("Maintainer     : someone", info.stdout)
+        self.assertIn("Needs          : libfoo", info.stdout)
+        recipe = self.run_cmd("amadeus-aur", "recipe", "demo")
+        self.assertEqual(recipe.stdout, "pkgname=demo\n")
+
+    def test_aur_list_uses_and_refreshes_its_cache(self):
+        cache = self.tmp / "cache/amadeus-aur"
+        cache.mkdir(parents=True)
+        (cache / "names").write_text("one\ntwo\n")
+        env = {"XDG_CACHE_HOME": str(self.tmp / "cache")}
+        listed = self.run_cmd("amadeus-aur", "list", env=env)
+        self.assertEqual(listed.stdout, "one\ntwo\n")
+        self.assertEqual(self.calls_of("curl"), [])
+        old = time.time() - 3 * 24 * 60 * 60
+        os.utime(cache / "names", (old, old))
+        payload = self.tmp / "names.gz"
+        with gzip.open(payload, "wb") as f:
+            f.write(b"three\nfour\n")
+        self.stub("curl", body=f"""case "$*" in
+  *packages.gz*) cat {payload} ;;
+esac""")
+        refreshed = self.run_cmd("amadeus-aur", "list", env=env)
+        self.assertEqual(refreshed.stdout, "three\nfour\n")
+
+    def test_aur_install_builds_through_stand_ins_without_asking(self):
+        body = "\n".join([
+            'dest="${@: -1}"',
+            'mkdir -p "$dest"',
+            "printf 'pkgname = demo\\n' > \"$dest/PKGBUILD\"",
+            "printf 'pkgname = demo\\n\\tpkgver = 1.2\\n' > \"$dest/.SRCINFO\"",
+        ])
+        self.stub("git", body=body)
+        self.stub("makepkg")
+        p = self.run_cmd("amadeus-aur", "install", "demo", env={"AMADEUS_AUR_YES": "1"})
+        self.assert_ok(p)
+        self.assertIn("git", " ".join(self.calls_of("git")[0]))
+        self.assertEqual(self.calls_of("makepkg"), [["-sif", "--needed", "--noconfirm"]])
+
+    def test_aur_install_shows_the_recipe_and_can_be_declined(self):
+        body = "\n".join([
+            'dest="${@: -1}"',
+            'mkdir -p "$dest"',
+            "printf 'pkgname = demo\\n' > \"$dest/PKGBUILD\"",
+            "printf 'pkgname = demo\\n\\tsource = https://example.org/demo-1.2.tar.gz\\n' > \"$dest/.SRCINFO\"",
+        ])
+        self.stub("git", body=body)
+        self.stub("makepkg")
+        p = self.run_cmd("amadeus-aur", "install", "demo", input="n\n")
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("Downloads from", p.stdout)
+        self.assertIn("https://example.org/demo-1.2.tar.gz", p.stdout)
+        self.assertEqual(self.calls_of("makepkg"), [])
 
     # ---- shortcuts ----------------------------------------------------------
     def test_keys_are_read_from_the_configuration_file(self):
