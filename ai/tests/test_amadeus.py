@@ -3,6 +3,7 @@ Uses throwaway directories; never touches the real config, apps or audit log."""
 import json, os, socket, subprocess, sys, tempfile, threading, time, unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from unittest import mock
 
 TMP = tempfile.mkdtemp(prefix="amadeus-test-")
 for k in ("CONFIG", "STATE", "DATA", "RUN"):
@@ -284,6 +285,32 @@ class DaemonTest(unittest.TestCase):
         out, err = self.d.execute("fs_read", {"path": "/etc/hostname"}, origin="app:x", allowed={"sys_status"})
         self.assertTrue(err)
         self.assertFalse(self.d.execute("sys_status", {}, origin="app:x", allowed={"sys_status"})[1])
+
+    def test_failed_provider_turn_does_not_poison_history(self):
+        from amadeus import providers
+
+        class Flaky:
+            kind = "chat"
+            name = "flaky"
+
+            def __init__(self):
+                self.turns = 0
+
+            def chat(self, system, history, tools):
+                self.turns += 1
+                if self.turns == 1:
+                    return {"text": "", "calls": [{"id": "c1", "name": "sys_status", "args": {}}], "raw": None, "stop": "tools"}
+                raise providers.ProviderError("upstream failed")
+
+        class Conn:
+            def event(self, *a):
+                pass
+
+        with mock.patch("amadeus.daemon.providers.make", return_value=Flaky()):
+            with self.assertRaises(RuntimeError):
+                self.d.ask(Conn(), "r1", "do it", session="failed-turn")
+        self.assertEqual(self.d.sessions["failed-turn"]["history"], [])
+        self.assertFalse(self.d.sessions["failed-turn"]["running"])
 
 
 class TaskTest(unittest.TestCase):
