@@ -5,7 +5,8 @@ U=@USER@; UID_=$(id -u $U); R=/run/user/$UID_
 pass=0 fail=0
 ok()   { echo "PASS  $1"; pass=$((pass+1)); }
 bad()  { echo "FAIL  $1 ${2:+— $2}"; fail=$((fail+1)); }
-t()    { local name=$1; shift; local out; if out=$("$@" 2>&1); then ok "$name"; else bad "$name" "$(echo "$out" | tail -2 | tr '\n' ' ')"; fi; }
+# Each check gets 90 seconds; a check that hangs fails instead of stopping the whole run.
+t()    { local name=$1; shift; local out; if out=$(timeout 90 bash -c '"$@"' _ "$@" 2>&1 </dev/null); then ok "$name"; else bad "$name" "$(echo "$out" | tail -2 | tr '\n' ' ')"; fi; }
 as()   { sudo -u $U env XDG_RUNTIME_DIR=$R DBUS_SESSION_BUS_ADDRESS=unix:path=$R/bus WAYLAND_DISPLAY=wayland-1 HYPRLAND_INSTANCE_SIGNATURE="$(ls $R/hypr 2>/dev/null | head -1)" HOME=/home/$U PATH=/usr/bin "$@"; }
 export U R; export -f as
 echo "AMADEUS-SELFTEST-BEGIN"
@@ -98,18 +99,19 @@ t "default harness resolves to a program"      bash -c 'as bash -lc "amadeus-har
 t "text files open with the default editor"    bash -c 'as xdg-mime query default text/plain | grep -q amadeus-editor'
 t "install catalogue resolves its sources"     bash -c 'for c in terminal browser editor ai development; do n=$(as bash -lc "amadeus-catalog $c" | wc -l); echo "$c $n"; [[ $n -ge 3 ]] || exit 1; done; as bash -lc "amadeus-catalog ai" | grep -q "^Claude Desktop  (installed)"'
 t "web app can be added and removed"           bash -c 'as amadeus-webapp install "Self Test" example.org >/dev/null; as amadeus-webapp list | grep -q "^Self Test" && as amadeus-launcher --print | grep -q "^Self Test" && as amadeus-webapp remove "Self Test" >/dev/null && ! as amadeus-webapp list | grep -q "Self Test"'
-t "clipboard history records copies"           bash -c 'echo amadeus-clip-test | as wl-copy; sleep 1; as cliphist list | grep -q amadeus-clip-test'
+t "clipboard history records copies"           bash -c 'echo amadeus-clip-test | as wl-copy >/dev/null 2>&1; sleep 1; as cliphist list | grep -q amadeus-clip-test'
 t "system menu and about are present"          bash -c 'test -x /usr/bin/amadeus-power-menu && as fastfetch | grep -q "Amadeus OS"'
 t "GPU choice is offered only where there is one" bash -c '[[ $(as amadeus-gpu) == one ]] && ! as amadeus-gpu set nvidia >/dev/null 2>&1 && test -e /dev/dri/intel-card -o -z "$(ls /sys/bus/pci/drivers/i915 2>/dev/null)"'
 t "desktop config has no errors"             bash -c '[[ -z $(as hyprctl configerrors | tr -d "[:space:]") ]]'
 t "every shortcut has a description"           bash -c 'as hyprctl -j binds | python3 -c "import json,sys; b=json.load(sys.stdin); missing=[x[\"key\"] for x in b if not x[\"mouse\"] and not x[\"description\"]]; print(missing); assert len(b) > 40 and not missing"'
-t "screenshot is saved and copied"             bash -c 'as amadeus-screenshot screen & sleep 3; ls /home/'$U'/Pictures/Screenshots/screenshot-*.png >/dev/null && as wl-paste --list-types | grep -q image/png'
+t "screenshot is saved and copied"             bash -c 'as amadeus-screenshot screen >/dev/null 2>&1 & sleep 3; ls /home/'$U'/Pictures/Screenshots/screenshot-*.png >/dev/null && as wl-paste --list-types | grep -q image/png'
 rec_test() {   # starts a recording of the first screen as amadeus-record would, then stops it through amadeus-record
   local mon; mon=$(as hyprctl -j monitors | python3 -c 'import json, sys; print(json.load(sys.stdin)[0]["name"])')
   as bash -c "gpu-screen-recorder -w $mon -f 30 -fallback-cpu-encoding yes -o /tmp/amadeus-rec.mp4 >/dev/null 2>&1 & echo \$! >\$XDG_RUNTIME_DIR/amadeus-record.pid; echo /tmp/amadeus-rec.mp4 >\$XDG_RUNTIME_DIR/amadeus-record.file"
   sleep 4; timeout 20 bash -c "$(declare -f as); as amadeus-record stop" >/dev/null 2>&1 & sleep 6
   test -s /tmp/amadeus-rec.mp4
 }
+export -f rec_test
 t "screen recording saves when stopped"        rec_test
 t "scratchpad shows and hides"                 bash -c 'as hyprctl dispatch "hl.dsp.workspace.toggle_special(\"scratchpad\")" >/dev/null; sleep 0.5; as hyprctl -j monitors | grep -q "special:scratchpad" && as hyprctl dispatch "hl.dsp.workspace.toggle_special(\"scratchpad\")" >/dev/null'
 t "Super+K reads the live shortcuts"           bash -c 'as amadeus-keys --print | grep -q "^Super + K .*Shortcuts"' 
