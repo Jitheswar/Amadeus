@@ -71,6 +71,16 @@ class AuditTest(unittest.TestCase):
         self.assertEqual(bad, 2)
         f.unlink()
 
+    def test_large_record_does_not_break_the_chain(self):
+        f = config.STATE / "audit.jsonl"
+        f.unlink(missing_ok=True)
+        big = audit.record("action", tool="big", args={"files": [{"path": "x" * 2000} for _ in range(40)]})
+        self.assertGreater(len(json.dumps(big)), 65536)
+        nxt = audit.record("action", tool="after")
+        self.assertEqual(nxt["prev"], big["hash"])
+        self.assertEqual(audit.verify()[:2], (True, 2))
+        f.unlink()
+
 
 QML = 'import QtQuick\nimport Quickshell\nimport "Amadeus"\nAppWindow { title: "t"; Txt { text: "%s" } }\n'
 
