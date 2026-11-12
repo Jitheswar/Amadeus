@@ -76,6 +76,12 @@ on it.
 - Left at the driver default, to be tried on the real machine: S0ix video-memory
   self-refresh (`NVreg_EnableS0ixPowerManagement`). The platform supports it and only
   offers s2idle sleep, but if deep idle is not reached it costs battery during sleep.
+- **The user can choose, in Setup > GPU**: automatic (the default above), NVIDIA for
+  everything (the compositor renders on NVIDIA and the Intel GPU only passes frames to
+  the built-in screen; most performance, most power, the card never sleeps), or Intel
+  only (nothing is sent to NVIDIA, so it stays asleep). The choice is written to the
+  session environment and takes effect at the next login, because the compositor picks
+  its GPU when it starts. udev gives the two cards stable names for this.
 - No GPU switching daemon (optimus-manager, envycontrol, supergfxctl): PRIME render
   offload in the kernel and driver already does this without a background service.
 - Video decode: `intel-media-driver` (VA-API) on Intel; `libva-nvidia-driver` when an

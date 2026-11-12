@@ -98,7 +98,7 @@ rearrange it, or edit it.
 | **Remove** | Packages, harnesses and tools, web apps. |
 | **Update** | Everything, or only what mise manages. |
 | **Trigger** | Capture: screenshot, and the three kinds of screen recording. |
-| **Setup** | Display resolution and scaling, text size, defaults (terminal, editor, harness, browser, and what opens each kind of file), and Config, which opens any of the system's configuration files in your editor. |
+| **Setup** | Display resolution and scaling, GPU (automatic, NVIDIA for everything, or Intel only), text size, defaults (terminal, editor, harness, browser, and what opens each kind of file), and Config, which opens any of the system's configuration files in your editor. |
 | **System** | Lock, suspend, hibernate, log out, restart, shut down. |
 | **About** | The facts about this machine. |
 

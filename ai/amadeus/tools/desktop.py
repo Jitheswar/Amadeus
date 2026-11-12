@@ -147,7 +147,9 @@ def desktop_launch(a, ctx):
     if e.get("Terminal") == "true":
         argv = (["amadeus-terminal", "-e"] if shutil.which("amadeus-terminal") else ["foot", "-e"]) + argv
     gpu = a.get("gpu", "auto")
-    dg = gpu == "dedicated" or (gpu == "auto" and wants_dgpu(e))
+    mode_file = Path.home() / ".config/amadeus/gpu"
+    mode = mode_file.read_text().strip() if mode_file.exists() else "auto"     # the user's choice in Setup > GPU
+    dg = gpu == "dedicated" or (gpu == "auto" and mode == "auto" and wants_dgpu(e))
     spawn(argv, NV_ENV if dg else None)
     return f"launched {e.get('Name', e['id'])} on the {'NVIDIA' if dg else 'Intel'} GPU"
 

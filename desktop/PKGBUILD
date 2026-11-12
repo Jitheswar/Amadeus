@@ -17,6 +17,11 @@ package() {
   install -Dm755 "$src/lib/sudo-helper" -t "$pkgdir/usr/lib/amadeus-os/"
   install -Dm644 "$src/lib/org.amadeus.sudo.policy" -t "$pkgdir/usr/share/polkit-1/actions/"
   install -Dm644 "$src/lib/amadeus-sudo-boot.service" -t "$pkgdir/usr/lib/systemd/system/"
+  # Stable names for the two graphics cards, for Setup > GPU (their numbers can change between boots).
+  install -Dm644 /dev/stdin "$pkgdir/usr/lib/udev/rules.d/70-amadeus-gpu.rules" <<'U'
+KERNEL=="card*", SUBSYSTEM=="drm", DRIVERS=="nvidia", SYMLINK+="dri/nvidia-card"
+KERNEL=="card*", SUBSYSTEM=="drm", DRIVERS=="i915|xe", SYMLINK+="dri/intel-card"
+U
   install -d "$pkgdir/usr/lib/systemd/system/multi-user.target.wants"
   ln -s ../amadeus-sudo-boot.service "$pkgdir/usr/lib/systemd/system/multi-user.target.wants/"
   install -Dm644 "$src/theme/theme.json" "$src/harnesses.list" -t "$pkgdir/usr/share/amadeus-os/"

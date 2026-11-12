@@ -129,8 +129,26 @@ trigger_menu() {
   esac
 }
 
+gpu_menu() {
+  local now; now=$(amadeus-gpu)
+  [[ $now == one ]] && { say "One graphics processor" "This computer has only one, so there is nothing to choose."; exit 0; }
+  local mark; mark() { [[ $now == "$1" ]] && printf '  (in use)'; }
+  local choice; choice=$(printf '%s\n' \
+    "Automatic: Intel for the desktop, NVIDIA for games$(mark auto)"$'\t'auto \
+    "NVIDIA for everything: most performance, most power$(mark nvidia)"$'\t'nvidia \
+    "Intel only: NVIDIA stays asleep, longest battery$(mark intel)"$'\t'intel | pick "Graphics") || exit 0
+  local new=${choice##*$'\t'}
+  [[ $new == "$now" ]] && exit 0
+  amadeus-gpu set "$new" >/dev/null
+  case $(printf 'Log out now\nLater' | pick "Takes effect at the next login") in
+    "Log out now") uwsm stop ;;
+    *) say "Graphics changes at the next login" ;;
+  esac
+}
+
 setup_menu() {
-  case $(printf '%s\n' Display 'Text size' Defaults Config | pick "Setup") in
+  case $(printf '%s\n' Display GPU 'Text size' Defaults Config | pick "Setup") in
+    GPU)         gpu_menu ;;
     Display)     exec amadeus-display ;;
     "Text size") local s; s=$(printf '%s\n' '90%' '100%' '110%' '125%' '150%' | pick "Text size (now $(amadeus-display text))") || exit 0
                  say "$(amadeus-display text "$s")" ;;

@@ -100,6 +100,7 @@ t "install catalogue resolves its sources"     bash -c 'for c in terminal browse
 t "web app can be added and removed"           bash -c 'as amadeus-webapp install "Self Test" example.org >/dev/null; as amadeus-webapp list | grep -q "^Self Test" && as amadeus-launcher --print | grep -q "^Self Test" && as amadeus-webapp remove "Self Test" >/dev/null && ! as amadeus-webapp list | grep -q "Self Test"'
 t "clipboard history records copies"           bash -c 'echo amadeus-clip-test | as wl-copy; sleep 1; as cliphist list | grep -q amadeus-clip-test'
 t "system menu and about are present"          bash -c 'test -x /usr/bin/amadeus-power-menu && as fastfetch | grep -q "Amadeus OS"'
+t "GPU choice is offered only where there is one" bash -c '[[ $(as amadeus-gpu) == one ]] && ! as amadeus-gpu set nvidia >/dev/null 2>&1 && test -e /dev/dri/intel-card -o -z "$(ls /sys/bus/pci/drivers/i915 2>/dev/null)"'
 t "desktop config has no errors"             bash -c '[[ -z $(as hyprctl configerrors | tr -d "[:space:]") ]]'
 t "every shortcut has a description"           bash -c 'as hyprctl -j binds | python3 -c "import json,sys; b=json.load(sys.stdin); missing=[x[\"key\"] for x in b if not x[\"mouse\"] and not x[\"description\"]]; print(missing); assert len(b) > 40 and not missing"'
 t "screenshot is saved and copied"             bash -c 'as amadeus-screenshot screen & sleep 3; ls /home/'$U'/Pictures/Screenshots/screenshot-*.png >/dev/null && as wl-paste --list-types | grep -q image/png'

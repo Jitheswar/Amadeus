@@ -10,6 +10,7 @@
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
 - End-to-end AI request test on the installed system with a scripted model
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
+- Setup > GPU: automatic, NVIDIA for everything, or Intel only
 - CachyOS repositories, `linux-cachyos` kernel with its prebuilt NVIDIA module, `cachyos-settings`
 - Bar with drawn icons and drop-down panels: calendar, power mode (automatic by cable and charge), Wi-Fi, Bluetooth, volume, brightness, background apps, stay awake, timed passwordless administrator access, weather
 - Install catalogue: terminals, browsers, editors, AI desktop apps and development tools, each from the system repositories first and an AUR recipe of the publisher's build otherwise; web apps

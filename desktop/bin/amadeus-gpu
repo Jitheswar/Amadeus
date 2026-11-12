@@ -1,0 +1,41 @@
+#!/bin/bash
+# Which graphics processor does the work: automatic, NVIDIA for everything, or Intel only.
+#   amadeus-gpu                     show the mode in use
+#   amadeus-gpu set auto            Intel draws the desktop; games and apps that ask use NVIDIA (the default)
+#   amadeus-gpu set nvidia          NVIDIA draws everything: most performance, most power
+#   amadeus-gpu set intel           Intel only; the NVIDIA card stays asleep: longest battery
+# A change takes effect at the next login, because the desktop picks its graphics processor when it starts.
+set -euo pipefail
+conf=${XDG_CONFIG_HOME:-$HOME/.config}
+mode_file=$conf/amadeus/gpu
+env_file=$conf/uwsm/env-hyprland
+begin="# --- set by amadeus-gpu; change it with Super+Space, Setup, GPU ---" end="# --- end of amadeus-gpu ---"
+
+has_nvidia() { for d in /sys/bus/pci/devices/*; do [[ $(<"$d/vendor") == 0x10de && $(<"$d/class") == 0x03* ]] && return 0; done; return 1; }
+mode() { cat "$mode_file" 2>/dev/null || echo auto; }
+
+case ${1:-} in
+  "") has_nvidia || { echo "one"; exit 0; }; mode ;;
+  set)
+    new=${2:-}
+    [[ $new =~ ^(auto|nvidia|intel)$ ]] || { sed -n 3,6p "$0"; exit 1; }
+    has_nvidia || { echo "This computer has one graphics processor; there is nothing to choose."; exit 1; }
+    mkdir -p "$(dirname "$mode_file")" "$(dirname "$env_file")"; touch "$env_file"
+    # Keep whatever else is in the session environment file; replace only this block.
+    sed -i "/^$begin\$/,/^$end\$/d" "$env_file"
+    if [[ $new == nvidia ]]; then
+      cat >>"$env_file" <<E
+$begin
+# The desktop renders on NVIDIA; the Intel GPU only passes the picture to the built-in screen.
+# If the card is not there at login (driver missing after an update), the desktop still starts, on Intel.
+if [ -e /dev/dri/nvidia-card ] && [ -e /dev/dri/intel-card ]; then
+  export AQ_DRM_DEVICES=/dev/dri/nvidia-card:/dev/dri/intel-card
+  export __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only LIBVA_DRIVER_NAME=nvidia
+fi
+$end
+E
+    fi
+    echo "$new" >"$mode_file"
+    echo "Graphics: $(case $new in auto) echo automatic ;; nvidia) echo NVIDIA for everything ;; intel) echo Intel only ;; esac). Takes effect at the next login." ;;
+  *) sed -n 2,7p "$0"; exit 1 ;;
+esac
