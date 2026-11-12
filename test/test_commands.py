@@ -568,6 +568,20 @@ JSON
   *) exit 0 ;;
 esac""")
 
+    def screenshot_stubs(self):
+        self.stub("xdg-user-dir", output=str(self.home / "Pictures"))
+        self.stub("grim", body=': >"$3"')
+        self.stub("wl-copy", body="cat >/dev/null")
+        self.stub("notify-send")
+
+    def recorder_stub(self):
+        # A background job in a non-interactive shell ignores SIGINT, so this stand-in
+        # stops by itself shortly after starting.
+        self.stub("gpu-screen-recorder", body="""out=""
+while [[ $# -gt 0 ]]; do [[ $1 == -o ]] && out=$2; shift; done
+: >"$out"
+sleep 0.5""")
+
     def test_area_returns_a_drag_a_window_and_the_screen(self):
         self.hyprctl_json(clients=[
             {"at": [100, 100], "size": [400, 300], "workspace": {"id": 1}, "hidden": False},
@@ -647,16 +661,47 @@ cat >/dev/null
         self.assertIn("--type", self.calls_of("wl-copy")[0])
         self.assertTrue(any("Screenshot copied" in c for c in self.calls_of("notify-send")))
 
+    def test_screenshot_window_uses_the_focused_window(self):
+        self.hyprctl_json(active={"at": [10, 20], "size": [300, 200]})
+        self.screenshot_stubs()
+        p = self.run_cmd("amadeus-screenshot", "window")
+        self.assert_ok(p)
+        self.assertEqual(self.calls_of("grim")[0][:2], ["-g", "10,20 300x200"])
+        self.assertEqual(len(list((self.home / "Pictures/Screenshots").glob("screenshot-*.png"))), 1)
+
+    def test_screenshot_area_asks_the_area_tool_with_the_screen_frozen(self):
+        self.stub("amadeus-area", output="5,6 70x80")
+        self.screenshot_stubs()
+        p = self.run_cmd("amadeus-screenshot", "area")
+        self.assert_ok(p)
+        self.assertEqual(self.calls_of("amadeus-area"), [["--freeze"]])
+        self.assertEqual(self.calls_of("grim")[0][:2], ["-g", "5,6 70x80"])
+
+    def test_recording_all_includes_both_audio_sources(self):
+        self.hyprctl_json()
+        self.stub("amadeus-area", output="0,0 1920x1080")
+        self.stub("xdg-user-dir", output=str(self.home / "Videos"))
+        self.recorder_stub()
+        self.stub("ffprobe", output="3.5")
+        self.stub("ffmpeg")
+        self.stub("notify-send")
+        self.assert_ok(self.run_cmd("amadeus-record", "all"))
+        pidfile = self.run_dir / "amadeus-record.pid"
+        for _ in range(100):
+            if pidfile.exists():
+                break
+            time.sleep(0.02)
+        self.addCleanup(lambda: self.stop_stray_recorder(pidfile))
+        args = self.calls_of("gpu-screen-recorder")[0]
+        self.assertIn("-a", args)
+        self.assertIn("default_output|default_input", args)
+        self.assert_ok(self.run_cmd("amadeus-record", "stop"))
+
     def test_recording_starts_by_name_and_stops_cleanly(self):
         self.hyprctl_json()
         self.stub("amadeus-area", output="0,0 1920x1080")
         self.stub("xdg-user-dir", output=str(self.home / "Videos"))
-        # A background job in a non-interactive shell ignores SIGINT, so this stand-in stops
-        # by itself shortly after starting; stop still has to clean up after it.
-        self.stub("gpu-screen-recorder", body="""out=""
-while [[ $# -gt 0 ]]; do [[ $1 == -o ]] && out=$2; shift; done
-: >"$out"
-sleep 0.5""")
+        self.recorder_stub()
         self.stub("ffprobe", output="3.5")
         self.stub("ffmpeg")
         self.stub("notify-send")
