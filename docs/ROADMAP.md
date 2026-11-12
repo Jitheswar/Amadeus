@@ -10,6 +10,7 @@
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
 - End-to-end AI request test on the installed system with a scripted model
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
+- Try Amadeus OS from the stick: the desktop running from memory, nothing written to any disk
 - Offline install: every package on the ISO; snapshots only before updates, five kept
 - Setup > GPU: automatic, NVIDIA for everything, or Intel only
 - CachyOS repositories, `linux-cachyos` kernel with its prebuilt NVIDIA module, `cachyos-settings`

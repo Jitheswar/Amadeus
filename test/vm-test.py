@@ -53,6 +53,45 @@ def run(cmd, log, timeout, feed=None, until=None):
     return True, time.time() - t0
 
 
+def take_from(image, name):
+    out = f"{VM}/{name}"
+    if os.path.exists(out):
+        os.remove(out)
+    subprocess.run(["mcopy", "-n", "-o", "-i", image, f"::{name}", out], capture_output=True)
+    return open(out, errors="replace").read() if os.path.exists(out) and name.endswith(".log") else ""
+
+
+def take(name):
+    if os.path.exists(f"{VM}/{name}"):
+        os.remove(f"{VM}/{name}")
+    subprocess.run(["mcopy", "-n", "-o", "-i", auto, f"::{name}", f"{VM}/{name}"], capture_output=True)
+    return open(f"{VM}/{name}", errors="replace").read() if os.path.exists(f"{VM}/{name}") else ""
+
+
+if phase in ("all", "try"):
+    # Try mode: the ISO's default entry, no disk to install onto, and a small disk the session reports onto.
+    print("phase 0: try Amadeus OS from the ISO ...", flush=True)
+    trydisk, tryvars = f"{VM}/try.img", f"{VM}/OVMF_VARS.try.fd"
+    if os.path.exists(trydisk):
+        os.remove(trydisk)
+    subprocess.run(["truncate", "-s", "64M", trydisk], check=True)
+    subprocess.run(["mkfs.fat", "-n", "AMADEUSTRY", trydisk], check=True, capture_output=True)
+    shutil.copy("/usr/share/edk2/x64/OVMF_VARS.4m.fd", tryvars)
+    trycmd, i = [], 0
+    while i < len(BASE):
+        if BASE[i] == "-drive" and (disk in BASE[i + 1] or auto in BASE[i + 1]):
+            i += 2
+            continue
+        trycmd.append(BASE[i].replace(nvram, tryvars))
+        i += 1
+    trycmd += ["-drive", f"file={trydisk},if=virtio,format=raw", "-cdrom", iso]
+    run(trycmd, f"{VM}/try-serial.log", 900)
+    log = take_from(trydisk, "try.log")
+    take_from(trydisk, "try.png")
+    print(log[:1500] or "the try session never reported", flush=True)
+    if "TRY-OK" not in log:
+        sys.exit(1)
+
 if phase in ("all", "install"):
     for f in (disk, auto, nvram):
         if os.path.exists(f):
@@ -97,13 +136,6 @@ POST_HOOK=/run/amadeus-auto/posthook.sh
     if not ok:
         print(log[-3000:])
         sys.exit(1)
-
-def take(name):
-    if os.path.exists(f"{VM}/{name}"):
-        os.remove(f"{VM}/{name}")
-    subprocess.run(["mcopy", "-n", "-o", "-i", auto, f"::{name}", f"{VM}/{name}"], capture_output=True)
-    return open(f"{VM}/{name}", errors="replace").read() if os.path.exists(f"{VM}/{name}") else ""
-
 
 def boot_disk(stage, what):
     print(f"phase {stage + 1}: {what} ...", flush=True)

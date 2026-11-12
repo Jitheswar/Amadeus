@@ -115,16 +115,22 @@ doing the build. Requirements: Docker and KVM.
 
 ## Install
 
-**To try it without touching the computer's own disk**, install onto a USB drive of
-32 GB or more from a computer that has Docker: `./build.sh usb /dev/sdX`. The installer
-appears in a window and the virtual machine running it sees only that drive. Then start
-the computer from the drive (F12 at the logo on Dell machines).
+**To try it without installing**, write the ISO to a USB stick (step 1 below) and start
+the computer from it (F12 at the logo on Dell machines). The first menu entry, **Try
+Amadeus OS**, starts the full desktop from the stick. Everything runs in memory and
+nothing is written to any disk; it is gone when you turn the computer off. It runs the
+stick's own kernel rather than CachyOS's, which is enough to check graphics, Wi-Fi,
+Bluetooth, sleep and the desktop.
+
+**To install onto a USB drive** (a fast one: a cheap stick writes too slowly to run a
+system from), use `./build.sh usb /dev/sdX` from a computer with Docker. The installer
+appears in a window and the virtual machine running it sees only that drive.
 
 **To install for good:**
 
 1. Write the ISO to a USB stick:
    `sudo dd if=out/amadeus-os-*.iso of=/dev/sdX bs=4M status=progress oflag=sync`
-2. Boot it (UEFI, Secure Boot off). The guided installer starts by itself: keyboard,
+2. Boot it (UEFI, Secure Boot off) and choose **Install Amadeus OS**. The guided installer starts: keyboard,
    internet (optional), your name and password, time zone, disk, encryption,
    applications, then a summary.
 3. Nothing is written until you type the disk's name at the summary. Then it installs,

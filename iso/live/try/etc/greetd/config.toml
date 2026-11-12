@@ -1,0 +1,9 @@
+# The try session logs straight into the desktop as the temporary user.
+[terminal]
+vt = 1
+[default_session]
+command = "agreety --cmd 'uwsm start hyprland-uwsm.desktop'"
+user = "greeter"
+[initial_session]
+command = "uwsm start hyprland-uwsm.desktop"
+user = "amadeus"

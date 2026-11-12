@@ -74,23 +74,34 @@ install -m644 $SRC/installer/packages.* $A/usr/share/amadeus-install/
 install -m644 $SRC/iso/live/amadeus-autoinstall.service $A/etc/systemd/system/
 ln -sf ../amadeus-autoinstall.service $A/etc/systemd/system/multi-user.target.wants/
 cp $SRC/iso/live/motd $A/etc/motd
+# "Try Amadeus OS": the desktop on the live medium, running from memory. Its files, the
+# packages it adds, and a boot entry with amadeus.try that switches them on.
+cp -a $SRC/iso/live/try/. $A/
+{ grep -hv '^#' $SRC/iso/live/packages.try; grep -hv '^#' $SRC/installer/packages.desktop | tr ' ' '\n' | grep -v '^lib32-'; } | tr ' ' '\n' | grep . | sort -u >>$P/packages.x86_64
+printf '\n[amadeus]\nSigLevel = Optional TrustAll\nServer = file://%s\n' "$REPO" >>$P/pacman.conf
 echo amadeus-live >$A/etc/hostname
 printf 'pciutils\nrsync\ngum\n' >>$P/packages.x86_64
 # The guided installer starts by itself on the first screen, unless an unattended install is under way.
 cat >>$A/root/.zlogin <<'Z'
-if [[ $(tty) == /dev/tty1 && ! -e /dev/disk/by-label/AMADEUSAUTO ]]; then amadeus-setup; fi
+if [[ $(tty) == /dev/tty1 && ! -e /dev/disk/by-label/AMADEUSAUTO ]] && ! grep -qw amadeus.try /proc/cmdline; then amadeus-setup; fi
 Z
 
 label="AMADEUS_$(date +%Y%m)"
 sed -i "s|^iso_name=.*|iso_name=\"amadeus-os\"|; s|^iso_label=.*|iso_label=\"$label\"|; s|^iso_publisher=.*|iso_publisher=\"Amadeus OS\"|; s|^iso_application=.*|iso_application=\"Amadeus OS installer\"|; s|^install_dir=.*|install_dir=\"amadeus\"|" $P/profiledef.sh
-sed -i 's|^file_permissions=(|file_permissions=(\n  ["/usr/local/bin/amadeus-install"]="0:0:755"\n  ["/usr/local/bin/amadeus-autoinstall"]="0:0:755"\n  ["/usr/local/bin/amadeus-setup"]="0:0:755"\n  ["/usr/local/bin/amadeus-rollback"]="0:0:755"|' $P/profiledef.sh
+sed -i 's|^file_permissions=(|file_permissions=(\n  ["/etc/sudoers.d/10-try"]="0:0:440"\n  ["/usr/local/bin/amadeus-try-setup"]="0:0:755"\n  ["/usr/local/bin/amadeus-try-check"]="0:0:755"\n  ["/usr/local/bin/amadeus-install"]="0:0:755"\n  ["/usr/local/bin/amadeus-autoinstall"]="0:0:755"\n  ["/usr/local/bin/amadeus-setup"]="0:0:755"\n  ["/usr/local/bin/amadeus-rollback"]="0:0:755"|' $P/profiledef.sh
 # Boot menu: our name, and a serial console so the ISO can be tested headless.
 for f in $P/efiboot/loader/entries/*.conf $P/syslinux/*.cfg $P/grub/*.cfg; do
   [[ -f $f ]] || continue
   sed -i 's/Arch Linux install medium/Amadeus OS installer/g; s/Arch Linux/Amadeus OS/g' "$f"
   sed -i -E 's/(archisosearchuuid=%ARCHISO_UUID%)/\1 console=ttyS0,115200 console=tty0/' "$f"
 done
-sed -i 's/^timeout .*/timeout 3/' $P/efiboot/loader/loader.conf
+# Quiet boot: the installer and the try session draw their own screens.
+sed -i -E 's/^(options .*)$/\1 quiet loglevel=3/' $P/efiboot/loader/entries/01-archiso-linux.conf
+sed -i 's/^title .*/title    Install Amadeus OS/' $P/efiboot/loader/entries/01-archiso-linux.conf
+sed -e 's/^title .*/title    Try Amadeus OS (nothing is written to any disk)/; s/^sort-key .*/sort-key 00/' \
+    -e 's/^\(options .*\)$/\1 amadeus.try cow_spacesize=4G/' \
+    $P/efiboot/loader/entries/01-archiso-linux.conf >$P/efiboot/loader/entries/00-amadeus-try.conf
+sed -i 's/^timeout .*/timeout 5/; s/^default .*/default 00-amadeus-try.conf/' $P/efiboot/loader/loader.conf
 # Reuse packages the host already downloaded.
 [[ -d /hostcache ]] && sed -i 's|^\[options\]|[options]\nCacheDir = /var/cache/pacman/pkg/\nCacheDir = /hostcache/|' $P/pacman.conf
 

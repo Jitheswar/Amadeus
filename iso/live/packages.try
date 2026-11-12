@@ -1,0 +1,9 @@
+# Added to the live medium for "Try Amadeus OS": the desktop, the AI layer and what the bar
+# talks to. The live medium's own kernel (Arch's linux) runs it, so the NVIDIA module is
+# Arch's matching nvidia-open. Everything in installer/packages.desktop is added as well,
+# except the 32-bit libraries, which only games need.
+networkmanager bluez bluez-utils power-profiles-daemon upower thermald
+pipewire pipewire-pulse pipewire-alsa wireplumber rtkit polkit bubblewrap python git
+nvidia-open nvidia-utils libva-nvidia-driver
+nautilus imv mpv papers
+amadeus amadeus-desktop

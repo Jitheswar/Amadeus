@@ -1,0 +1,2 @@
+# The try session user can use administrator commands; it has no password and exists only in memory.
+amadeus ALL=(ALL:ALL) ALL

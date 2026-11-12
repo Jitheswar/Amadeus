@@ -1,0 +1,19 @@
+#!/bin/bash
+# Test-only: when a disk labelled AMADEUSTRY is attached, checks the try session came up and reports onto that disk.
+U=amadeus R=/run/user/$(id -u amadeus 2>/dev/null || echo 1000)
+up() { pgrep -x Hyprland >/dev/null && pgrep -f 'quickshell -p /usr/share/amadeus-os/shell' | grep -v $$ >/dev/null && [[ -S $R/amadeus/daemon.sock ]]; }
+for _ in $(seq 90); do up && break; sleep 2; done
+sleep 10
+mkdir -p /mnt/try && mount /dev/disk/by-label/AMADEUSTRY /mnt/try
+{
+  up && echo "TRY-OK" || echo "TRY-FAILED"
+  echo "hyprland: $(pgrep -x Hyprland >/dev/null && echo running || echo missing)"
+  echo "shell: $(pgrep -af 'quickshell -p /usr/share/amadeus-os/shell' | grep -c quickshell)"
+  echo "amadeus daemon: $([[ -S $R/amadeus/daemon.sock ]] && echo running || echo missing)"
+  echo "network: $(nmcli -t general status 2>&1 | head -1)"
+  echo "writes to disks: $(grep -E ' (sd|vd|nvme)[a-z0-9]+ ' /proc/diskstats | awk '$10 > 0 {print $3}' | tr '\n' ' ')"
+  journalctl -b -p err --no-pager | tail -20
+} >/mnt/try/try.log 2>&1
+sudo -u $U env XDG_RUNTIME_DIR=$R WAYLAND_DISPLAY=wayland-1 grim /mnt/try/try.png 2>/dev/null
+sync; umount /mnt/try
+systemctl poweroff

@@ -1,0 +1,11 @@
+[Unit]
+Description=Amadeus OS: report on the try session (only with a test disk attached)
+ConditionPathExists=/dev/disk/by-label/AMADEUSTRY
+After=greetd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/amadeus-try-check
+
+[Install]
+WantedBy=multi-user.target

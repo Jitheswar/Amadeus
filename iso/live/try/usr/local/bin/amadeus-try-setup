@@ -1,0 +1,6 @@
+#!/bin/bash
+# Prepares the "Try Amadeus OS" session: a temporary user that lives in memory and is gone at shutdown.
+set -euo pipefail
+id amadeus >/dev/null 2>&1 && exit 0
+useradd -m -G wheel,video,input -c "Amadeus" -s /bin/bash amadeus
+passwd -d amadeus >/dev/null           # no password: this user exists only until the computer is turned off

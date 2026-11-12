@@ -135,6 +135,13 @@ the size of those packages. The collected packages are the x86-64-v3 builds, whi
 machine runs; a processor without v3 installs from the internet as before. The VM test
 installs with its network cut off, so the offline path is the tested one.
 
+**Trying without installing.** The ISO's default boot entry starts the desktop from the
+stick: a temporary user, logged straight in, with every change kept in memory, so nothing
+is written to any disk. It adds the desktop packages to the live medium (about a
+gigabyte) and runs Arch's kernel, which the live medium boots, not CachyOS's: enough to
+judge the hardware and the desktop, not the kernel tuning. The install entry is the
+second one in the menu.
+
 ## Desktop shell and generated applications: Quickshell (QML)
 
 One toolkit for the bar, launcher, notifications, AI surfaces and generated apps.

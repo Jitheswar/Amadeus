@@ -1,0 +1,12 @@
+[Unit]
+Description=Amadeus OS: prepare the try session
+ConditionKernelCommandLine=amadeus.try
+ConditionPathExists=!/dev/disk/by-label/AMADEUSAUTO
+Before=greetd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/amadeus-try-setup
+
+[Install]
+WantedBy=multi-user.target
