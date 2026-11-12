@@ -102,6 +102,22 @@ sed -e 's/^title .*/title    Try Amadeus OS (nothing is written to any disk)/; s
     -e 's/^\(options .*\)$/\1 amadeus.try cow_spacesize=4G/' \
     $P/efiboot/loader/entries/01-archiso-linux.conf >$P/efiboot/loader/entries/00-amadeus-try.conf
 sed -i 's/^timeout .*/timeout 5/; s/^default .*/default 00-amadeus-try.conf/' $P/efiboot/loader/loader.conf
+# The BIOS menu gets the same choice. The label is copied from the installer's, so the
+# kernel, initrd and search uuid are written once, then it is put first and made the
+# default, like the UEFI menu.
+sed -n '/^LABEL arch$/,/^APPEND /p' $P/syslinux/archiso_sys-linux.cfg |
+  sed -e 's/^LABEL arch$/LABEL try/' \
+      -e 's/^MENU LABEL .*/MENU LABEL Try Amadeus OS (nothing is written to any disk)/' \
+      -e 's/^Boot the Amadeus OS installer on BIOS\./Start the full desktop from this stick, without installing./' \
+      -e 's/^It allows you to install Amadeus OS or perform system maintenance\./Everything runs in memory; nothing is written to any disk./' \
+      -e 's/^\(APPEND .*\)$/\1 quiet loglevel=3 amadeus.try cow_spacesize=4G/' \
+      > /tmp/amadeus-try-label
+grep -q '^APPEND .*amadeus\.try' /tmp/amadeus-try-label ||
+  { echo "   could not build the BIOS try entry from archiso's menu"; exit 1; }
+{ cat /tmp/amadeus-try-label; echo; cat $P/syslinux/archiso_sys-linux.cfg; } > /tmp/amadeus-sys-linux.cfg
+mv /tmp/amadeus-sys-linux.cfg $P/syslinux/archiso_sys-linux.cfg
+sed -i 's/^DEFAULT arch$/DEFAULT try/; s/^TIMEOUT .*/TIMEOUT 50/' $P/syslinux/archiso_sys.cfg
+sed -i 's/^MENU ROWS 7$/MENU ROWS 8/' $P/syslinux/archiso_head.cfg
 # Reuse packages the host already downloaded.
 [[ -d /hostcache ]] && sed -i 's|^\[options\]|[options]\nCacheDir = /var/cache/pacman/pkg/\nCacheDir = /hostcache/|' $P/pacman.conf
 
