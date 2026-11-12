@@ -52,7 +52,9 @@ M
   install -Dm644 "$src/theme/dconf-profile" "$pkgdir/etc/dconf/profile/user"
   install -Dm644 "$src/theme/dconf-defaults" "$pkgdir/etc/dconf/db/local.d/00-amadeus"
   install -Dm644 "$src/theme/fonts.conf" "$pkgdir/etc/fonts/conf.d/60-amadeus.conf"
-  cp -r "$src/skel" "$pkgdir/etc-skel" && install -d "$pkgdir/etc" && mv "$pkgdir/etc-skel" "$pkgdir/etc/skel"
+  # The files every new user starts with. -T copies the folder's contents, wherever other steps put files first.
+  install -d "$pkgdir/etc/skel"
+  cp -rT "$src/skel" "$pkgdir/etc/skel"
   install -Dm644 "$src/shell/bar.default.json" "$pkgdir/etc/skel/.config/amadeus/bar.json"
   install -Dm644 /dev/stdin "$pkgdir/usr/lib/os-release.amadeus" <<'OS'
 NAME="Amadeus OS"
