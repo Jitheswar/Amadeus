@@ -149,6 +149,14 @@ def rollback(app_id, version=None):
     commit = next((l.split()[0] for l in log if l.split()[1] == f"v{target}:"), None)
     if not commit:
         raise AppError(f"no version {target}")
+    # checkout restores the target's files but keeps files added after it.
+    added = _git(d, "diff", "--name-only", "--diff-filter=A", commit, "HEAD")
+    if added.returncode:
+        raise AppError(added.stderr.strip() or "could not compare versions")
+    for rel in added.stdout.splitlines():
+        if rel.startswith("/") or ".." in Path(rel).parts:
+            raise AppError(f"refusing to remove {rel}")
+        (d / rel).unlink(missing_ok=True)
     _git(d, "checkout", "-q", commit, "--", ".")
     old = manifest(app_id)
     old["version"] = m["version"] + 1          # history only moves forward
