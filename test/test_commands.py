@@ -334,6 +334,7 @@ esac""")
         recipe = self.run_cmd("amadeus-aur", "recipe", "demo")
         self.assertEqual(recipe.stdout, "pkgname=demo\n")
 
+    @unittest.skipUnless(shutil.which("curl"), "the real curl is needed for the local server")
     def test_aur_rpc_encodes_a_name_with_a_plus(self):
         """A + in a package name is a space in a raw query string; curl must encode it."""
         queries = []
