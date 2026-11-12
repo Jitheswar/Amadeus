@@ -3,6 +3,7 @@ Uses throwaway directories; never touches the real config, apps or audit log."""
 import json, os, socket, subprocess, sys, tempfile, threading, time, unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from unittest import mock
 
 TMP = tempfile.mkdtemp(prefix="amadeus-test-")
 for k in ("CONFIG", "STATE", "DATA", "RUN"):
@@ -243,6 +244,14 @@ class DaemonTest(unittest.TestCase):
         self.assertTrue(self.d.execute("nope", {})[1])
         self.assertTrue(self.d.execute("fs_read", {})[1])
         self.assertTrue(self.d.execute("fs_read", "x")[1])
+
+    def test_failed_audit_does_not_wedge_the_session(self):
+        d = Daemon()
+        with mock.patch("amadeus.daemon.audit.record", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                d.ask(mock.Mock(), 1, "hello", session="s-audit")
+        self.assertFalse(d.sessions["s-audit"]["running"])
+        self.assertEqual(d.sessions["s-audit"]["history"], [])
 
     def test_denied_write_does_not_happen(self):
         target = Path.home() / ".amadeus-test-write"
