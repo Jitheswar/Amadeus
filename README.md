@@ -153,7 +153,7 @@ build.sh     entry point
 
 | | |
 |---|---|
-| Verified in a VM (98 checks, all passing) | UEFI boot and unattended encrypted install on the CachyOS base and kernel; first boot into the Hyprland desktop; the shell, picker, bar drop-downs, stay-awake and passwordless-administrator switches, notifications, clipboard history, scratchpad, screenshots and screen recording; every shortcut described and listed by Super+K; the install catalogue, web apps, harnesses through mise, defaults; snapshots, sandbox, policy and audit log; AI requests end to end with a scripted model; rollback from the running system and from the ISO, each followed by a clean boot |
+| Verified in a VM (101 checks, all passing) | UEFI boot and unattended encrypted install on the CachyOS base and kernel; first boot into the Hyprland desktop; the shell, picker, bar drop-downs, stay-awake and passwordless-administrator switches, notifications, clipboard history, scratchpad, screenshots and screen recording; every shortcut described and listed by Super+K; the install catalogue, web apps, harnesses through mise, defaults; snapshots, sandbox, policy and audit log; AI requests end to end with a scripted model; rollback from the running system and from the ISO, each followed by a clean boot |
 | Not yet exercised | A real model driving the system (the VM has no provider login, so the model is scripted); clicking through the panel and bar by hand; the guided installer's screens and its Wi-Fi step (the VM test uses the unattended path behind it); `amadeus-update`; Setup > GPU modes |
 | Decided, not yet built | A mark on windows the AI is working in |
 | Never tested | Real hardware: the NVIDIA driver and power path, Dynamic Boost, Wi-Fi, suspend |

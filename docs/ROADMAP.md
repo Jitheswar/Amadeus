@@ -6,7 +6,7 @@
 - Generated-app framework: manifest, sandbox, component library, lint, version history
 - Root mode: separate root helper, restricted or unrestricted, time limit, gone at shutdown
 - Installer: encrypted btrfs, snapshots on every package change, NVIDIA only when present
-- ISO build and VM test harness, both in a container; the full run passes (98 checks on 2026-11-12, CachyOS base and Hyprland): install, first boot, rollback from the system, rollback from the ISO
+- ISO build and VM test harness, both in a container; the full run passes (101 checks on 2026-11-12, CachyOS base and Hyprland): install, first boot, rollback from the system, rollback from the ISO
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
 - End-to-end AI request test on the installed system with a scripted model
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
