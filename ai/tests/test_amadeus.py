@@ -3,6 +3,7 @@ Uses throwaway directories; never touches the real config, apps or audit log."""
 import json, os, socket, subprocess, sys, tempfile, threading, time, unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from unittest import mock
 
 TMP = tempfile.mkdtemp(prefix="amadeus-test-")
 for k in ("CONFIG", "STATE", "DATA", "RUN"):
@@ -52,6 +53,17 @@ class PolicyTest(unittest.TestCase):
 
     def test_free_workspace(self):
         self.assertEqual(self.p.decide("fs.write", "modify", {"path": "~/.local/share/amadeus/workspace/x"})[0], "allow")
+
+
+class DesktopTest(unittest.TestCase):
+    def test_focused_window_is_mapped_for_the_panel(self):
+        from amadeus.tools import desktop
+        with mock.patch.object(desktop, "hj", return_value={"address": "0xabc", "class": "foot", "title": "t" * 200}):
+            self.assertEqual(desktop.focused_window(), {"id": "0xabc", "app": "foot", "title": "t" * 120})
+        with mock.patch.object(desktop, "hj", return_value={"address": "0x1"}):
+            self.assertEqual(desktop.focused_window(), {"id": "0x1", "app": "", "title": ""})
+        with mock.patch.object(desktop, "hj", return_value={}):
+            self.assertIsNone(desktop.focused_window())
 
 
 class AuditTest(unittest.TestCase):
