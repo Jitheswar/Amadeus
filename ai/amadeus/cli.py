@@ -169,11 +169,11 @@ def panel_cmd(args):
     if action == "window":          # the next request is about the window that has focus right now
         from .tools import desktop
         try:
-            w = desktop.nj("focused-window") or {}
+            w = desktop.focused_window()
         except Exception:
-            w = {}
+            w = None
         if w:
-            extra = [json.dumps({"id": w.get("id"), "app": w.get("app_id") or "", "title": (w.get("title") or "")[:120]})]
+            extra = [json.dumps(w)]
         else:
             action = "show"
     if action == "ask":
