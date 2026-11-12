@@ -5,7 +5,7 @@ Every external program these commands talk to is a stand-in: nothing here starts
 session, changes a package, asks for a password or touches the user's own files.
 The commands are run from the repository, in a throwaway HOME, with a PATH whose
 first entry holds the stand-ins and whose result is checked."""
-import os, re, shlex, shutil, subprocess, tempfile, time, unittest
+import json, os, re, shlex, shutil, subprocess, tempfile, time, unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -91,6 +91,12 @@ exit {rc}
         script = BIN / argv[0]
         return subprocess.run([str(script), *map(str, argv[1:])], capture_output=True, text=True,
                               env=dict(self.env, **(env or {})), cwd=self.tmp, timeout=timeout)
+
+    def stop_stray_recorder(self, pidfile):
+        try:
+            os.kill(int(pidfile.read_text()), 9)
+        except (OSError, ValueError):
+            pass
 
     def wait_for(self, name, count=1, timeout=3):
         """The launcher starts applications detached; give the stand-in time to run."""
@@ -406,6 +412,159 @@ esac""")
         self.stub("amadeus-pick", output="Harnesses and tools only", body="cat >/dev/null")
         self.assert_ok(self.run_cmd("amadeus-menu", "update"))
         self.assertIn("amadeus-harness update", self.calls_of("amadeus-terminal")[-1][-1])
+
+    # ---- capture, display and small helpers ---------------------------------
+    def hyprctl_json(self, monitors=None, clients=None, active=None):
+        """One stand-in for hyprctl, answering the queries these commands make."""
+        monitors = monitors or [{"name": "eDP-1", "focused": True, "x": 0, "y": 0, "width": 1920, "height": 1080,
+                                 "scale": 1.0, "transform": 0, "refreshRate": 60.0,
+                                 "activeWorkspace": {"id": 1}, "availableModes": ["1920x1080@60.00Hz", "1280x720@60.00Hz"]}]
+        clients = clients or []
+        self.stub("hyprctl", body=f"""case "$*" in
+  "-j monitors") cat <<'JSON'
+{json.dumps(monitors)}
+JSON
+    ;;
+  "-j clients") cat <<'JSON'
+{json.dumps(clients)}
+JSON
+    ;;
+  "-j activewindow") cat <<'JSON'
+{json.dumps(active or {})}
+JSON
+    ;;
+  *) exit 0 ;;
+esac""")
+
+    def test_area_returns_a_drag_a_window_and_the_screen(self):
+        self.hyprctl_json(clients=[
+            {"at": [100, 100], "size": [400, 300], "workspace": {"id": 1}, "hidden": False},
+            {"at": [600, 100], "size": [800, 600], "workspace": {"id": 1}, "hidden": False}])
+        self.stub("slurp", body='cat >/dev/null; [[ ${SLURP_EXIT:-0} != 0 ]] && exit 1; printf "%s\\n" "$SLURP"')
+        drag = self.run_cmd("amadeus-area", env={"SLURP": "10,20 300x200"})
+        self.assertEqual(drag.stdout.strip(), "10,20 300x200")          # a drag is used as drawn
+        window = self.run_cmd("amadeus-area", env={"SLURP": "150,150 0x0"})
+        self.assertEqual(window.stdout.strip(), "100,100 400x300")      # a click is the window under it
+        empty = self.run_cmd("amadeus-area", env={"SLURP": "1500,900 0x0"})
+        self.assertEqual(empty.stdout.strip(), "0,0 1920x1080")         # a click on nothing is the screen
+        cancelled = self.run_cmd("amadeus-area", env={"SLURP": "", "SLURP_EXIT": "1"})
+        self.assertEqual(cancelled.returncode, 1)
+        self.assertEqual(cancelled.stdout, "")
+
+    def test_area_freezes_and_releases_the_screen(self):
+        self.hyprctl_json()
+        self.stub("slurp", body="cat >/dev/null; echo '0,0 10x10'")
+        self.stub("hyprpicker", body="exec sleep 30")
+        p = self.run_cmd("amadeus-area", "--freeze")
+        self.assert_ok(p)
+        self.assertIn("-r", self.calls_of("hyprpicker")[0])
+        self.assertIn("-z", self.calls_of("hyprpicker")[0])
+
+    def test_display_writes_and_checks_the_setting(self):
+        self.hyprctl_json()
+        answers = self.tmp / "display.answers"
+        self.stub("amadeus-pick", body=f"""n=$(cat {answers} 2>/dev/null || echo 0); n=$((n + 1)); echo $n >{answers}
+cat >/dev/null
+[[ $n == 1 ]] && echo Resolution || echo '1920x1080@60.00'""")
+        self.stub("Hyprland", output="config ok")
+        self.stub("notify-send")
+        hyprland = self.config / "hypr/hyprland.lua"
+        hyprland.parent.mkdir(parents=True)
+        hyprland.write_text("-- config\n")
+        self.assert_ok(self.run_cmd("amadeus-display"))
+        written = (self.config / "hypr/display.lua").read_text()
+        self.assertIn('hl.monitor({ output = "eDP-1", mode = "1920x1080@60.00", position = "auto", scale = 1.0 })', written)
+        self.assertEqual(self.calls_of("hyprctl")[-1], ["reload"])
+
+    def test_display_puts_the_old_file_back_when_the_desktop_rejects_it(self):
+        self.hyprctl_json()
+        answers = self.tmp / "display.answers"
+        self.stub("amadeus-pick", body=f"""n=$(cat {answers} 2>/dev/null || echo 0); n=$((n + 1)); echo $n >{answers}
+cat >/dev/null
+[[ $n == 1 ]] && echo Scale || echo 1.25""")
+        self.stub("Hyprland", output="config error")
+        self.stub("notify-send")
+        hyprland = self.config / "hypr/hyprland.lua"
+        hyprland.parent.mkdir(parents=True)
+        hyprland.write_text("-- config\n")
+        display = self.config / "hypr/display.lua"
+        display.write_text("-- old setting\n")
+        p = self.run_cmd("amadeus-display")
+        self.assertEqual(p.returncode, 1)
+        self.assertEqual(display.read_text(), "-- old setting\n")
+        self.assertIn("Display setting not applied", " ".join(self.calls_of("notify-send")[-1]))
+
+    def test_display_text_size(self):
+        self.stub("gsettings", output="1.0")
+        self.assertEqual(self.run_cmd("amadeus-display", "text").stdout.strip(), "100%")
+        set_size = self.run_cmd("amadeus-display", "text", "125%")
+        self.assert_ok(set_size)
+        self.assertEqual(self.calls_of("gsettings")[-1],
+                         ["set", "org.gnome.desktop.interface", "text-scaling-factor", "1.25"])
+
+    def test_screenshot_screen_is_saved_and_copied(self):
+        self.hyprctl_json()
+        self.stub("xdg-user-dir", output=str(self.home / "Pictures"))
+        self.stub("grim", body=': >"$3"')
+        self.stub("wl-copy", body="cat >/dev/null")
+        self.stub("notify-send")
+        p = self.run_cmd("amadeus-screenshot", "screen")
+        self.assert_ok(p)
+        shots = list((self.home / "Pictures/Screenshots").glob("screenshot-*.png"))
+        self.assertEqual(len(shots), 1)
+        self.assertIn("--type", self.calls_of("wl-copy")[0])
+        self.assertTrue(any("Screenshot copied" in c for c in self.calls_of("notify-send")))
+
+    def test_recording_starts_by_name_and_stops_cleanly(self):
+        self.hyprctl_json()
+        self.stub("amadeus-area", output="0,0 1920x1080")
+        self.stub("xdg-user-dir", output=str(self.home / "Videos"))
+        # A background job in a non-interactive shell ignores SIGINT, so this stand-in stops
+        # by itself shortly after starting; stop still has to clean up after it.
+        self.stub("gpu-screen-recorder", body="""out=""
+while [[ $# -gt 0 ]]; do [[ $1 == -o ]] && out=$2; shift; done
+: >"$out"
+sleep 0.5""")
+        self.stub("ffprobe", output="3.5")
+        self.stub("ffmpeg")
+        self.stub("notify-send")
+        started = self.run_cmd("amadeus-record", "screen")
+        self.assert_ok(started)
+        pidfile = self.run_dir / "amadeus-record.pid"
+        for _ in range(100):
+            if pidfile.exists():
+                break
+            time.sleep(0.02)
+        self.assertTrue(pidfile.exists())
+        self.addCleanup(lambda: self.stop_stray_recorder(pidfile))
+        recorder = self.calls_of("gpu-screen-recorder")[0]
+        self.assertIn("eDP-1", recorder)                    # the whole screen is recorded by monitor name
+        self.assertIn("-f", recorder)
+        self.assert_ok(self.run_cmd("amadeus-record", "stop"))
+        self.assertFalse(pidfile.exists())
+        files = list((self.home / "Videos").glob("screenrecording-*.mp4"))
+        self.assertEqual(len(files), 1)
+
+    def test_gpu_run_sets_the_offload_variables(self):
+        self.stub("probe", output="", body='printf "%s|%s|%s\n" "$__NV_PRIME_RENDER_OFFLOAD" "$__GLX_VENDOR_LIBRARY_NAME" "$__VK_LAYER_NV_optimus"')
+        p = self.run_cmd("amadeus-gpu-run", "probe")
+        self.assert_ok(p)
+        self.assertEqual(p.stdout.strip(), "1|nvidia|NVIDIA_only")
+
+    def test_clipboard_history_and_clear(self):
+        clip = self.tmp / "clipboard"
+        self.stub("cliphist", body=f"""case "$1" in
+  list) printf '1\tone\n2\ttwo\n' ;;
+  decode) cat >{clip} ;;
+  wipe) touch {self.tmp}/wiped ;;
+esac""")
+        self.stub("amadeus-pick", output="2\ttwo", body="cat >/dev/null")
+        self.stub("wl-copy", body="cat >/dev/null")
+        self.assert_ok(self.run_cmd("amadeus-clipboard"))
+        self.assertEqual(clip.read_text(), "2\ttwo")
+        self.assertEqual(self.calls_of("wl-copy"), [[]])
+        self.assert_ok(self.run_cmd("amadeus-clipboard", "clear"))
+        self.assertTrue((self.tmp / "wiped").exists())
 
     def test_menu_builds_an_install_command_without_running_it(self):
         answers = self.tmp / "picker.count"

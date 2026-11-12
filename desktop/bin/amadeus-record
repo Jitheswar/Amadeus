@@ -9,7 +9,7 @@ set -uo pipefail
 run=${XDG_RUNTIME_DIR:-/tmp}
 pidfile=$run/amadeus-record.pid namefile=$run/amadeus-record.file
 dir="$(xdg-user-dir VIDEOS 2>/dev/null || echo "$HOME/Videos")"
-bar() { quickshell ipc -p /usr/share/amadeus-os/shell call shell recording "$1" >/dev/null 2>&1; }
+bar() { quickshell ipc -p /usr/share/amadeus-os/shell call shell recording "$1" >/dev/null 2>&1 || true; }
 running() { [[ -f $pidfile ]] && kill -0 "$(cat "$pidfile")" 2>/dev/null; }
 
 stop() {

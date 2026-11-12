@@ -17,6 +17,9 @@ self-test that runs inside the installed system.
   against stand-in programs in a throwaway home, with no password, package manager or
   compositor, as part of `./build.sh check`. Anything only a session or hardware can
   show belongs in the VM self-test instead.
+- **Cross-file agreements are tested too.** `test/test_consistency.py` checks that the
+  bar layout, theme, shortcut list and package lists agree with every copy of
+  themselves. Changing one copy makes the check name the others that still need it.
 - **The self-test is the definition of "works".** `test/selftest.sh` runs on the
   installed system at first boot, then again after each rollback. A check must test the
   behaviour, print something useful when it fails, and never depend on hardware the VM

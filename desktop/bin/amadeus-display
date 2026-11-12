@@ -30,7 +30,9 @@ fi
 
 # Keep the other setting for this display, replace the one being changed.
 mkdir -p "$conf"; touch "$file"
-old=$(cat "$file")
+old=$(mktemp)                       # byte for byte, so a rejected change really is no change
+cat "$file" >"$old"
+trap 'rm -f "$old"' EXIT
 python3 - "$file" "$name" "$key" "$value" "$monitors" <<'PY'
 import json, re, sys
 path, name, key, value, monitors = sys.argv[1:]
@@ -48,7 +50,7 @@ for n, v in settings.items():
 open(path, "w").write("\n".join(out) + "\n")
 PY
 if [[ -f $conf/hyprland.lua ]] && ! Hyprland --verify-config --config "$conf/hyprland.lua" 2>&1 | grep 'config ok' >/dev/null; then
-  printf '%s' "$old" >"$file"
+  cat "$old" >"$file"
   notify-send -a Amadeus "Display setting not applied" "The desktop rejected $key $value for $name; nothing was changed."; exit 1
 fi
 hyprctl reload >/dev/null

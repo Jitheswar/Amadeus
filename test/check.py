@@ -98,5 +98,12 @@ print(p.stderr.strip().splitlines()[-1] if p.stderr.strip() else "no command tes
 if p.returncode:
     bad("desktop command tests failed:\n" + p.stderr[-2500:])
 
+# 8. Parts of the system that are written in more than one file: bar, theme,
+# shortcuts, package lists. They must still agree with each other.
+p = subprocess.run([sys.executable, "test/test_consistency.py"], capture_output=True, text=True)
+print(p.stderr.strip().splitlines()[-1] if p.stderr.strip() else "no consistency test output")
+if p.returncode:
+    bad("consistency tests failed:\n" + p.stderr[-2500:])
+
 print(f"\n{'FAILED: ' + str(len(fails)) + ' problem(s)' if fails else 'All checks passed.'}")
 sys.exit(1 if fails else 0)
