@@ -120,19 +120,20 @@ def save(app_id, name=None, description=None, files=None, permissions=None, note
         problems = lint(d)
         if problems:
             raise AppError("QML does not parse:\n" + problems)
-    except AppError:
+        m.update(name=name or m["name"], description=description if description is not None else m["description"], version=m["version"] + 1)
+        if permissions is not None:
+            m["permissions"] = normalise(permissions)
+        (d / "manifest.json").write_text(json.dumps(m, indent=2) + "\n")
+        _git(d, "add", "-A")
+        _git(d, "commit", "-q", "-m", f"v{m['version']}: {note or ('create' if new else 'update')}")
+    except Exception:
+        # A failed save must leave the previous version exactly as it was.
         if new:
-            shutil.rmtree(d)
+            shutil.rmtree(d, ignore_errors=True)
         else:
             _git(d, "checkout", "-q", "--", ".")
             _git(d, "clean", "-qfd")
         raise
-    m.update(name=name or m["name"], description=description if description is not None else m["description"], version=m["version"] + 1)
-    if permissions is not None:
-        m["permissions"] = normalise(permissions)
-    (d / "manifest.json").write_text(json.dumps(m, indent=2) + "\n")
-    _git(d, "add", "-A")
-    _git(d, "commit", "-q", "-m", f"v{m['version']}: {note or ('create' if new else 'update')}")
     _desktop_entry(m)
     return m
 
