@@ -94,6 +94,16 @@ if phase in ("all", "try"):
     if "dependency failures: 0" not in log:
         print("the try boot reported failed dependencies", flush=True)
         sys.exit(1)
+    # The terminal, the Install menu and sound are what the try session is judged on first.
+    for good in ("foot config: ok", "sound: active active active "):
+        if good not in log:
+            print(f"the try session reported '{good}' missing", flush=True)
+            sys.exit(1)
+    for count in ("package lists:", "catalogue entries:"):
+        line = next((l for l in log.splitlines() if l.startswith(count)), "")
+        if not line or line.split(":", 1)[1].strip() in ("", "0"):
+            print(f"the try session has no {count.rstrip(':')}: {line or 'no line'}", flush=True)
+            sys.exit(1)
 
 if phase in ("all", "install"):
     for f in (disk, auto, nvram):

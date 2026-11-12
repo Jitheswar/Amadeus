@@ -4,6 +4,7 @@
 # except the 32-bit libraries, which only games need.
 networkmanager bluez bluez-utils power-profiles-daemon upower thermald
 pipewire pipewire-pulse pipewire-alsa wireplumber rtkit polkit bubblewrap python git
+curl reflector
 nvidia-open nvidia-utils libva-nvidia-driver
 nautilus imv mpv papers
 amadeus amadeus-desktop

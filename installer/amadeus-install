@@ -265,7 +265,7 @@ for s in NetworkManager greetd bluetooth power-profiles-daemon thermald ananicy-
   ch systemctl enable "$s" >/dev/null 2>&1 || echo "  (could not enable $s)"
 done
 ln -sf ../run/systemd/resolve/stub-resolv.conf $T/etc/resolv.conf
-ch systemctl --global enable amadeusd.service pipewire-pulse.socket wireplumber.service >/dev/null 2>&1 || true
+ch systemctl --global enable amadeusd.service pipewire.socket pipewire-pulse.socket wireplumber.service >/dev/null 2>&1 || true
 
 if [[ $EXTRAS == yes && $ONLINE == no ]]; then
   echo "  Claude Code is set up once you are online: Super+Space, Install, Harness."
@@ -274,6 +274,19 @@ elif [[ $EXTRAS == yes ]]; then
   say "Claude Code"
   ch runuser -u "$USERNAME" -- env HOME="/home/$USERNAME" MISE_YES=1 mise use --global claude@latest \
     || echo "  Claude Code could not be installed now. Later: Super+Space, Install, Harness."
+fi
+
+# The Install menu and amadeus-catalog read pacman's package lists. An install from the
+# medium leaves none for the repositories the new system uses, so fetch them now when
+# there is a connection, or copy the medium's Arch lists when there is not.
+say "Package lists"
+if [[ $ONLINE == yes ]]; then
+  ch pacman -Sy --noconfirm >/dev/null 2>&1 || echo "  The package lists could not be fetched; the first update will fetch them."
+else
+  mkdir -p $T/var/lib/pacman/sync
+  # The medium carries the lists that match the packages it installed.
+  [[ -d /opt/amadeus-offline/sync ]] && cp -n /opt/amadeus-offline/sync/*.db $T/var/lib/pacman/sync/ 2>/dev/null || true
+  [[ -n $(ls $T/var/lib/pacman/sync/*.db 2>/dev/null) ]] || echo "  Install will show no packages until you update with a connection."
 fi
 
 [[ -n ${POST_HOOK:-} && -x ${POST_HOOK:-} ]] && "$POST_HOOK" $T "$USERNAME"

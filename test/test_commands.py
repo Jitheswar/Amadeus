@@ -359,6 +359,7 @@ esac""")
             "printf 'pkgname = demo\\n\\tpkgver = 1.2\\n' > \"$dest/.SRCINFO\"",
         ])
         self.stub("git", body=body)
+        self.stub("pacman", body='case "$1 $2" in "-Si demo") exit 1 ;; *) exit 0 ;; esac')
         self.stub("makepkg")
         p = self.run_cmd("amadeus-aur", "install", "demo", env={"AMADEUS_AUR_YES": "1"})
         self.assert_ok(p)
@@ -373,12 +374,64 @@ esac""")
             "printf 'pkgname = demo\\n\\tsource = https://example.org/demo-1.2.tar.gz\\n' > \"$dest/.SRCINFO\"",
         ])
         self.stub("git", body=body)
+        self.stub("pacman", body='case "$1 $2" in "-Si demo") exit 1 ;; *) exit 0 ;; esac')
         self.stub("makepkg")
         p = self.run_cmd("amadeus-aur", "install", "demo", input="n\n")
         self.assertEqual(p.returncode, 1)
         self.assertIn("Downloads from", p.stdout)
         self.assertIn("https://example.org/demo-1.2.tar.gz", p.stdout)
         self.assertEqual(self.calls_of("makepkg"), [])
+
+    def test_aur_refuses_a_package_the_repositories_have(self):
+        # The stub package manager answers "this is in a repository", as pacman does for foot.
+        p = self.run_cmd("amadeus-aur", "install", "foot")
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn("system repositories", p.stdout)
+        self.assertEqual(self.calls_of("git"), [])
+
+    # ---- updating ------------------------------------------------------------
+    def test_update_takes_a_snapshot_first(self):
+        self.stub("amadeus-aur")
+        self.stub("amadeus-harness")
+        self.stub("amadeus-mirrors")
+        p = self.run_cmd("amadeus-update")
+        self.assert_ok(p)
+        self.assertIn("Snapshot taken", p.stdout)
+        self.assertEqual([c[0] for c in self.calls_of("sudo")], ["snapper", "snapper", "amadeus-mirrors", "pacman"])
+        self.assertEqual(self.calls_of("sudo")[-1], ["pacman", "-Syu"])
+
+    def test_update_in_the_try_session_skips_the_snapshot(self):
+        marker = self.tmp / "try-session"
+        marker.touch()
+        self.stub("amadeus-aur")
+        self.stub("amadeus-harness")
+        self.stub("amadeus-mirrors")
+        p = self.run_cmd("amadeus-update", env={"AMADEUS_TRY_MARKER": str(marker)})
+        self.assert_ok(p)
+        self.assertIn("Try session", p.stdout)
+        self.assertEqual(self.calls_of("sudo"), [["amadeus-mirrors"], ["pacman", "-Syu"]])
+
+    # ---- mirrors -------------------------------------------------------------
+    def test_mirrors_print_the_official_choice_without_changing(self):
+        d = self.tmp / "pacman.d"
+        d.mkdir()
+        (d / "cachyos-v3-mirrorlist").write_text(
+            "# official list\nServer = https://cachyos.example/$arch_v3/$repo\n")
+        self.stub("reflector", body="""save=""; prev=""
+for a in "$@"; do [[ $prev == --save ]] && save=$a; prev=$a; done
+printf 'Server = https://arch.example/$repo/os/$arch\\n' > "$save"
+""")
+        self.stub("curl", body="""case "$*" in
+  *archlinux.org/mirrors/status/json*) exit 0 ;;
+  *cachyos*) printf '0.1' ;;
+  *) exit 0 ;;
+esac
+""")
+        p = self.run_cmd("amadeus-mirrors", "--print", env={"AMADEUS_MIRROR_DIR": str(d)})
+        self.assert_ok(p)
+        self.assertIn("Server = https://arch.example/$repo/os/$arch", p.stdout)
+        self.assertIn("Server = https://cachyos.example/$arch_v3/$repo", p.stdout)
+        self.assertFalse((d / "mirrorlist").exists(), "printing must not write a mirror list")
 
     # ---- shortcuts ----------------------------------------------------------
     def test_keys_are_read_from_the_configuration_file(self):
@@ -479,6 +532,13 @@ esac""")
         self.stub("amadeus-pick", body=f'cat >{sent}')
         self.assert_ok(self.run_cmd("amadeus-power-menu"))
         self.assertNotIn("Hibernate", sent.read_text())
+
+    def test_install_menu_fetches_missing_package_lists(self):
+        # Without a sync database the menu cannot show anything; it should offer to fetch them.
+        self.stub("pacman", rc=1)
+        self.stub("amadeus-terminal")
+        self.assert_ok(self.run_cmd("amadeus-menu", "install"))
+        self.assertIn("pacman -Sy", self.calls_of("amadeus-terminal")[-1][-1])
 
     # ---- the menu builds commands without running them ----------------------
     def test_menu_routes_to_commands(self):

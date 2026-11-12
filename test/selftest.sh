@@ -67,6 +67,8 @@ t "CachyOS kernel is running"                  bash -c 'uname -r | grep -q cachy
 t "CachyOS repositories come first"            bash -c 'pacman-conf --repo-list | head -1 | grep -q cachyos && pacman -Q cachyos-settings linux-cachyos'
 t "multilib enabled (Steam)"                   bash -c 'pacman-conf --repo-list | grep -qx multilib'
 t "core packages installed"                    pacman -Q hyprland quickshell steam libreoffice-fresh amadeus amadeus-desktop snapper
+t "package lists are ready"                    bash -c 'pacman -Si foot >/dev/null'
+t "mirror ranking tools installed"             pacman -Q curl reflector
 echo "--- snapshots"
 t "installing a package takes no snapshot"   bash -c 'before=$(snapper -c root list | wc -l); pacman -Sy --noconfirm --needed tree >/dev/null && [[ $(snapper -c root list | wc -l) == $before ]]'
 t "copy of /boot kept for rollback"            test -f /.bootbackup/vmlinuz-linux-cachyos
@@ -87,8 +89,13 @@ t "notifications are shown by the shell"       bash -c 'as notify-send "Self-tes
 t "launcher lists installed applications"      bash -c 'as amadeus-launcher --print | grep -q "^Steam"'
 t "no separate launcher or notification program" bash -c '! pacman -Q fuzzel mako 2>/dev/null | grep -q .'
 t "AUR lookup works"                           bash -c 'as amadeus-aur info protonplus | grep -q "^Name"'
+t "AUR leaves repository packages to pacman"  bash -c 'out=$(as amadeus-aur install foot 2>&1); echo "$out"; grep -q "system repositories" <<<"$out"'
+t "mirror ranking reports the official choice" bash -c 'as amadeus-mirrors --print | grep -q "^Server = "'
+t "sound services are running"                 bash -c 'as systemctl --user is-active --quiet pipewire.socket pipewire-pulse.socket wireplumber.service'
+t "terminal configuration is valid"            bash -c 'as foot --check-config'
 t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/hypr/default.lua'
 t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
+t "file manager shortcut is listed"            bash -c 'as amadeus-keys --print | grep -q "^Super + Shift + F .*Files"'
 t "system look applies to applications"        bash -c 'as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark && fc-match sans-serif | grep -qi inter && test -f /usr/share/amadeus-os/theme.json'
 t "text size can be set and restored"          bash -c 'as amadeus-display text 110% >/dev/null && as gsettings get org.gnome.desktop.interface text-scaling-factor | grep -q "1.1" && as amadeus-display text 100% >/dev/null'
 t "the install worked without internet"       bash -c 'grep -q "Claude Code is set up once you are online" /var/log/amadeus-install.log'

@@ -74,6 +74,7 @@ o.bind("SUPER + Z", "Amadeus panel", "ama panel")
 o.bind("SUPER + A", "Ask Amadeus about this window", "ama panel window")
 o.bind("SUPER + B", "Browser", "xdg-open https://")
 o.bind("SUPER + E", "Files", "nautilus --new-window")
+o.bind("SUPER + SHIFT + F", "Files (your default application)", "xdg-open ~")
 o.bind("SUPER + ESCAPE", "System: lock, suspend, restart, shut down", "amadeus-power-menu")
 o.bind("SUPER + CTRL + L", "Lock", "swaylock -f")
 

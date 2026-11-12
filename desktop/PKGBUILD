@@ -12,7 +12,9 @@ package() {
   local src="$startdir"
   install -Dm644 "$src/hypr/default.lua" -t "$pkgdir/usr/share/amadeus-os/hypr/"
   install -Dm644 "$src"/shell/*.qml -t "$pkgdir/usr/share/amadeus-os/shell/"
-  install -Dm755 "$src"/bin/* -t "$pkgdir/usr/bin/"
+  install -d "$pkgdir/usr/bin"
+  # Only files: a test run can leave a __pycache__ directory beside the programs.
+  find "$src/bin" -maxdepth 1 -type f -exec install -Dm755 {} -t "$pkgdir/usr/bin/" \;
   # Passwordless administrator access is a switch the user turns on from the bar; this is its root side.
   install -Dm755 "$src/lib/sudo-helper" -t "$pkgdir/usr/lib/amadeus-os/"
   install -Dm644 "$src/lib/org.amadeus.sudo.policy" -t "$pkgdir/usr/share/polkit-1/actions/"

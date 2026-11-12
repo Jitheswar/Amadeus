@@ -24,9 +24,14 @@ Scope {
     property var marked: ({})
     property int index: 0
     property string detail: ""
+    // The pointer is not followed until it actually moves, so a menu opened under the
+    // cursor starts on its first line instead of the line that happens to be beneath it.
+    property bool pointerReady: false
+    property int repeatStep: 1
     readonly property string current: shown.length ? shown[index] : ""
     // 0 when closed, 1 when open; everything on screen follows it, so opening and closing are one motion.
     property real t: open ? 1 : 0
+    onOpenChanged: if (!open) stopHold()
     Behavior on t { NumberAnimation { duration: pick.open ? pick.style.normal : pick.style.fast; easing.type: Easing.OutCubic } }
     readonly property int nMarked: Object.keys(marked).length
 
@@ -39,6 +44,7 @@ Scope {
         pick.multi = !!o.multi; pick.allowNew = !!o.allowNew
         pick.preview = o.preview || ""; pick.preview2 = o.preview2 || ""; pick.hint = o.hint || ""; pick.newLabel = o.newLabel || "Press Enter to use what you typed"
         pick.alt = false; pick.marked = ({}); pick.detail = ""; pick.items = []; pick.shown = []
+        pick.index = 0; pick.pointerReady = false; repeat.stop()
         input.text = ""
         loader.path = infile
         loader.reload()
@@ -63,7 +69,7 @@ Scope {
     }
     function finish(status, lines) {
         if (pipe) Quickshell.execDetached(["sh", "-c", 'printf "%s\\n" "$@" > "$0"', pipe, status].concat(lines))
-        pipe = ""; open = false; fetch.running = false
+        pipe = ""; open = false; fetch.running = false; repeat.stop()
     }
     function accept() {
         if (multi && nMarked) finish("ok", Object.keys(marked))
@@ -78,6 +84,17 @@ Scope {
         if (index < shown.length - 1) index++
     }
     function move(by) { if (shown.length) { index = Math.max(0, Math.min(shown.length - 1, index + by)); describe.restart() } }
+    // Walk the list immediately, then keep walking while the key is held. The compositor's
+    // own repeat waits a moment before the first repeat, which reads as a menu that ignored the press.
+    function hold(step) { repeatStep = step; move(step); repeat.restart() }
+    function stopHold() { repeat.stop() }
+    function select(i) { if (index !== i) { index = i; describe.restart() } }
+    Timer {
+        id: repeat
+        interval: pick.style.fast
+        repeat: true
+        onTriggered: pick.move(pick.repeatStep)
+    }
 
     FileView {
         id: loader
@@ -144,15 +161,22 @@ Scope {
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_Escape) pick.finish("cancel", [])
                     else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) pick.accept()
-                    else if (event.key === Qt.Key_Down) pick.move(1)
-                    else if (event.key === Qt.Key_Up) pick.move(-1)
-                    else if (event.key === Qt.Key_PageDown) pick.move(10)
-                    else if (event.key === Qt.Key_PageUp) pick.move(-10)
+                    else if (event.key === Qt.Key_Down) { if (!event.isAutoRepeat) pick.hold(1) }
+                    else if (event.key === Qt.Key_Up) { if (!event.isAutoRepeat) pick.hold(-1) }
+                    else if (event.key === Qt.Key_PageDown) { if (!event.isAutoRepeat) pick.move(10) }
+                    else if (event.key === Qt.Key_PageUp) { if (!event.isAutoRepeat) pick.move(-10) }
                     else if (event.key === Qt.Key_Tab) pick.mark()
                     else if (event.key === Qt.Key_B && (event.modifiers & Qt.AltModifier) && pick.preview2) { pick.alt = !pick.alt; describe.restart() }
                     else return
                     event.accepted = true
                 }
+                Keys.onReleased: event => {
+                    if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
+                        if (!event.isAutoRepeat) pick.stopHold()
+                        event.accepted = true
+                    }
+                }
+                onActiveFocusChanged: if (!activeFocus) pick.stopHold()
             }
             Rectangle { id: rule; height: 1; color: pick.style.line; anchors { left: parent.left; right: parent.right; top: chip.bottom; topMargin: 14 } }
 
@@ -182,8 +206,19 @@ Scope {
                     Rectangle { id: tick; visible: line.on; width: 8; height: 8; radius: 4; color: pick.style.accent
                                 anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter } }
                     MouseArea { anchors.fill: parent; hoverEnabled: true
-                                onPositionChanged: if (pick.index !== line.index) { pick.index = line.index; describe.restart() }
-                                onClicked: { pick.index = line.index; pick.accept() } }
+                                property bool entering: false
+                                // One event is spent on the position the pointer already had when
+                                // the list appeared; only a later one is a move the user made.
+                                onEntered: {
+                                    if (!pick.pointerReady) { pick.pointerReady = true; entering = true }
+                                    else pick.select(line.index)
+                                }
+                                onPositionChanged: {
+                                    if (entering) { entering = false; return }
+                                    if (!pick.pointerReady) { pick.pointerReady = true; return }
+                                    pick.select(line.index)
+                                }
+                                onClicked: { pick.select(line.index); pick.accept() } }
                 }
                 Text { anchors.centerIn: parent; visible: pick.shown.length === 0; color: pick.style.dim; font.family: pick.style.font; font.pixelSize: 14
                        text: pick.allowNew ? (input.text.trim() ? pick.newLabel : "Type, then press Enter") : "Nothing matches" }

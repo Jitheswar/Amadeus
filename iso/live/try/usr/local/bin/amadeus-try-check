@@ -1,8 +1,11 @@
 #!/bin/bash
 # Test-only: when a disk labelled AMADEUSTRY is attached, checks the try session came up and reports onto that disk.
 U=amadeus R=/run/user/$(id -u amadeus 2>/dev/null || echo 1000)
+as() { sudo -u $U env XDG_RUNTIME_DIR=$R DBUS_SESSION_BUS_ADDRESS=unix:path=$R/bus HOME=/home/$U "$@"; }
 up() { pgrep -x Hyprland >/dev/null && pgrep -f 'quickshell -p /usr/share/amadeus-os/shell' | grep -v $$ >/dev/null && [[ -S $R/amadeus/daemon.sock ]]; }
 for _ in $(seq 90); do up && break; sleep 2; done
+# The package lists are fetched once, after the network comes up.
+for _ in $(seq 30); do [[ -n $(pacman -Slq 2>/dev/null) ]] && break; sleep 2; done
 sleep 10
 mkdir -p /mnt/try && mount /dev/disk/by-label/AMADEUSTRY /mnt/try
 {
@@ -10,6 +13,14 @@ mkdir -p /mnt/try && mount /dev/disk/by-label/AMADEUSTRY /mnt/try
   echo "hyprland: $(pgrep -x Hyprland >/dev/null && echo running || echo missing)"
   echo "shell: $(pgrep -af 'quickshell -p /usr/share/amadeus-os/shell' | grep -c quickshell)"
   echo "amadeus daemon: $([[ -S $R/amadeus/daemon.sock ]] && echo running || echo missing)"
+  echo "package lists: $(pacman -Slq 2>/dev/null | wc -l)"
+  echo "catalogue entries: $(as amadeus-catalog terminal 2>/dev/null | wc -l)"
+  if as foot --check-config --config /home/$U/.config/foot/foot.ini >/dev/null 2>&1; then
+    echo "foot config: ok"
+  else
+    echo "foot config: failed"
+  fi
+  echo "sound: $(as systemctl --user is-active pipewire.socket pipewire-pulse.socket wireplumber.service 2>&1 | tr '\n' ' ')"
   echo "network: $(nmcli -t general status 2>&1 | head -1)"
   echo "writes to disks: $(grep -E ' (sd|vd|nvme)[a-z0-9]+ ' /proc/diskstats | awk '$10 > 0 {print $3}' | tr '\n' ' ')"
   echo "dependency failures: $(journalctl -b --no-pager -o cat | grep -c 'Dependency failed for')"

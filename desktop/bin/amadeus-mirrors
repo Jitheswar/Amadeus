@@ -1,0 +1,121 @@
+#!/bin/bash
+# Rank the official package mirrors for this connection: complete and fresh first, then measured speed.
+#   amadeus-mirrors            rank if this machine has never been ranked, or the lists are a month old
+#   amadeus-mirrors --force    rank now
+#   amadeus-mirrors --print    show the choice; change nothing
+# Run as your user; it asks for the password before changing the lists.
+set -euo pipefail
+dir=${AMADEUS_MIRROR_DIR:-/etc/pacman.d}
+state=${AMADEUS_MIRROR_STATE:-/var/lib/amadeus/mirrors}
+force=no print=no
+for a in "$@"; do
+  case $a in
+    --force) force=yes ;;
+    --print) print=yes ;;
+    *) echo "amadeus-mirrors: unknown option $a" >&2; exit 1 ;;
+  esac
+done
+if (( EUID != 0 )) && [[ $print == no ]]; then
+  exec sudo -- "$(command -v -- "$0")" "$@"
+fi
+
+lists=("$dir/mirrorlist" "$dir/cachyos-mirrorlist" "$dir/cachyos-v3-mirrorlist")
+existing=()
+for f in "${lists[@]}"; do [[ -e $f ]] && existing+=("$f"); done
+# Once is enough until the lists are a month old or a package has replaced them.
+if [[ $print == no && $force == no && -f $state ]] && [[ -z $(find "$state" -mmin +43200 2>/dev/null || true) ]]; then
+  newer=""
+  (( ${#existing[@]} )) && newer=$(find "${existing[@]}" -newer "$state" 2>/dev/null || true)
+  if [[ -z $newer ]]; then
+    echo "Mirrors were ranked on $(date -r "$state" '+%Y-%m-%d'); they are ranked again after a month."
+    exit 0
+  fi
+fi
+
+# Ranking needs the mirror status; without a connection the update will report that itself.
+if ! curl -fsS --max-time 8 -o /dev/null https://archlinux.org/mirrors/status/json/; then
+  echo "No connection; the mirror lists are unchanged."
+  exit 0
+fi
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+echo "Ranking the official Arch mirrors: fully synced, fresh and best-scored first, then measured speed."
+# Quality filters first (complete, fresh, HTTPS, the best-scored fifty), then a speed test.
+# No country filter: a nearby mirror is not automatically a good one, and the speed is
+# measured from this connection, which is the only "near" that matters for a download.
+if ! reflector --completion-percent 100 --age 12 --protocol https --score 20 \
+       --sort rate --number 10 --threads 5 --connection-timeout 5 --download-timeout 10 \
+       --save "$tmp/mirrorlist" 2>/dev/null; then
+  echo "The Arch mirrors could not be ranked; the current list is kept."
+  exit 0
+fi
+servers=0
+[[ -s $tmp/mirrorlist ]] && servers=$(grep -c '^Server' "$tmp/mirrorlist" || true)
+if (( ${servers:-0} == 0 )); then
+  echo "No official Arch mirror answered; the current list is kept."
+  exit 0
+fi
+
+# CachyOS publishes its official mirrors in the mirrorlist package. Rank those entries
+# themselves: fetch a package database from each and keep the reachable ones, fastest first.
+cachyos=()
+for f in "$dir/cachyos-v3-mirrorlist" "$dir/cachyos-mirrorlist"; do [[ -f $f ]] && cachyos+=("$f"); done
+ranked_cachyos=""
+if (( ${#cachyos[@]} )); then
+  echo "Ranking the official CachyOS mirrors by measured speed."
+  ranked_cachyos="$tmp/cachyos"
+  : >"$ranked_cachyos"
+  # Rank the v3 list when it exists; the other list uses the same hosts with $arch instead.
+  probe_arch=x86_64_v3
+  probe_repo=cachyos-core-v3
+  if [[ ${cachyos[0]} != *v3* ]]; then probe_arch=x86_64; probe_repo=cachyos-core; fi
+  while IFS= read -r line; do
+    url=${line#Server = }
+    probe=${url//\$arch_v3/$probe_arch}
+    probe=${probe//\$arch/$probe_arch}
+    probe=${probe//\$repo/$probe_repo}
+    time=$(curl -fsS --max-time 10 --range 0-1048575 -o /dev/null -w '%{time_total}' "$probe/$probe_repo.db" 2>/dev/null) || continue
+    [[ -n $time ]] && printf '%s\t%s\n' "$time" "$url"
+  done < <(grep '^Server = ' "${cachyos[0]}" 2>/dev/null || true) | sort -n | cut -f2- >"$ranked_cachyos"
+fi
+
+if [[ $print == yes ]]; then
+  echo "Arch:"
+  grep '^Server' "$tmp/mirrorlist"
+  if [[ -s $ranked_cachyos ]]; then
+    echo "CachyOS:"
+    while IFS= read -r url; do printf 'Server = %s\n' "$url"; done <"$ranked_cachyos"
+  fi
+  exit 0
+fi
+
+# Keep the previous lists and put the new ones in only after pacman can use them.
+for f in "${existing[@]}"; do cp -a "$f" "$f.before-amadeus"; done
+install -m644 "$tmp/mirrorlist" "$dir/mirrorlist"
+if [[ -s $ranked_cachyos ]]; then
+  for f in "${cachyos[@]}"; do
+    want='$arch'
+    [[ $f == *v3* ]] && want='$arch_v3'
+    {
+      printf '# Official CachyOS mirrors, ranked for this connection by amadeus-mirrors on %s.\n' "$(date '+%Y-%m-%d')"
+      printf '# Reachable and fastest first; the entries come from the CachyOS mirrorlist package.\n'
+      while IFS= read -r url; do
+        url=${url//\$arch_v3/\$arch}
+        url=${url//\$arch/$want}
+        printf 'Server = %s\n' "$url"
+      done <"$ranked_cachyos"
+    } >"$tmp/$(basename "$f")"
+    install -m644 "$tmp/$(basename "$f")" "$f"
+  done
+fi
+
+if ! pacman -Syy --noconfirm >/dev/null 2>&1; then
+  for f in "${existing[@]}"; do [[ -e $f.before-amadeus ]] && mv -f "$f.before-amadeus" "$f"; done
+  echo "The ranked mirrors did not answer pacman; the previous lists are back."
+  exit 0
+fi
+mkdir -p "$(dirname "$state")"
+printf 'ranked %s\n' "$(date -Is)" >"$state"
+echo "Mirrors ranked and checked. The previous lists are kept beside them as *.before-amadeus."
+echo "Next ranking: in a month, or amadeus-mirrors --force."

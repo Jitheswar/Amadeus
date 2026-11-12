@@ -1,6 +1,8 @@
 #!/bin/bash
 # Prepares the "Try Amadeus OS" session: a temporary user that lives in memory and is gone at shutdown.
 set -euo pipefail
+# amadeus-update reads this: there are no snapshots in a session that disappears at shutdown.
+touch /run/amadeus-try
 id amadeus >/dev/null 2>&1 && exit 0
 useradd -m -G wheel,video,input -c "Amadeus" -s /bin/bash amadeus
 passwd -d amadeus >/dev/null           # no password: this user exists only until the computer is turned off

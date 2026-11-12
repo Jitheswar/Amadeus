@@ -1,0 +1,17 @@
+[Unit]
+Description=Amadeus OS: fetch the package lists for the try session
+ConditionKernelCommandLine=amadeus.try
+ConditionPathExists=!/dev/disk/by-label/AMADEUSAUTO
+Wants=network-online.target NetworkManager-wait-online.service
+After=network-online.target NetworkManager.service NetworkManager-wait-online.service pacman-init.service
+
+[Service]
+# The catalogue and the Install menu read these lists. The medium carries a matching set,
+# so they work before a connection; the sync then refreshes them when there is one.
+Type=oneshot
+ExecStartPre=-/usr/bin/sh -c 'mkdir -p /var/lib/pacman/sync && cp -n /opt/amadeus-offline/sync/*.db /var/lib/pacman/sync/'
+ExecStart=-/usr/bin/pacman -Sy --noconfirm
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
