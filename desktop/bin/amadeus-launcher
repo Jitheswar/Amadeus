@@ -25,16 +25,32 @@ def entries():
     return out
 
 
+def has_nvidia():
+    for p in Path("/sys/bus/pci/devices").glob("*/vendor"):
+        try:
+            if p.read_text().strip() == "0x10de":
+                return True
+        except OSError:
+            pass
+    return False
+
+
 def start(e):
     argv = [t for t in shlex.split(e["Exec"]) if not re.fullmatch(r"%[a-zA-Z]", t)]
     if e.get("Terminal") == "true":
         argv = ["amadeus-terminal", "-e"] + argv
     dedicated = e.get("PrefersNonDefaultGPU") == "true" or e.get("X-KDE-RunOnDiscreteGpu") == "true" or "Game" in e.get("Categories", "").split(";")
-    has_nvidia = any(Path(p).read_text().strip() == "0x10de" for p in map(str, Path("/sys/bus/pci/devices").glob("*/vendor")))
-    mode = (Path.home() / ".config/amadeus/gpu").read_text().strip() if (Path.home() / ".config/amadeus/gpu").exists() else "auto"
+    mode_file = Path.home() / ".config/amadeus/gpu"
+    try:
+        mode = mode_file.read_text().strip()
+    except OSError:
+        mode = "auto"
     # In "nvidia" mode the whole session already runs on NVIDIA; in "intel" mode nothing is sent to it.
-    env = dict(os.environ, **NVIDIA) if dedicated and has_nvidia and mode == "auto" else None
-    subprocess.Popen(argv, env=env, cwd=e.get("Path") or Path.home(), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+    env = dict(os.environ, **NVIDIA) if dedicated and has_nvidia() and mode == "auto" else None
+    cwd = Path(e.get("Path") or Path.home())
+    if not cwd.is_dir():
+        cwd = Path.home()
+    subprocess.Popen(argv, env=env, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, start_new_session=True)
 
 

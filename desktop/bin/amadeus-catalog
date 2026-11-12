@@ -8,6 +8,7 @@
 # The first source that still exists is used, so a renamed or removed package drops out by itself.
 set -euo pipefail
 DIR=${AMADEUS_CATALOG:-/usr/share/amadeus-os/catalog}
+[[ -d $DIR ]] || { echo "No install catalogue is installed at $DIR." >&2; exit 1; }
 aur_names=""
 have_aur() { [[ -n $aur_names ]] || aur_names=$(amadeus-aur list 2>/dev/null || true); grep -qxF "$1" <<<"$aur_names"; }
 

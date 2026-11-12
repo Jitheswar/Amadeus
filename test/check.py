@@ -92,5 +92,11 @@ print(p.stderr.strip().splitlines()[-1] if p.stderr.strip() else "no test output
 if p.returncode:
     bad("unit tests failed:\n" + p.stderr[-2000:])
 
+# 7. The desktop commands, run against stand-in programs in a throwaway home.
+p = subprocess.run([sys.executable, "test/test_commands.py"], capture_output=True, text=True)
+print(p.stderr.strip().splitlines()[-1] if p.stderr.strip() else "no command test output")
+if p.returncode:
+    bad("desktop command tests failed:\n" + p.stderr[-2500:])
+
 print(f"\n{'FAILED: ' + str(len(fails)) + ' problem(s)' if fails else 'All checks passed.'}")
 sys.exit(1 if fails else 0)

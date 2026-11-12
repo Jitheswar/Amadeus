@@ -9,11 +9,11 @@ file=${XDG_CONFIG_HOME:-$HOME/.config}/amadeus/defaults
 declare -A FALLBACK=([terminal]=foot [editor]=nano [harness]="")
 EDITORS="nano nvim vim hx helix micro emacs code codium cursor zed zeditor subl gnome-text-editor kate gedit"
 
-get() { local v; v=$(sed -n "s/^${1^^}=//p" "$file" 2>/dev/null | tail -1); printf '%s\n' "${v:-${FALLBACK[$1]}}"; }
+get() { local v=""; if [[ -r $file ]]; then v=$(sed -n "s/^${1^^}=//p" "$file" | tail -1); fi; printf '%s\n' "${v:-${FALLBACK[$1]}}"; }
 choices() {
   case $1 in
     terminal)  # anything that says it is a terminal
-      grep -lsE '^Categories=.*TerminalEmulator' /usr/share/applications/*.desktop "$HOME"/.local/share/applications/*.desktop 2>/dev/null |
+      { grep -lsE '^Categories=.*TerminalEmulator' /usr/share/applications/*.desktop "$HOME"/.local/share/applications/*.desktop 2>/dev/null || true; } |
         while read -r f; do basename "$(sed -n 's/^Exec=\([^ ]*\).*/\1/p' "$f" | head -1)"; done | grep -vx footclient | sort -u ;;
     editor)    for e in $EDITORS; do command -v "$e" >/dev/null && echo "$e"; done ;;
     harness)   amadeus-harness installed 2>/dev/null | grep -Fxf <(grep -v '^#' /usr/share/amadeus-os/harnesses.list | cut -f1) || true ;;

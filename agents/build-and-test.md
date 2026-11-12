@@ -13,6 +13,10 @@ self-test that runs inside the installed system.
   add it to the container, not to your machine.
 - **`./build.sh check` needs no container** and must stay fast: syntax, unit tests, and
   the guide checks in `test/check.py`. Put slow things in the VM test.
+- **Desktop commands are tested without a session.** `test/test_commands.py` runs them
+  against stand-in programs in a throwaway home, with no password, package manager or
+  compositor, as part of `./build.sh check`. Anything only a session or hardware can
+  show belongs in the VM self-test instead.
 - **The self-test is the definition of "works".** `test/selftest.sh` runs on the
   installed system at first boot, then again after each rollback. A check must test the
   behaviour, print something useful when it fails, and never depend on hardware the VM

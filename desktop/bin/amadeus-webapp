@@ -12,9 +12,13 @@ icons=${XDG_DATA_HOME:-$HOME/.local/share}/amadeus/webapp-icons
 id() { printf 'amadeus-webapp-%s' "$(tr -cs 'A-Za-z0-9' '-' <<<"$1" | sed 's/^-*//; s/-*$//' | tr 'A-Z' 'a-z')"; }
 
 browser() {  # a browser that can open a site as an app: the default if it can, else the first that can
-  local def exe c
+  local def exe="" c f
   def=$(xdg-settings get default-web-browser 2>/dev/null || true)
-  exe=$(sed -n 's/^Exec=\([^ ]*\).*/\1/p' "/usr/share/applications/$def" 2>/dev/null | head -1)
+  for f in "/usr/share/applications/$def" "${XDG_DATA_HOME:-$HOME/.local/share}/applications/$def" "$HOME/.local/share/applications/$def"; do
+    [[ -f $f ]] || continue
+    exe=$(sed -n 's/^Exec=\([^ ]*\).*/\1/p' "$f" | head -1)
+    break
+  done
   for c in "$exe" brave-origin brave chromium google-chrome-stable helium-browser vivaldi; do
     [[ -n $c ]] && command -v "$c" >/dev/null && "$c" --version 2>/dev/null | grep -iE 'brave|chrom|helium|vivaldi' >/dev/null && { echo "$c"; return; }
   done
@@ -24,16 +28,26 @@ browser() {  # a browser that can open a site as an app: the default if it can, 
 case ${1:-} in
   install)
     name=${2:?name needed} url=${3:?address needed}
+    [[ $name != *$'\n'* && $url != *$'\n'* ]] || { echo "A name and an address cannot contain a line break."; exit 1; }
     [[ $url == *://* ]] || url="https://$url"
     mkdir -p "$apps" "$icons"
     icon=applications-internet
     # The site's own icon, fetched from the site itself.
     host=$(sed -E 's#^[a-z]+://([^/]+).*#\1#' <<<"$url")
     if curl -fsSL -m 8 -o "$icons/$(id "$name").ico" "https://$host/favicon.ico" 2>/dev/null && [[ -s $icons/$(id "$name").ico ]]; then icon="$icons/$(id "$name").ico"; fi
-    printf '[Desktop Entry]\nType=Application\nName=%s\nComment=%s\nExec=amadeus-webapp launch %s\nIcon=%s\nCategories=Network;\nX-Amadeus-WebApp=true\n' \
-      "$name" "$url" "$(printf '%q' "$url")" "$icon" >"$apps/$(id "$name").desktop"
+    # A desktop entry's Exec line has its own quoting, not the shell's: the address is one
+    # double-quoted argument, and a literal % is written %% or the desktop would read it
+    # as a field code (a URL containing %20 would arrive as something else entirely).
+    exec_url=$(printf '%s' "$url" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/`/\\`/g' -e 's/\$/\\$/g' -e 's/%/%%/g')
+    printf '[Desktop Entry]\nType=Application\nName=%s\nComment=%s\nExec=amadeus-webapp launch "%s"\nIcon=%s\nCategories=Network;\nX-Amadeus-WebApp=true\n' \
+      "$name" "$url" "$exec_url" "$icon" >"$apps/$(id "$name").desktop"
     echo "Added $name. It is in the launcher: Super+Space, Apps." ;;
-  list) grep -ls '^X-Amadeus-WebApp=true' "$apps"/*.desktop 2>/dev/null | while read -r f; do printf '%s\t%s\n' "$(sed -n 's/^Name=//p' "$f")" "$(sed -n 's/^Comment=//p' "$f")"; done ;;
+  list)
+    for f in "$apps"/*.desktop; do
+      [[ -f $f ]] || continue
+      grep -qs '^X-Amadeus-WebApp=true' "$f" || continue
+      printf '%s\t%s\n' "$(sed -n 's/^Name=//p' "$f")" "$(sed -n 's/^Comment=//p' "$f")"
+    done ;;
   remove)
     shift
     for name in "$@"; do name=${name%%$'\t'*}; rm -f "$apps/$(id "$name").desktop" "$icons/$(id "$name").ico" && echo "Removed $name."; done ;;
