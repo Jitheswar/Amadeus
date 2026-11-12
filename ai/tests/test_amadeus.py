@@ -71,6 +71,14 @@ class AuditTest(unittest.TestCase):
         self.assertEqual(bad, 2)
         f.unlink()
 
+    def test_malformed_line_is_reported_not_raised(self):
+        f = config.STATE / "audit.jsonl"
+        f.unlink(missing_ok=True)
+        audit.record("action", tool="a")
+        f.write_text(f.read_text() + "not json\n")
+        self.assertEqual(audit.verify(), (False, 2, 2))
+        f.unlink()
+
 
 QML = 'import QtQuick\nimport Quickshell\nimport "Amadeus"\nAppWindow { title: "t"; Txt { text: "%s" } }\n'
 
