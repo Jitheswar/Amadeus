@@ -3,6 +3,7 @@ Uses throwaway directories; never touches the real config, apps or audit log."""
 import json, os, socket, subprocess, sys, tempfile, threading, time, unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from unittest import mock
 
 TMP = tempfile.mkdtemp(prefix="amadeus-test-")
 for k in ("CONFIG", "STATE", "DATA", "RUN"):
@@ -123,6 +124,24 @@ class AppsTest(unittest.TestCase):
         self.assertIn("--share-net", cmd)
         i = cmd.index(TMP)
         self.assertEqual(cmd[i - 1], "--ro-bind")
+
+
+class DesktopConfigTest(unittest.TestCase):
+    def test_failed_verifier_restores_the_managed_file(self):
+        from amadeus.tools import desktop
+        d = Path(TMP) / "hypr-config"
+        d.mkdir(parents=True, exist_ok=True)
+        managed, main = d / "amadeus.lua", d / "hyprland.lua"
+        managed.write_text("-- old\n")
+        main.write_text("-- main\n")
+        with mock.patch.object(desktop, "MANAGED", managed), \
+             mock.patch.object(desktop, "HYPR_USER", d), \
+             mock.patch.object(desktop, "MAIN", main), \
+             mock.patch.object(desktop.shutil, "which", return_value="/usr/bin/Hyprland"), \
+             mock.patch.object(desktop.subprocess, "run", side_effect=subprocess.TimeoutExpired("Hyprland", 20)):
+            with self.assertRaises(desktop.ToolError):
+                desktop._managed_save({"binds": {}, "extra": "-- new\n"})
+        self.assertEqual(managed.read_text(), "-- old\n")
 
 
 class SandboxTest(unittest.TestCase):

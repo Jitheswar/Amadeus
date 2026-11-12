@@ -196,10 +196,14 @@ def _managed_save(state):
     HYPR_USER.mkdir(parents=True, exist_ok=True)
     MANAGED.write_text(new)
     if MAIN.exists() and shutil.which("Hyprland"):
-        p = subprocess.run(["Hyprland", "--verify-config", "--config", str(MAIN)], capture_output=True, text=True, timeout=20)
-        if "config ok" not in (p.stdout + p.stderr):
+        try:
+            p = subprocess.run(["Hyprland", "--verify-config", "--config", str(MAIN)], capture_output=True, text=True, timeout=20)
+            detail, ok = (p.stdout + p.stderr).strip()[-800:], "config ok" in (p.stdout + p.stderr)
+        except (OSError, subprocess.SubprocessError) as e:
+            detail, ok = f"the configuration check did not finish: {e}", False
+        if not ok:
             MANAGED.write_text(old) if old is not None else MANAGED.unlink()
-            raise ToolError("the desktop rejected that configuration; nothing was changed.\n" + (p.stdout + p.stderr).strip()[-800:])
+            raise ToolError("the desktop rejected that configuration; nothing was changed.\n" + detail)
     try:
         hyprctl("reload")
     except ToolError:
