@@ -48,17 +48,17 @@ pc=(pacman --config /tmp/offline.conf --root $ROOT --dbpath $ROOT/db --noconfirm
 "${pc[@]}" -Sy >/dev/null
 # shellcheck disable=SC2046
 want=$(grep -hv '^#' $SRC/installer/packages.{base,desktop,apps,nvidia} | tr '\n' ' ')
-local_pkgs=$(ls $REPO/*.pkg.tar.zst | grep -vE '/cachyos-(keyring|mirrorlist|v3-mirrorlist)-')
+local_pkgs=$(ls $REPO/*.pkg.tar.zst | grep -vE '/cachyos-(keyring|mirrorlist|v3-mirrorlist)-' || true)
 # Packages this machine already downloaded are copied rather than fetched again.
 if [[ -d /hostcache ]]; then
   # shellcheck disable=SC2086
   { "${pc[@]}" -Sp --print-format '%f' $want; "${pc[@]}" -Up --print-format '%f' $local_pkgs; } 2>/dev/null | sort -u |
-    while read -r f; do [[ -f /hostcache/$f ]] && cp -n /hostcache/$f $OFF/; done
+    while read -r f; do if [[ -f /hostcache/$f ]]; then cp -n "/hostcache/$f" $OFF/; fi; done || true   # only saves downloading
 fi
 # shellcheck disable=SC2086
-"${pc[@]}" -Sw $want >/dev/null
+"${pc[@]}" -Sw $want >/dev/null || { echo "   could not collect the packages in the package lists"; exit 1; }
 # shellcheck disable=SC2086
-"${pc[@]}" -Uw $local_pkgs >/dev/null
+"${pc[@]}" -Uw $local_pkgs >/dev/null || { echo "   could not collect what the bundled applications need"; exit 1; }
 rm -f $OFF/*.part
 repo-add -q $OFF/amadeus-offline.db.tar.gz $OFF/*.pkg.tar.zst
 echo "   $(ls $OFF/*.pkg.tar.zst | wc -l) packages, $(du -sh $OFF | cut -f1)"
