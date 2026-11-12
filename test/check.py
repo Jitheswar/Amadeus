@@ -105,5 +105,11 @@ print(p.stderr.strip().splitlines()[-1] if p.stderr.strip() else "no consistency
 if p.returncode:
     bad("consistency tests failed:\n" + p.stderr[-2500:])
 
+# 9. QML syntax, when qmllint is available.
+p = subprocess.run([sys.executable, "test/test_qml.py"], capture_output=True, text=True)
+print(p.stderr.strip().splitlines()[-1] if p.stderr.strip() else "no QML test output")
+if p.returncode:
+    bad("QML syntax check failed:\n" + p.stderr[-2500:])
+
 print(f"\n{'FAILED: ' + str(len(fails)) + ' problem(s)' if fails else 'All checks passed.'}")
 sys.exit(1 if fails else 0)

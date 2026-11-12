@@ -17,6 +17,9 @@ self-test that runs inside the installed system.
   against stand-in programs in a throwaway home, with no password, package manager or
   compositor, as part of `./build.sh check`. Anything only a session or hardware can
   show belongs in the VM self-test instead.
+- **QML syntax is checked, not its behaviour.** `test/test_qml.py` runs `qmllint` over
+  every QML file when it is installed and fails on a real syntax error. Use
+  `./build.sh preview` and the VM self-test for what the surfaces look like and do.
 - **Cross-file agreements are tested too.** `test/test_consistency.py` checks that the
   bar layout, theme, shortcut list and package lists agree with every copy of
   themselves. Changing one copy makes the check name the others that still need it.
