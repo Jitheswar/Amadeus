@@ -109,6 +109,14 @@ QML = 'import QtQuick\nimport Quickshell\nimport "Amadeus"\nAppWindow { title: "
 
 
 class AppsTest(unittest.TestCase):
+    def test_rollback_removes_the_destination_of_a_rename(self):
+        apps.save("rename", "Rename", "", {"shell.qml": QML % "one", "old.js": "var a = 1\n"})
+        apps.save("rename", files={"old.js": None, "new.js": "var a = 1\n"})
+        apps.rollback("rename")
+        d = apps.app_dir("rename")
+        self.assertTrue((d / "old.js").exists())
+        self.assertFalse((d / "new.js").exists())
+
     def test_lifecycle_update_rollback(self):
         m = apps.save("demo", "Demo", "d", {"shell.qml": QML % "one"})
         self.assertEqual((m["version"], m["permissions"]), (1, apps.normalise(None)))
@@ -131,6 +139,13 @@ class AppsTest(unittest.TestCase):
             text = (home / ".local/share/applications/amadeus-inject.desktop").read_text()
         self.assertEqual([l for l in text.splitlines() if l.startswith("Exec=")], ["Exec=ama app run inject"])
         self.assertIn("Name=Evil Exec=touch /tmp/pwned", text)
+    def test_rollback_removes_files_added_later(self):
+        apps.save("roll", "Roll", "", {"shell.qml": QML % "one"})
+        apps.save("roll", files={"extra.js": "var a = 1\n"})
+        m = apps.rollback("roll")
+        self.assertEqual(m["version"], 3)
+        self.assertIn("one", (apps.app_dir("roll") / "shell.qml").read_text())
+        self.assertFalse((apps.app_dir("roll") / "extra.js").exists())
 
     def test_broken_update_is_rejected_and_old_version_kept(self):
         apps.save("keep", "Keep", "", {"shell.qml": QML % "good"})
