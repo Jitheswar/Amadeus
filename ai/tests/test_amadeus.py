@@ -426,6 +426,27 @@ class TaskTest(unittest.TestCase):
 
 
 class HelperTest(unittest.TestCase):
+    def test_names_are_validated_before_any_command_runs(self):
+        source = (ROOT / "priv/amadeus-priv").read_text().rsplit("\nmain()", 1)[0]
+        ns = {"__name__": "helper_validation"}
+        with mock.patch.object(sys, "argv", ["amadeus-priv", "--uid", str(os.getuid())]):
+            exec(compile(source, "amadeus-priv", "exec"), ns)
+        runner = mock.Mock(return_value=(0, ""))
+        ns["run"] = runner
+        for unit in ("--now", "-H", ".service", "ok.service\n"):
+            with self.assertRaises(ValueError):
+                ns["op_systemctl"]({"action": "start", "unit": unit})
+        for pkgs in (["-Syu"], ["--overwrite=*"], [".hidden"], ["ok\n"], "htop", [None]):
+            with self.assertRaises(ValueError):
+                ns["op_pacman"]({"action": "install", "packages": pkgs})
+        runner.assert_not_called()
+        for unit in (":demo.service", r"\x2edemo.service", "getty@tty1.service"):
+            ns["op_systemctl"]({"action": "start", "unit": unit})
+            self.assertEqual(runner.call_args.args[0], ["systemctl", "start", unit])
+        for pkg in ("_demo", "+demo", "@demo"):
+            ns["op_pacman"]({"action": "install", "packages": [pkg]})
+            self.assertIn(mock.call(["pacman", "-S", "--noconfirm", "--needed", pkg], 3600), runner.call_args_list)
+
     """The root helper, run unprivileged: validation must refuse before anything executes."""
     @classmethod
     def setUpClass(cls):
@@ -446,6 +467,7 @@ class HelperTest(unittest.TestCase):
                  ("write_file", {"path": "/etc/../root/x", "content": ""}), ("systemctl", {"action": "start", "unit": "a; rm -rf /"}),
                  ("systemctl", {"action": "mask", "unit": "x.service"}), ("systemctl", {"action": "stop", "unit": "amadeus-priv.service"}),
                  ("pacman", {"action": "install", "packages": ["--overwrite=*"]}), ("pacman", {"action": "install", "packages": []}),
+                 ("pacman", {"action": "install", "packages": ["-Syu"]}), ("systemctl", {"action": "start", "unit": "--now"}),
                  ("snapper", {"action": "undo", "frm": 5, "to": 2}), ("nope", {})]
         for op, args in cases:
             r = root.call(op, **args)

@@ -14,8 +14,8 @@ ap.add_argument("--ttl", type=int, default=0, help="minutes")
 ap.add_argument("--socket", default="/run/amadeus/priv.sock")
 A = ap.parse_args()
 START = time.time()
-UNIT = re.compile(r"^[\w@.:\\-]+$")
-PKG = re.compile(r"^[a-zA-Z0-9@._+-]+$")
+UNIT = re.compile(r"[A-Za-z0-9_:@\\][A-Za-z0-9_@.:\\-]*")
+PKG = re.compile(r"[a-zA-Z0-9_@+][a-zA-Z0-9@._+-]*")
 PROTECTED = ("/etc/shadow", "/etc/gshadow", "/etc/passwd", "/etc/group", "/etc/sudoers", "/etc/sudoers.d", "/etc/pam.d",
              "/etc/polkit-1", "/etc/security", "/etc/ssh", "/etc/crypttab", "/etc/fstab", "/etc/amadeus")
 BACKUPS = "/var/lib/amadeus/backups"
@@ -45,7 +45,7 @@ def op_info(a):
 
 
 def op_systemctl(a):
-    if a.get("action") not in ("start", "stop", "restart", "reload", "enable", "disable") or not UNIT.match(a.get("unit", "")):
+    if a.get("action") not in ("start", "stop", "restart", "reload", "enable", "disable") or not isinstance(a.get("unit"), str) or not UNIT.fullmatch(a["unit"]):
         raise ValueError("invalid systemctl request")
     if a["unit"].startswith("amadeus-priv"):
         raise ValueError("refusing to manage the helper itself")
@@ -56,8 +56,8 @@ def op_systemctl(a):
 
 
 def op_pacman(a):
-    pk = a.get("packages") or []
-    if any(not PKG.match(p) for p in pk):
+    pk = a.get("packages", [])
+    if not isinstance(pk, list) or any(not isinstance(p, str) or not PKG.fullmatch(p) for p in pk):
         raise ValueError("invalid package name")
     cmd = {"install": ["pacman", "-S", "--noconfirm", "--needed"] + pk,
            "remove": ["pacman", "-Rns", "--noconfirm"] + pk,
