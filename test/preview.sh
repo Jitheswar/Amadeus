@@ -27,6 +27,8 @@ run() {
   notify-send -a "Amadeus" "Update finished" "64 packages updated. A snapshot was taken before and after."
   notify-send -a "LocalSend" "File received" "holiday-photos.zip from Pixel 9" -A open=Open -A show="Show in Files" >/dev/null 2>&1 &
   shot 1-desktop 1.5
+  quickshell ipc -p /usr/share/amadeus-os/shell call shell state >"$OUT/desktop-state.json"
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["audioInputs"] == ["Built-in microphone"]; assert d["audioOutputs"] == ["Built-in speakers", "HDMI output"]' "$OUT/desktop-state.json" || return 1
   ipc() { quickshell ipc -p /usr/share/amadeus-os/shell call "$@"; }
   ipc shell popover calendar 960; shot 5-calendar 0.8
   ipc shell popover power 1780; shot 6-power 0.8

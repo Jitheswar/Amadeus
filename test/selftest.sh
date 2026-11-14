@@ -149,6 +149,7 @@ t "panel takes a window as context"            bash -c 'as ama panel window; as 
 t "AI provider choices and saved default are visible" bash -c 'as ama provider --json | grep -q "antigravity-cli" && as ama panel settings && as ama provider use codex-cli && sleep 1 && as ama panel state | grep -q "defaultProvider.*codex-cli" && as quickshell ipc -p /usr/share/amadeus/shell/panel.qml call panel agent antigravity-cli && as ama panel state | grep -q "provider.*antigravity-cli.*defaultProvider.*codex-cli" && as ama provider use claude-cli'
 t "search opens a setting without returning it to a menu" bash -c '(printf "local only\n" | as amadeus-pick "Unrelated menu" >/tmp/search-pick.out; echo "rc=$?" >>/tmp/search-pick.out) & sleep 2; shell pick query sound; sleep 1; shell shell state | grep -q "Sound settings" && shell pick accept && sleep 1 && grep -qx "rc=1" /tmp/search-pick.out && shell shell state | grep -q "popover.*volume" && shell shell popover "" 0'
 t "universal search indexes applications and settings" bash -c 'out=$(as amadeus-search --index); grep -q "app:" <<<"$out" && grep -q "setting:agent" <<<"$out"'
+t "audio menu omits monitor inputs"             bash -c 'state=$(shell shell state) && [[ $state == *audioInputs* && $state != *"Monitor of"* ]]'
 t "audit log chain intact"                     as ama audit verify
 echo "--- AI requests end to end (scripted model; everything else is real)"
 while read -r line; do

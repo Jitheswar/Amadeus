@@ -58,7 +58,7 @@ ShellRoot {
     }
     IpcHandler {
         target: "shell"
-        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, searchResults: picker.shown.slice(0, 40).map(x => picker.label(x)), fontSize: root.fontPixels(14), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
+        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, searchResults: picker.shown.slice(0, 40).map(x => picker.label(x)), fontSize: root.fontPixels(14), audioInputs: root.inputs.map(n => n.description || n.name), audioOutputs: root.outputs.map(n => n.description || n.name), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
         // For automation and tests: open a drop-down at a horizontal position, or close it with "".
         function popover(name: string, x: int): void { root.popX = x; root.pop = name }
         function settings(name: string): void { root.popX = Quickshell.screens[0].width / 2; root.pop = name }
@@ -117,11 +117,20 @@ ShellRoot {
     readonly property real vol: demo ? 0.45 : (sink && sink.audio ? sink.audio.volume : 0)
     readonly property bool muted: !demo && !!(sink && sink.audio && sink.audio.muted)
     // The devices in the sound panel. PipeWire owns the list; the preview uses stand-ins.
-    readonly property var demoOutputs: [{ id: 1, description: "Built-in speakers" },
-                                        { id: 2, description: "HDMI output" }]
-    readonly property var demoInputs: [{ id: 3, description: "Built-in microphone" }]
-    readonly property var outputs: demo ? demoOutputs : Pipewire.nodes.values.filter(n => !n.isStream && (n.type & PwNodeType.AudioSink))
-    readonly property var inputs: demo ? demoInputs : Pipewire.nodes.values.filter(n => !n.isStream && (n.type & PwNodeType.AudioSource))
+    readonly property var demoOutputs: [{ id: 1, name: "alsa_output.demo-speakers", description: "Built-in speakers", type: PwNodeType.AudioSink, isStream: false, ready: true, properties: ({}) },
+                                        { id: 2, name: "alsa_output.demo-hdmi", description: "HDMI output", type: PwNodeType.AudioSink, isStream: false, ready: true, properties: ({}) }]
+    readonly property var demoInputs: [{ id: 3, name: "alsa_input.demo-microphone", description: "Built-in microphone", type: PwNodeType.AudioSource, isStream: false, ready: true, properties: ({}) }]
+    readonly property var demoNodes: demoOutputs.concat(demoInputs, [
+        { name: "speakers.monitor", description: "Monitor of speakers", type: PwNodeType.AudioSource, isStream: false, ready: true, properties: ({ "node.virtual": true }) },
+        { name: "demo.player", description: "Application stream", type: PwNodeType.AudioOutStream, isStream: true, ready: true, properties: ({}) }])
+    PwObjectTracker { objects: Pipewire.nodes.values.filter(n => !n.isStream && (n.type & PwNodeType.Audio)) }
+    function audioDevice(n, type) {
+        return n.ready && !n.isStream && (n.type & type) === type
+            && ![true, "true", 1].includes(n.properties["node.virtual"])
+            && !String(n.name).endsWith(".monitor")
+    }
+    readonly property var outputs: (demo ? demoNodes : Pipewire.nodes.values).filter(n => audioDevice(n, PwNodeType.AudioSink))
+    readonly property var inputs: (demo ? demoNodes : Pipewire.nodes.values).filter(n => audioDevice(n, PwNodeType.AudioSource))
 
     property real bright: 0.7
     Process { id: readBright; command: ["brightnessctl", "-m"]
