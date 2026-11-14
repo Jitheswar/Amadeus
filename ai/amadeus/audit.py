@@ -76,9 +76,14 @@ def verify():
     if not p.exists():
         return True, 0, None
     for i, line in enumerate(p.read_text().splitlines(), 1):
-        rec = json.loads(line)
-        h = rec.pop("hash")
-        if rec["prev"] != prev or hashlib.sha256(json.dumps(rec, sort_keys=True).encode()).hexdigest() != h:
+        try:
+            rec = json.loads(line)
+            if not isinstance(rec, dict):
+                return False, i, i
+            h = rec.pop("hash")
+            if rec["prev"] != prev or hashlib.sha256(json.dumps(rec, sort_keys=True).encode()).hexdigest() != h:
+                return False, i, i
+        except (json.JSONDecodeError, KeyError, TypeError):
             return False, i, i
         prev = h
     return True, i, None

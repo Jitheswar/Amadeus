@@ -67,6 +67,17 @@ class DesktopTest(unittest.TestCase):
 
 
 class AuditTest(unittest.TestCase):
+    def test_scalar_json_is_reported_as_a_corrupt_record(self):
+        f = config.STATE / "audit.jsonl"
+        for value in (None, True, 42, "text", [1, 2], {}):
+            with self.subTest(value=value):
+                f.unlink(missing_ok=True)
+                audit.record("action", tool="a")
+                with f.open("a") as out:
+                    out.write(json.dumps(value) + "\n")
+                self.assertEqual(audit.verify(), (False, 2, 2))
+        f.unlink()
+
     def test_chain_detects_tampering_and_redacts_secrets(self):
         f = config.STATE / "audit.jsonl"
         f.unlink(missing_ok=True)
@@ -102,6 +113,12 @@ class AuditTest(unittest.TestCase):
         recs = audit.read(10)
         self.assertEqual([r["tool"] for r in recs], ["a"])
         self.assertEqual(audit.read(0), [])
+    def test_malformed_line_is_reported_not_raised(self):
+        f = config.STATE / "audit.jsonl"
+        f.unlink(missing_ok=True)
+        audit.record("action", tool="a")
+        f.write_text(f.read_text() + "not json\n")
+        self.assertEqual(audit.verify(), (False, 2, 2))
         f.unlink()
 
 
