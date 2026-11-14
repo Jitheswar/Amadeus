@@ -7,7 +7,7 @@ HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
   ama <request...>            do something ("free up disk space", "put a clock widget after the workspaces")
   ama chat                    interactive session
   ama status                  daemon, provider, root mode, machine state
-  ama provider [use NAME | key NAME]
+  ama provider [--json | use NAME | key NAME]
   ama root on [--full] [--ttl MIN] | off | status
   ama app list | run ID | history ID | rollback ID [N] | remove ID
   ama audit [N] | audit verify
@@ -178,7 +178,7 @@ def panel_cmd(args):
             action = "show"
     if action == "ask":
         extra = [" ".join(args[1:])]
-    if action not in ("toggle", "show", "hide", "window", "state", "ask"):
+    if action not in ("toggle", "show", "hide", "window", "state", "settings", "ask"):
         sys.exit(HELP)
 
     def call(fn, *a):
@@ -219,9 +219,7 @@ def provider_cmd(c, args):
     if args[0] == "use" and len(args) == 2:
         if args[1] not in cfg["providers"]:
             sys.exit(f"no provider {args[1]}")
-        f = config.CONFIG / "config.toml"
-        text, n = re.subn(r'(?m)^(provider\s*=\s*)"[^"]*"', rf'\1"{args[1]}"', f.read_text(), count=1)
-        f.write_text(text if n else f'[ai]\nprovider = "{args[1]}"\n' + text)
+        config.set_default_provider(args[1])
         c.call("reload")
         return print(f"provider: {args[1]}")
     if args[0] == "key" and len(args) == 2:
@@ -259,6 +257,9 @@ def main(argv=None):
         return doc()
     if cmd == "panel":
         return panel_cmd(rest)
+    if cmd == "provider" and rest == ["--json"]:
+        config.ensure_dirs()
+        return print(json.dumps(config.provider_info()))
     c = Client()
     if cmd == "status":
         r = c.call("status")

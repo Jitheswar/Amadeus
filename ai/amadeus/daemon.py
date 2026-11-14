@@ -282,6 +282,16 @@ def make_handler(d, app=None):
                     owner.event(sess.get("rid"), "tool", {"name": p["name"], "args": p.get("args") or {}})
                 content, err = d.execute(p["name"], p.get("args") or {}, session=s, origin=p.get("origin", "ai"))
                 return {"content": content, "is_error": err}
+            if m == "providers":
+                return config.provider_info()
+            if m == "provider_default":
+                config.set_default_provider(p["name"])
+                d.reload()
+                return config.provider_info()
+            if m == "provider_save":
+                config.save_provider(p["name"], p["settings"], p.get("api_key", ""))
+                d.reload()
+                return config.provider_info()
             if m == "tools":
                 return T.specs()
             if m == "status":

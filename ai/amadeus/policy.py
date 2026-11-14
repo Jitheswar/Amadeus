@@ -28,7 +28,10 @@ class Policy:
         pol = dict(cfg.get("policy", {}))
         paths = pol.pop("paths", {})
         self.rules = pol
-        self.deny_paths = paths.get("deny", [])
+        from . import config
+        self.deny_paths = list(paths.get("deny", [])) + [str(config.CONFIG / "secrets"), "~/.gemini"]
+        if os.environ.get("AGY_DIR"):
+            self.deny_paths.append(os.environ["AGY_DIR"])
         self.free_paths = paths.get("free", [])
         self.session_grants = set()   # capabilities the user chose "always" for; dies with the daemon
 

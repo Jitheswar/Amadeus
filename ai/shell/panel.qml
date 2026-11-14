@@ -9,6 +9,13 @@ import "components"
 ShellRoot {
     id: root
     property bool open: false
+    property bool settingsOpen: false
+    property var providerOptions: []
+    property string defaultProvider: ""
+    property string selectedProvider: ""
+    property bool providerOverride: false
+    property string settingsMessage: ""
+    readonly property var selectedInfo: providerOptions.find(p => p.name === selectedProvider) || ({})
     property int seq: 0
     property int nextTask: 0
     property int current: -1            // task that Enter continues
@@ -23,6 +30,13 @@ ShellRoot {
         sock.flush()
         return id
     }
+    function providerRequest(method, params) {
+        const id = send(method, params || {})
+        const requests = Object.assign({}, byRequest)
+        requests[id] = { kind: "providers" }
+        byRequest = requests
+    }
+    function refreshProviders() { if (sock.connected) providerRequest("providers", {}) }
     function setTask(t, patch) {
         const all = Object.assign({}, tasks)
         all[t] = Object.assign({}, all[t] || {}, patch)
@@ -33,6 +47,7 @@ ShellRoot {
         view.positionViewAtEnd()
     }
     function submit(fresh) {
+        if (!sock.connected || !selectedProvider) return
         const q = input.text.trim()
         if (!q) return
         let t = current
@@ -51,9 +66,10 @@ ShellRoot {
             about = null
         }
         input.text = ""
-        setTask(t, { running: true, stopped: false })
-        const rid = send("ask", { prompt: prompt, session: tasks[t].session, interactive: true })
+        setTask(t, { running: true, stopped: false, provider: selectedProvider, providerLabel: selectedInfo.label || selectedProvider })
+        const rid = send("ask", { prompt: prompt, session: tasks[t].session, interactive: true, provider: selectedProvider })
         const m = Object.assign({}, byRequest); m[rid] = { task: t, kind: "ask" }; byRequest = m
+        if (providerOverride) { selectedProvider = defaultProvider; providerOverride = false }
     }
     function stop(t) { send("stop", { session: tasks[t].session }); setTask(t, { stopped: true }) }
     function stopAll() { for (const k in tasks) if (tasks[k].running) stop(k) }
@@ -69,6 +85,16 @@ ShellRoot {
     function handle(m) {
         const r = byRequest[m.id]
         if (!r) return
+        if (r.kind === "providers") {
+            if (m.error) settingsMessage = m.error
+            else if (m.result) {
+                providerOptions = m.result.providers || []
+                defaultProvider = m.result.default || ""
+                if (!providerOverride || !providerOptions.some(p => p.name === selectedProvider)) selectedProvider = defaultProvider
+                settingsMessage = ""
+            }
+            return
+        }
         const t = r.task
         if (r.kind === "undo") {
             if (m.result !== undefined) { add(t, "note", m.result.length ? "Undone:\n" + m.result.join("\n") : "Nothing to undo."); setTask(t, { changed: 0 }) }
@@ -89,7 +115,13 @@ ShellRoot {
         id: sock
         path: Quickshell.env("XDG_RUNTIME_DIR") + "/amadeus/daemon.sock"
         connected: true
+        onConnectedChanged: if (connected) root.refreshProviders()
         parser: SplitParser { onRead: line => { try { root.handle(JSON.parse(line)) } catch (e) {} } }
+    }
+    FileView {
+        path: Quickshell.env("AMADEUS_CONFIG") ? Quickshell.env("AMADEUS_CONFIG") + "/config.toml" : Quickshell.env("HOME") + "/.config/amadeus/config.toml"
+        watchChanges: true; printErrors: false
+        onFileChanged: { reload(); root.refreshProviders() }
     }
     IpcHandler {
         target: "panel"
@@ -103,7 +135,12 @@ ShellRoot {
         }
         // Start a new task from outside (the launcher sends text here that matched no application).
         function ask(text: string): void { root.open = true; input.text = text; root.submit(true) }
-        function state(): string { return JSON.stringify({ open: root.open, tasks: root.nextTask, running: root.running, connected: sock.connected }) }
+        function settings(): void { root.open = true; root.settingsOpen = true; root.refreshProviders() }
+        function agent(name: string): void {
+            if (root.providerOptions.some(p => p.name === name)) { root.selectedProvider = name; root.providerOverride = true }
+        }
+        function state(): string { return JSON.stringify({ open: root.open, tasks: root.nextTask, running: root.running, connected: sock.connected,
+            provider: root.selectedProvider, defaultProvider: root.defaultProvider, settings: root.settingsOpen }) }
     }
     ListModel { id: log }
 
@@ -148,9 +185,29 @@ ShellRoot {
                 Btn { id: stopAllBtn; text: "Stop all"; visible: root.running > 0; onClicked: root.stopAll() }
             }
 
+            Row {
+                id: agentLine
+                anchors { left: parent.left; right: parent.right; top: head.bottom; topMargin: Theme.gap }
+                spacing: Theme.gap * 0.6
+                Txt { width: parent.width - manage.width - Theme.gap * 0.6; anchors.verticalCenter: parent.verticalCenter
+                      text: (root.selectedInfo.label || "Choose an agent") + (root.selectedInfo.kind ? " · " + root.selectedInfo.kind : "")
+                      elide: Text.ElideRight; wrapMode: Text.NoWrap }
+                Btn { id: manage; text: "Settings"; onClicked: { root.settingsOpen = !root.settingsOpen; root.refreshProviders() } }
+            }
+            ProviderSettings {
+                visible: root.settingsOpen
+                anchors { left: parent.left; right: parent.right; top: agentLine.bottom; bottom: parent.bottom; topMargin: Theme.gap }
+                options: root.providerOptions; selected: root.selectedProvider; defaultName: root.defaultProvider; message: root.settingsMessage
+                onChoose: name => { root.selectedProvider = name; root.providerOverride = true }
+                onMakeDefault: name => root.providerRequest("provider_default", { name: name })
+                onSaveApi: (name, fields, key) => root.providerRequest("provider_save", { name: name, settings: fields, api_key: key })
+                onRefresh: root.refreshProviders()
+                onClose: root.settingsOpen = false
+            }
             ListView {
                 id: view
-                anchors { left: parent.left; right: parent.right; top: head.bottom; bottom: foot.top; topMargin: Theme.gap; bottomMargin: Theme.gap }
+                visible: !root.settingsOpen
+                anchors { left: parent.left; right: parent.right; top: agentLine.bottom; bottom: foot.top; topMargin: Theme.gap; bottomMargin: Theme.gap }
                 model: log
                 spacing: 8
                 clip: true
@@ -190,7 +247,7 @@ ShellRoot {
                             anchors { left: parent.left; bottom: parent.bottom; margins: Theme.gap * 0.6 }
                             spacing: Theme.gap * 0.6
                             Txt { dim: true; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: Theme.size * 0.85
-                                  text: row.t.running ? (row.t.stopped ? "stopping…" : "working…") : "done" }
+                                  text: (row.t.providerLabel || "") + " · " + (row.t.running ? (row.t.stopped ? "stopping…" : "working…") : "done") }
                             Btn { text: "Stop"; visible: !!row.t.running && !row.t.stopped; onClicked: root.stop(row.task) }
                             Btn { text: row.t.showSteps ? "Hide steps" : "Show steps (" + (row.t.steps || 0) + ")"; visible: (row.t.steps || 0) > 0
                                   onClicked: root.setTask(row.task, { showSteps: !row.t.showSteps }) }
@@ -223,6 +280,7 @@ ShellRoot {
 
             Column {
                 id: foot
+                visible: !root.settingsOpen
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
                 spacing: Theme.gap * 0.6
                 Rectangle {

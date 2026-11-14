@@ -1,6 +1,7 @@
 import QtQuick
 
 Text {
+    textFormat: Text.PlainText
     property bool dim: false
     property bool mono: false
     property bool title: false

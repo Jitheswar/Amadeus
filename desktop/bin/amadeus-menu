@@ -74,8 +74,9 @@ declare -A KINDS=(
 )
 
 defaults_menu() {
-  local kind; kind=$(printf '%s\n' Terminal Editor Harness Browser Files Images Video Music Documents Mail | pick "Default") || exit 0
+  local kind; kind=$(printf '%s\n' Terminal Editor Harness Agent Browser Files Images Video Music Documents Mail | pick "Default") || exit 0
   case $kind in
+    Agent) exec ama panel settings ;;
     Terminal|Editor|Harness)
       local what=${kind,,} now choice
       now=$(amadeus-default "$what")

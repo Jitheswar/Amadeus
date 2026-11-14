@@ -146,6 +146,7 @@ t "system describes itself (ama discover)"     bash -c "as ama discover --json |
 t "agent skill installed for Claude Code"      test -f /home/$U/.claude/skills/amadeus/SKILL.md
 t "Amadeus panel opens and reaches the daemon" bash -c 'as ama panel show; sleep 2; s=$(as ama panel state); echo "$s"; echo "$s" | grep -q "\"open\": true.*\"connected\": true"'
 t "panel takes a window as context"            bash -c 'as ama panel window; as ama panel hide; sleep 1; as ama panel state | grep -q "\"open\": false"'
+t "AI provider choices and saved default are visible" bash -c 'as ama provider --json | grep -q "antigravity-cli" && as ama panel settings && as ama provider use codex-cli && sleep 1 && as ama panel state | grep -q "defaultProvider.*codex-cli" && as quickshell ipc -p /usr/share/amadeus/shell/panel.qml call panel agent antigravity-cli && as ama panel state | grep -q "provider.*antigravity-cli.*defaultProvider.*codex-cli" && as ama provider use claude-cli'
 t "audit log chain intact"                     as ama audit verify
 echo "--- AI requests end to end (scripted model; everything else is real)"
 while read -r line; do

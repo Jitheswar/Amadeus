@@ -8,6 +8,24 @@ from . import ProviderError
 AMA = [sys.executable, "-m", "amadeus.cli"]
 
 
+def find_cli(command):
+    """Resolve installed mise binaries without invoking a downloading shim."""
+    from pathlib import Path
+    from ..tools import sh
+    found = shutil.which(command)
+    if not found:
+        return None
+    path = Path(found)
+    if path.is_symlink() and path.resolve().name == "mise":
+        try:
+            result = sh(["mise", "which", path.name], env=dict(os.environ, MISE_OFFLINE="1"), timeout=5)
+            resolved = result.stdout.strip()
+            return resolved if result.returncode == 0 and Path(resolved).is_file() else None
+        except Exception:
+            return None
+    return found
+
+
 def _transcript(history):
     lines = []
     for m in history[:-1]:
@@ -31,7 +49,7 @@ class ClaudeCLI:
         self.model = pcfg.get("model", "")
 
     def run(self, system, history, session, emit):
-        exe = shutil.which(self.cfg.get("command", "claude"))
+        exe = find_cli(self.cfg.get("command", "claude"))
         if not exe:
             raise ProviderError("claude CLI not found. Install Claude Code and log in.")
         mcp = {"mcpServers": {"amadeus": {"command": AMA[0], "args": AMA[1:] + ["mcp"],
@@ -84,7 +102,7 @@ class CodexCLI:
         self.model = pcfg.get("model", "")
 
     def run(self, system, history, session, emit):
-        exe = shutil.which(self.cfg.get("command", "codex"))
+        exe = find_cli(self.cfg.get("command", "codex"))
         if not exe:
             raise ProviderError("codex CLI not found. Install it and run `codex login`.")
         out = tempfile.NamedTemporaryFile("r", suffix=".txt", dir=config.RUN, delete=False)
@@ -106,3 +124,56 @@ class CodexCLI:
         finally:
             out.close()
             os.unlink(out.name)
+
+
+class AntigravityCLI:
+    """Official agy headless mode, with native actions denied and Amadeus MCP allowed."""
+    kind = "agent"
+
+    def __init__(self, name, pcfg):
+        self.name, self.cfg = name, pcfg
+
+    def run(self, system, history, session, emit):
+        from pathlib import Path
+        exe = find_cli(self.cfg.get("command", "agy"))
+        if not exe:
+            raise ProviderError("Antigravity CLI not found. Install it from Install > Harness and sign in with agy.")
+        with tempfile.TemporaryDirectory(prefix="agy-", dir=config.RUN) as directory:
+            root = Path(directory)
+            (root / ".agents").mkdir()
+            mcp = {"mcpServers": {"amadeus": {"command": AMA[0], "args": AMA[1:] + ["mcp"],
+                    "env": {"AMADEUS_SESSION": session, "PYTHONPATH": str(config.SHARE)}}}}
+            (root / ".agents/mcp_config.json").write_text(json.dumps(mcp))
+            permissions = {"agentMode": "", "toolPermission": "request-review", "permissions": {
+                "deny": ["command(*)", "read_file(*)", "write_file(*)", "read_url(*)", "execute_url(*)"],
+                "allow": ["mcp(amadeus/*)"], "ask": []}}
+            prompt = system + "\nUse only the amadeus MCP tools for system actions.\n\n" + _transcript(history)
+            command = [exe, "-p", prompt, "--output-format", "json", "--disable-slash-commands", "--settings", json.dumps(permissions)]
+            if self.cfg.get("model"):
+                command += ["--model", self.cfg["model"]]
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                       env=_env(session), cwd=root, stdin=subprocess.DEVNULL)
+            emit("_proc", process)
+            try:
+                out, err = process.communicate()
+                try:
+                    result = json.loads(out)
+                except json.JSONDecodeError:
+                    raise ProviderError("Antigravity returned an unreadable response")
+                if not isinstance(result, dict):
+                    raise ProviderError("Antigravity returned an invalid response")
+                if process.returncode or result.get("status") != "SUCCESS":
+                    raise ProviderError("Antigravity: " + str(result.get("error") or err or "request failed")[-500:])
+                text = str(result.get("response") or "")
+                emit("text", {"text": text})
+                return text
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
+                process.stdout.close()
+                process.stderr.close()

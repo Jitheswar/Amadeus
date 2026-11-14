@@ -36,4 +36,7 @@ def make(name, cfg):
     if t == "codex-cli":
         from .cli import CodexCLI
         return CodexCLI(name, pcfg)
+    if t == "antigravity-cli":
+        from .cli import AntigravityCLI
+        return AntigravityCLI(name, pcfg)
     raise ProviderError(f"unknown provider type {t!r}")

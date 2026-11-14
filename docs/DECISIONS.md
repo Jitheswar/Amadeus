@@ -287,3 +287,12 @@ while root mode is on and is gone at shutdown.
 | Lock and idle | swaylock, swayidle | Compositor-independent |
 | Audio | PipeWire + WirePlumber | Required by screen sharing and Bluetooth audio |
 | Power | power-profiles-daemon + thermald | Uses the Intel driver's own hints; over TLP, which fights it |
+
+## AI agent selection
+
+Defaults > Agent controls the right-side Amadeus panel. A request can override
+that default without changing it. Subscription CLIs keep their own login; API
+keys stay in the private secrets directory and never enter the provider listing.
+The Antigravity adapter uses its official headless CLI and workspace MCP setup,
+with native shell, file and browser operations denied; system actions still go
+through the daemon's policy and audit boundary.
