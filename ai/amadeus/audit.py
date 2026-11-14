@@ -24,10 +24,20 @@ def _scrub(v, depth=0):
 def _last_hash(p):
     if not p.exists() or p.stat().st_size == 0:
         return "0" * 64
+    # Records can exceed one read window, so grow it until the last line has a
+    # newline before it (and is therefore complete).
     with open(p, "rb") as f:
-        f.seek(max(0, p.stat().st_size - 65536))
-        last = f.read().splitlines()[-1]
-    return json.loads(last)["hash"]
+        f.seek(0, os.SEEK_END)
+        pos, buf = f.tell(), b""
+        while pos > 0:
+            step = min(65536, pos)
+            pos -= step
+            f.seek(pos)
+            buf = f.read(step) + buf
+            lines = buf.splitlines()
+            if len(lines) >= 2:
+                break
+    return json.loads(lines[-1])["hash"]
 
 
 def record(kind, **fields):
