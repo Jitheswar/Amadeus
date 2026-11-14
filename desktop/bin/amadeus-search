@@ -10,7 +10,10 @@ from pathlib import Path
 
 SHELL = "/usr/share/amadeus-os/shell"
 SETTINGS = {
-    "display": ("Display settings", "resolution monitor scale brightness backlight", ["amadeus-display"]),
+    "display": ("Display settings", "resolution monitor scale", ["amadeus-display"]),
+    "brightness": ("Brightness settings", "display backlight screen brightness", []),
+    "admin": ("Administrator password settings", "sudo passwordless administrator privilege timeout", []),
+    "calendar": ("Calendar", "date time calendar", []),
     "text": ("Text size", "font text sizing typography", ["amadeus-menu", "setup", "Text size"]),
     "gpu": ("Graphics settings", "gpu nvidia intel battery performance", ["amadeus-menu", "setup", "GPU"]),
     "defaults": ("Default applications", "default agent terminal editor browser", ["amadeus-menu", "setup", "Defaults"]),
@@ -40,7 +43,7 @@ def index():
     p = subprocess.run(["amadeus-launcher", "--json"], capture_output=True, text=True, timeout=10)
     if p.returncode == 0:
         for app in json.loads(p.stdout):
-            result.append(dict(app, id="app:" + app["id"], kind=app.get("kind", "Application")))
+            result.append(dict(app, id="app:" + app["id"], kind=app.get("kind", "Application"), keywords=app.get("keywords", "") + " " + app["id"]))
     for key, (label, words, _) in SETTINGS.items():
         result.append({"id": "setting:" + key, "label": label, "keywords": words, "kind": "Setting"})
     for key, label in menu_settings().items():
@@ -66,7 +69,8 @@ def main():
             name = key[8:]
             command = SETTINGS[name][2]
             if not command:
-                command = ["quickshell", "ipc", "-p", SHELL, "call", "shell", "settings", name]
+                panel = {"brightness": "display", "admin": "sudo"}.get(name, name)
+                command = ["quickshell", "ipc", "-p", SHELL, "call", "shell", "settings", panel]
         else:
             sys.exit("That search result is no longer available.")
         subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,

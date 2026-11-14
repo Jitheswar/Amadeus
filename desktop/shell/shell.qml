@@ -61,7 +61,11 @@ ShellRoot {
         function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, searchResults: picker.shown.slice(0, 40).map(x => picker.label(x)), audioInputs: root.inputs.map(n => n.description || n.name), audioOutputs: root.outputs.map(n => n.description || n.name), fontSize: root.fontPixels(14), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
         // For automation and tests: open a drop-down at a horizontal position, or close it with "".
         function popover(name: string, x: int): void { root.popX = x; root.pop = name; if (name === "agents") root.refreshUsage() }
-        function settings(name: string): void { root.popX = Quickshell.screens[0].width / 2; root.pop = name }
+        function settings(name: string): void {
+            root.popX = Quickshell.screens[0].width / 2; root.pop = name
+            if (name === "display") { readBright.running = true; readText.running = true; readScale.running = true }
+            if (name === "wifi") scan.running = true
+        }
         function awake(on: bool): void { root.awake = on }
         function recording(on: bool): void { root.recording = on }
     }

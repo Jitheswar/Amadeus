@@ -82,6 +82,7 @@ esac''')
         self.assert_ok(result)
         data = json.loads(result.stdout)
         self.assertIn("app:files", [x["id"] for x in data])
+        self.assertIn("files", next(x["keywords"] for x in data if x["id"] == "app:files"))
         self.assertIn("setting:agent", [x["id"] for x in data])
         self.assertEqual(self.calls_of("sudo"), [])
         self.assertNotEqual(self.run_cmd("amadeus-search", "--run", "setting:unknown").returncode, 0)
@@ -94,10 +95,21 @@ esac''')
         self.assertIn("menu:default:Browser", ids)
         self.assertIn("menu:config:Look and motion", ids)
         self.assertIn("setting:harness", ids)
+        self.assertIn("setting:brightness", ids)
+        self.assertIn("setting:admin", ids)
         self.assertNotIn("menu:config:Lock screen", ids)
         self.stub("amadeus-editor")
         self.assert_ok(self.run_cmd("amadeus-menu", "config", "Look and motion"))
         self.assertEqual(self.calls_of("amadeus-editor"), [[str(self.config / "amadeus/theme.json")]])
+
+    def test_search_opens_the_actual_brightness_control(self):
+        self.stub("quickshell")
+        self.assert_ok(self.run_cmd("amadeus-search", "--run", "setting:brightness"))
+        for _ in range(20):
+            if self.calls_of("quickshell"):
+                break
+            time.sleep(0.01)
+        self.assertEqual(self.calls_of("quickshell")[-1][-2:], ["settings", "display"])
 
     def test_optional_category_menus_prepare_repository_installs(self):
         for menu, label, source in (("Gaming", "Steam", "multilib/steam"),
