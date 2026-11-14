@@ -147,7 +147,7 @@ LOG=/var/log/amadeus-install.log; : >"$LOG"
 amadeus-install "$answers" >/dev/null 2>&1 & job=$!
 # The installer announces each phase with a "==>" line; these are the ones shown, in order.
 PHASES=("Partitioning:Preparing the disk" "Encrypting:Encrypting" "Installing packages:Installing Amadeus OS" "Configuring:Setting it up for you"
-        "Boot loader:Making it start" "Snapshots:Turning on snapshots" "Claude Code:Adding Claude Code")
+        "Boot loader:Making it start" "Snapshots:Turning on snapshots" "Package lists:Preparing optional software downloads")
 frame=0 spin='◐◓◑◒' start=$SECONDS
 clear
 while kill -0 "$job" 2>/dev/null; do
@@ -160,7 +160,6 @@ while kill -0 "$job" 2>/dev/null; do
   for i in "${!PHASES[@]}"; do
     p=${PHASES[$i]#*:}
     [[ $i == 1 && $ENCRYPT != yes ]] && continue
-    [[ $i == 6 && $EXTRAS != yes ]] && continue
     if (( i < reached )); then gum style --margin "0 4" --foreground "$ACCENT" "●  $p"
     elif (( i == reached )); then gum style --margin "0 4" --foreground "$FG" --bold "${spin:frame%4:1}  $p"
     else gum style --margin "0 4" --foreground "$DIM" "○  $p"; fi
