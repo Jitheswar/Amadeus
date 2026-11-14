@@ -312,3 +312,11 @@ before launching its action, so a settings or application ID cannot be mistaken
 for a package, display mode or another local menu choice. The application list
 respects desktop visibility and package ownership; settings stay discoverable in
 search while dependency helpers and secondary backend launchers stay out of Apps.
+
+## On-demand AI usage
+
+The usage view follows Omarchy's native collector sources: Claude OAuth usage,
+Codex app-server rate limits, and Antigravity's quota summary. It runs only when
+opened or explicitly refreshed, caches quota results for a minute, bounds replies,
+and never sends credentials to the UI or follows authenticated redirects. API
+providers without subscription limits say so rather than showing invented meters.

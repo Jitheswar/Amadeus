@@ -292,6 +292,9 @@ def make_handler(d, app=None):
                 config.save_provider(p["name"], p["settings"], p.get("api_key", ""))
                 d.reload()
                 return config.provider_info()
+            if m == "usage":
+                from .usage import collect
+                return collect(d.cfg, force=bool(p.get("force")))
             if m == "tools":
                 return T.specs()
             if m == "status":

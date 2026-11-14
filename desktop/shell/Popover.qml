@@ -178,6 +178,47 @@ Scope {
                      onPicked: { pop.shell.pop = ""; pop.shell.run(["amadeus-display"]) } }
         }
     }
+    Component { id: agents
+        Flickable {
+            width: 350; implicitHeight: Math.min(560, usageBody.implicitHeight); height: implicitHeight
+            clip: true; contentHeight: usageBody.implicitHeight; boundsBehavior: Flickable.StopAtBounds
+            Column {
+                id: usageBody; width: parent.width; spacing: 8
+                Title { x: 10; text: "AI USAGE" }
+                Body { x: 10; width: parent.width - 20; wrapMode: Text.Wrap; textFormat: Text.PlainText
+                       text: "Default agent: " + (pop.shell.defaultAgent.label || "Choose an agent") }
+                Choice { icon: "sparkles"; text: "Default agent and provider settings"
+                         onPicked: { pop.shell.pop = ""; pop.shell.run(["ama", "panel", "settings"]) } }
+                Choice { icon: "refresh"; text: pop.shell.usageLoading ? "Refreshing…" : "Refresh usage"; onPicked: pop.shell.refreshUsage(true) }
+                Body { x: 10; color: pop.shell.dim; text: "Recent Amadeus requests: " + (pop.shell.usageData.recentRequests === undefined ? "—" : pop.shell.usageData.recentRequests) }
+                Repeater {
+                    model: pop.shell.usageData.providers || []
+                    Column {
+                        required property var modelData
+                        width: usageBody.width; spacing: 5
+                        Title { x: 10; text: modelData.label + (modelData.plan ? " · " + modelData.plan : ""); textFormat: Text.PlainText }
+                        Body { x: 10; width: parent.width - 20; wrapMode: Text.Wrap; textFormat: Text.PlainText
+                               text: modelData.status; color: pop.shell.dim }
+                        Repeater {
+                            model: modelData.limits || []
+                            Column {
+                                required property var modelData
+                                x: 10; width: usageBody.width - 20; spacing: 4
+                                Body { text: modelData.label + " · " + Math.round(modelData.used * 100) + "% used"; textFormat: Text.PlainText }
+                                Rectangle {
+                                    width: parent.width; height: 5; radius: 2.5; color: pop.shell.line
+                                    Rectangle { width: parent.width * Math.max(0, Math.min(1, modelData.used)); height: parent.height; radius: parent.radius; color: pop.shell.accent }
+                                }
+                                Body { width: parent.width; wrapMode: Text.Wrap; font.pixelSize: pop.shell.fontPixels(11); color: pop.shell.dim
+                                       text: modelData.resets ? "Resets " + (isNaN(Number(modelData.resets)) ? new Date(modelData.resets).toLocaleString() : new Date(Number(modelData.resets) * 1000).toLocaleString()) : "" }
+                            }
+                        }
+                        Item { width: 1; height: 8 }
+                    }
+                }
+            }
+        }
+    }
     Component { id: wifi
         Column { width: 300; spacing: 4
             Item { width: parent.width; height: 32
@@ -225,7 +266,7 @@ Scope {
             Choice { visible: pop.shell.sudoOn; icon: "lock"; text: "Turn off now"; onPicked: { pop.shell.run(["amadeus-sudo", "off"]); pop.shell.pop = "" } }
         }
     }
-    readonly property var panels: ({ calendar: calendar, power: power, volume: volume, display: display, wifi: wifi, bluetooth: bluetooth, tray: tray, sudo: sudo })
+    readonly property var panels: ({ calendar: calendar, power: power, volume: volume, display: display, agents: agents, wifi: wifi, bluetooth: bluetooth, tray: tray, sudo: sudo })
 
     PanelWindow {
         visible: pop.open || pop.t > 0.01

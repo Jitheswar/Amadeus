@@ -8,6 +8,7 @@ HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
   ama chat                    interactive session
   ama status                  daemon, provider, root mode, machine state
   ama provider [--json | use NAME | key NAME]
+  ama usage [--force]          subscription limits and local request counts as JSON
   ama root on [--full] [--ttl MIN] | off | status
   ama app list | run ID | history ID | rollback ID [N] | remove ID
   ama audit [N] | audit verify
@@ -261,6 +262,8 @@ def main(argv=None):
         config.ensure_dirs()
         return print(json.dumps(config.provider_info()))
     c = Client()
+    if cmd == "usage":
+        return print(json.dumps(c.call("usage", force="--force" in rest)))
     if cmd == "status":
         r = c.call("status")
         s = r.pop("system")

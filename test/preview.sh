@@ -12,6 +12,14 @@ ln -sfn /src/desktop/shell /usr/share/amadeus-os/shell
 cp /src/desktop/theme/theme.json /usr/share/amadeus-os/theme.json
 cp /src/desktop/shell/bar.default.json $HOME/.config/amadeus/bar.json
 
+cat >/tmp/fake/ama <<'A'
+#!/bin/bash
+if [[ ${1:-} == usage ]]; then
+  printf '%s\n' '{"recentRequests":18,"providers":[{"name":"codex-cli","label":"Codex","kind":"Subscription","plan":"Plus","status":"Current limits","limits":[{"label":"Session","used":0.28,"resets":""},{"label":"Weekly","used":0.46,"resets":""}]},{"name":"claude-cli","label":"Claude Code","kind":"Subscription","plan":"Pro","status":"Current limits","limits":[{"label":"Session","used":0.12,"resets":""}]}]}'
+else
+  exec /src/ai/bin/ama "$@"
+fi
+A
 chmod +x /tmp/fake/*
 
 cat >/tmp/sway.conf <<'S'
@@ -36,6 +44,7 @@ run() {
   ipc shell popover sudo 800; shot 8-sudo 0.8
   ipc shell popover volume 1750; shot 9-volume 0.8
   ipc shell popover display 1660; shot 10-display 0.8
+  ipc shell popover agents 1750; shot 12-agent-usage 1.2
   ipc shell popover "" 0; sleep 0.4
 
   amadeus-menu >/dev/null 2>&1 &
@@ -63,7 +72,14 @@ PY
   ama panel ask "Why is the fan loud?"; sleep 2.5
   ama panel ask "Tidy the Downloads folder E2E:slow"
   shot 4-panel 1.5
+  ama panel settings; quickshell ipc -p /src/ai/shell/panel.qml call panel agent codex-cli
+  shot 11-agent-settings 1.0
+  printf '%s\n' '{"font_size":20}' >"$HOME/.config/amadeus/theme.json"
+  shot 14-large-text 1.0
+  ipc shell state >"$OUT/large-text-shell.json"
+  ama panel state >"$OUT/large-text-panel.json"
+  python3 -c 'import json,sys; assert all(json.load(open(p))["fontSize"] == 20 for p in sys.argv[1:])' "$OUT/large-text-shell.json" "$OUT/large-text-panel.json" || return 1
   tail -3 /tmp/shell.log
 }
 export -f shot run; export OUT
-dbus-run-session -- bash -c 'sway -c /tmp/sway.conf >/tmp/sway.log 2>&1 & sleep 1; run; grep -iE "error|warn" /tmp/shell.log | head -8; pkill sway'
+dbus-run-session -- bash -c 'sway -c /tmp/sway.conf >/tmp/sway.log 2>&1 & sleep 1; run; rc=$?; grep -iE "error|warn" /tmp/shell.log | head -8; pkill sway; exit $rc'

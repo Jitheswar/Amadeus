@@ -58,17 +58,39 @@ ShellRoot {
     }
     IpcHandler {
         target: "shell"
-        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, searchResults: picker.shown.slice(0, 40).map(x => picker.label(x)), fontSize: root.fontPixels(14), audioInputs: root.inputs.map(n => n.description || n.name), audioOutputs: root.outputs.map(n => n.description || n.name), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
+        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, searchResults: picker.shown.slice(0, 40).map(x => picker.label(x)), audioInputs: root.inputs.map(n => n.description || n.name), audioOutputs: root.outputs.map(n => n.description || n.name), fontSize: root.fontPixels(14), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
         // For automation and tests: open a drop-down at a horizontal position, or close it with "".
-        function popover(name: string, x: int): void { root.popX = x; root.pop = name }
+        function popover(name: string, x: int): void { root.popX = x; root.pop = name; if (name === "agents") root.refreshUsage() }
         function settings(name: string): void { root.popX = Quickshell.screens[0].width / 2; root.pop = name }
         function awake(on: bool): void { root.awake = on }
         function recording(on: bool): void { root.recording = on }
     }
 
+    property var agentState: ({ default: "", providers: [] })
+    property var usageData: ({ providers: [] })
+    readonly property var defaultAgent: agentState.providers.find(p => p.name === agentState.default) || ({})
+    Process { id: readAgents; command: ["ama", "provider", "--json"]
+        stdout: StdioCollector { onStreamFinished: { try { root.agentState = JSON.parse(text) } catch (e) {} } }
+    }
+    Process { id: readUsage; command: ["ama", "usage"]
+        stdout: StdioCollector { onStreamFinished: { try { root.usageData = JSON.parse(text) } catch (e) {} } }
+    }
+    FileView {
+        path: Quickshell.env("HOME") + "/.config/amadeus/config.toml"
+        watchChanges: true; printErrors: false
+        onLoaded: readAgents.running = true
+        onFileChanged: reload()
+    }
+    function refreshUsage(force) {
+        if (readUsage.running) return
+        readUsage.command = force ? ["ama", "usage", "--force"] : ["ama", "usage"]
+        readUsage.running = true
+    }
+    readonly property bool usageLoading: readUsage.running
+
     // ---- bar layout: ~/.config/amadeus/bar.json lists widget ids for left, center and right
     property var layout: ({ left: ["workspaces", "title"], center: ["sudo", "awake", "clock", "weather"],
-                            right: ["record", "gpu", "tray", "bluetooth", "network", "volume", "display", "battery", "power", "amadeus"] })
+                            right: ["record", "gpu", "tray", "bluetooth", "network", "volume", "display", "agents", "battery", "power", "amadeus"] })
     FileView {
         path: Quickshell.env("HOME") + "/.config/amadeus/bar.json"
         watchChanges: true
@@ -89,6 +111,7 @@ ShellRoot {
         if (pop === name) { pop = ""; return }
         popX = item.mapToItem(null, item.width / 2, 0).x
         pop = name
+        if (name === "agents") { readAgents.running = true; refreshUsage() }
         if (name === "wifi") scan.running = true
         if (name === "display") { readBright.running = true; readText.running = true; readScale.running = true }
     }
@@ -172,7 +195,7 @@ ShellRoot {
     // NetworkManager says when something changed; only then is the list read again.
     Process { command: ["nmcli", "monitor"]; running: !root.demo; stdout: SplitParser { onRead: line => rescan.restart() } }
     Timer { id: rescan; interval: 800; onTriggered: scan.running = true }
-    Component.onCompleted: if (!demo) { scan.running = true; readBright.running = true; readText.running = true; readScale.running = true }
+    Component.onCompleted: { readAgents.running = true; if (!demo) { scan.running = true; readBright.running = true; readText.running = true; readScale.running = true } }
 
     property string sudoRaw: ""
     readonly property bool sudoOn: sudoRaw !== ""
@@ -205,7 +228,7 @@ ShellRoot {
     property bool recording: false
 
     // ---- bar widgets
-    component Label: Text { color: root.fg; font.pixelSize: root.fontPixels(13); font.family: root.font; verticalAlignment: Text.AlignVCenter
+    component Label: Text { textFormat: Text.PlainText; color: root.fg; font.pixelSize: root.fontPixels(13); font.family: root.font; verticalAlignment: Text.AlignVCenter
                             Behavior on color { ColorAnimation { duration: root.fast } } }
     // A control in the bar: an icon, sometimes a short reading beside it. Lit when its thing is on,
     // raised while pointed at or while its panel is open.
@@ -296,6 +319,8 @@ ShellRoot {
     Component { id: wVolume
         Tool { icon: root.muted ? "volume-off" : (root.vol < 0.4 ? "volume-low" : "volume"); panel: "volume"; opacity: root.muted ? 0.6 : 1 } }
     Component { id: wDisplay; Tool { icon: "display"; panel: "display" } }
+    Component { id: wAgents
+        Tool { icon: "sparkles"; reading: root.defaultAgent.label || "AI"; panel: "agents" } }
     Component { id: wBattery
         Tool { shown: root.hasBattery; icon: !root.demo && !UPower.onBattery ? "bolt" : "battery"; reading: root.batteryPct + "%"; panel: "power"; alert: root.lowBattery } }
     Component { id: wPower; Tool { shown: !root.hasBattery; icon: "power"; panel: "power" } }
@@ -310,7 +335,7 @@ ShellRoot {
                 Label { text: "Amadeus"; font.weight: Font.Medium; color: over.containsMouse ? root.bg : root.accent } }
             MouseArea { id: over; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.run(["ama", "panel"]) } } }
     readonly property var widgets: ({ workspaces: wWorkspaces, record: wRecord, title: wTitle, sudo: wSudo, awake: wAwake, clock: wClock, weather: wWeather, gpu: wGpu,
-                                      tray: wTray, bluetooth: wBluetooth, network: wNetwork, volume: wVolume, display: wDisplay,
+                                      tray: wTray, bluetooth: wBluetooth, network: wNetwork, volume: wVolume, display: wDisplay, agents: wAgents,
                                       battery: wBattery, power: wPower, amadeus: wAmadeus })
 
     component Section: Row {
