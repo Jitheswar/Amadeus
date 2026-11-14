@@ -7,15 +7,17 @@
 #   amadeus-aur update              rebuild installed AUR packages that have a newer version
 # AUR recipes are written by users, not by Arch. Run as your user; it asks for the password when needed.
 set -euo pipefail
-AUR=https://aur.archlinux.org
+AUR=${AMADEUS_AUR:-https://aur.archlinux.org}
 cache=${XDG_CACHE_HOME:-$HOME/.cache}/amadeus-aur
 mkdir -p "$cache"
 (( EUID != 0 )) || { echo "Run amadeus-aur as your user; it asks for the password when needed."; exit 1; }
 declare -A seen=()
 
-rpc() {  # NAME... -> JSON
-  local args; args=$(printf '&arg[]=%s' "$@")
-  curl -fsS "$AUR/rpc/v5/info?${args#&}"
+rpc() {  # NAME... -> JSON. Package names can contain +, which a raw query string
+         # would read as a space, so curl builds and encodes the query.
+  local args=() a
+  for a in "$@"; do args+=(--data-urlencode "arg[]=$a"); done
+  curl -fsS --get "$AUR/rpc/v5/info" "${args[@]}"
 }
 
 info() {
@@ -75,7 +77,7 @@ case ${1:-} in
     fi
     cat "$f" ;;
   info)    info "${2:?name needed}" ;;
-  recipe)  curl -fsS "$AUR/cgit/aur.git/plain/PKGBUILD?h=${2:?name needed}" ;;
+  recipe)  curl -fsS --get "$AUR/cgit/aur.git/plain/PKGBUILD" --data-urlencode "h=${2:?name needed}" ;;
   install)
     shift; (( $# )) || { sed -n 3,8p "$0"; exit 1; }
     failed=0
