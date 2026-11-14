@@ -61,6 +61,10 @@ fi
 "${pc[@]}" -Uw $local_pkgs >/dev/null || { echo "   could not collect what the bundled applications need"; exit 1; }
 rm -f $OFF/*.part
 repo-add -q $OFF/amadeus-offline.db.tar.gz $OFF/*.pkg.tar.zst
+# The package lists that describe exactly what was collected. The installer copies them
+# onto a system installed without a connection, and the try session uses them before it
+# can sync; pacman reads only the repositories configured on the running system.
+install -d $OFF/sync && cp $ROOT/db/sync/*.db $OFF/sync/
 echo "   $(ls $OFF/*.pkg.tar.zst | wc -l) packages, $(du -sh $OFF | cut -f1)"
 
 echo "==> Assembling the profile"

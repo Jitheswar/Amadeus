@@ -67,6 +67,8 @@ t "CachyOS kernel is running"                  bash -c 'uname -r | grep -q cachy
 t "CachyOS repositories come first"            bash -c 'pacman-conf --repo-list | head -1 | grep -q cachyos && pacman -Q cachyos-settings linux-cachyos'
 t "multilib enabled (Steam)"                   bash -c 'pacman-conf --repo-list | grep -qx multilib'
 t "core packages installed"                    pacman -Q hyprland quickshell steam libreoffice-fresh amadeus amadeus-desktop snapper
+t "package lists are ready"                    bash -c 'pacman -Si foot >/dev/null'
+t "mirror ranking tools installed"             pacman -Q curl reflector
 echo "--- snapshots"
 t "installing a package takes no snapshot"   bash -c 'before=$(snapper -c root list | wc -l); pacman -Sy --noconfirm --needed tree >/dev/null && [[ $(snapper -c root list | wc -l) == $before ]]'
 t "copy of /boot kept for rollback"            test -f /.bootbackup/vmlinuz-linux-cachyos
@@ -80,24 +82,31 @@ t "shell is running"                           pgrep -f 'quickshell -p /usr/shar
 shell() { as quickshell ipc -p /usr/share/amadeus-os/shell call "$@"; }; export -f shell
 t "picker shows a list and returns the choice" bash -c '(printf "alpha\nbeta\n" | as amadeus-pick Test >/tmp/pick.out 2>&1 &); sleep 2; s=$(shell shell state); echo "$s"; echo "$s" | grep -q "\"picker\":true,\"pickerItems\":2" && shell pick choose beta && sleep 1 && grep -qx beta /tmp/pick.out'
 t "picker closes without a choice"             bash -c '(printf "a\n" | as amadeus-pick Test >/tmp/pick2.out 2>&1; echo "rc=$?" >>/tmp/pick2.out) & sleep 2; shell pick cancel; sleep 1; grep -qx "rc=1" /tmp/pick2.out'
-t "bar drop-downs open and close"              bash -c 'shell shell popover calendar 600; sleep 0.5; shell shell state | grep -q "\"popover\":\"calendar\"" && shell shell popover "" 0'
+t "bar drop-downs open and close"              bash -c 'shell shell popover calendar 600; sleep 0.5; shell shell state | grep -q "\"popover\":\"calendar\"" && shell shell popover display 900; sleep 0.5; shell shell state | grep -q "\"popover\":\"display\"" && shell shell popover volume 1700; sleep 0.5; shell shell state | grep -q "\"popover\":\"volume\"" && shell shell popover "" 0'
 t "stay awake switches"                        bash -c 'shell shell awake true; shell shell state | grep -q "\"awake\":true" && shell shell awake false'
 t "passwordless administrator switch works and ends" bash -c '/usr/lib/amadeus-os/sudo-helper on 15m '$U' && as amadeus-sudo | grep -q "^on until" && sudo -u '$U' sudo -n true && /usr/lib/amadeus-os/sudo-helper off && ! sudo -u '$U' sudo -n true 2>/dev/null && as amadeus-sudo | grep -qx off'
 t "notifications are shown by the shell"       bash -c 'as notify-send "Self-test" "hello"; sleep 1; s=$(shell shell state); echo "$s"; echo "$s" | grep -q "\"notifications\":[1-9]"'
 t "launcher lists installed applications"      bash -c 'as amadeus-launcher --print | grep -q "^Steam"'
 t "no separate launcher or notification program" bash -c '! pacman -Q fuzzel mako 2>/dev/null | grep -q .'
 t "AUR lookup works"                           bash -c 'as amadeus-aur info protonplus | grep -q "^Name"'
+t "AUR leaves repository packages to pacman"  bash -c 'out=$(as amadeus-aur install foot 2>&1); echo "$out"; grep -q "system repositories" <<<"$out"'
+t "AUR build tools installed"                  pacman -Q base-devel fakeroot debugedit
+t "mirror ranking reports the official choice" bash -c 'as amadeus-mirrors --print | grep -q "^Server = "'
+t "sound services are running"                 bash -c 'as systemctl --user is-active --quiet pipewire.socket pipewire-pulse.socket wireplumber.service'
+t "terminal configuration is valid"            bash -c 'as foot --check-config'
 t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/hypr/default.lua'
 t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
+t "file manager shortcut is listed"            bash -c 'as amadeus-keys --print | grep -q "^Super + Shift + F .*Files"'
 t "system look applies to applications"        bash -c 'as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark && fc-match sans-serif | grep -qi inter && test -f /usr/share/amadeus-os/theme.json'
 t "text size can be set and restored"          bash -c 'as amadeus-display text 110% >/dev/null && as gsettings get org.gnome.desktop.interface text-scaling-factor | grep -q "1.1" && as amadeus-display text 100% >/dev/null'
+t "display scale can be set and restored"      bash -c 'as amadeus-display scale 1.25 >/dev/null && as amadeus-display scale | grep -q 1.25 && as amadeus-display scale 1 >/dev/null'
 t "the install worked without internet"       bash -c 'grep -q "Claude Code is set up once you are online" /var/log/amadeus-install.log'
 t "a harness installs through mise (Claude Code)" bash -c 'as bash -lc "amadeus-harness install claude" >/dev/null 2>&1; as bash -lc "mise ls --global" | grep -q "^claude" && as bash -lc "claude --version"'
 t "harness list comes from mise"               bash -c 'out=$(as bash -lc "amadeus-harness list"); echo "$out" | grep -q "Claude Code  (installed)" && echo "$out" | grep -q "^Codex"'
 t "defaults: terminal, editor, harness"        bash -c 'out=$(as amadeus-default); echo "$out"; echo "$out" | grep -q "terminal *foot" && echo "$out" | grep -q "harness *claude" && as amadeus-default editor nano | grep -q "Default editor: nano"'
 t "default harness resolves to a program"      bash -c 'as bash -lc "amadeus-harness run claude --version"'
 t "text files open with the default editor"    bash -c 'as xdg-mime query default text/plain | grep -q amadeus-editor'
-t "install catalogue resolves its sources"     bash -c 'for c in terminal browser editor ai development; do n=$(as bash -lc "amadeus-catalog $c" | wc -l); echo "$c $n"; [[ $n -ge 3 ]] || exit 1; done; as bash -lc "amadeus-catalog ai" | grep -q "^Claude Desktop  (installed)"'
+t "install catalogue resolves its sources"     bash -c 'for c in terminal browser editor ai development; do n=$(as bash -lc "amadeus-catalog $c" | wc -l); echo "$c $n"; [[ $n -ge 3 ]] || exit 1; done; as bash -lc "amadeus-catalog ai" | grep -q "^Claude Desktop  (AUR)  (installed)"'
 t "web app list works with none installed"     bash -c '! as amadeus-webapp list | grep .'
 t "web app can be added and removed"           bash -c 'as amadeus-webapp install "Self Test" example.org >/dev/null; as amadeus-webapp list | grep -q "^Self Test" && as amadeus-launcher --print | grep -q "^Self Test" && as amadeus-webapp remove "Self Test" >/dev/null && ! as amadeus-webapp list | grep -q "Self Test"'
 t "web app address keeps its percent signs"    bash -c 'as amadeus-webapp install Pct "https://example.org/a%20b" >/dev/null; grep -q "a%%20b" /home/'$U'/.local/share/applications/amadeus-webapp-pct.desktop && as amadeus-webapp remove Pct'

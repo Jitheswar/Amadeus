@@ -250,9 +250,9 @@ def desktop_config(a, ctx):
 
 
 BAR_FILE = Path.home() / ".config/amadeus/bar.json"
-BAR_WIDGETS = ["workspaces", "title", "record", "sudo", "awake", "clock", "weather", "gpu", "tray", "bluetooth", "network", "volume", "brightness", "battery", "power", "amadeus"]
+BAR_WIDGETS = ["workspaces", "title", "record", "sudo", "awake", "clock", "weather", "gpu", "tray", "bluetooth", "network", "volume", "display", "battery", "power", "amadeus"]
 BAR_DEFAULT = {"left": ["workspaces", "title"], "center": ["sudo", "awake", "clock", "weather"],
-               "right": ["record", "gpu", "tray", "bluetooth", "network", "volume", "brightness", "battery", "power", "amadeus"]}
+               "right": ["record", "gpu", "tray", "bluetooth", "network", "volume", "display", "battery", "power", "amadeus"]}
 
 
 @tool("desktop_bar", "Read or change the top bar layout. Pass left/center/right as lists of widget ids to rearrange, add or remove widgets; "
@@ -264,6 +264,9 @@ def desktop_bar(a, ctx):
         cur = json.loads(BAR_FILE.read_text())
     except (OSError, json.JSONDecodeError):
         cur = dict(BAR_DEFAULT)
+    # Old user layouts keep their brightness control without rewriting their file.
+    cur = {k: ["display" if w == "brightness" else w for w in cur.get(k, [])]
+           for k in ("left", "center", "right")}
     if not any(k in a for k in ("left", "center", "right")):
         return {"layout": cur, "available_widgets": BAR_WIDGETS}
     new = {k: list(a.get(k, cur.get(k, []))) for k in ("left", "center", "right")}

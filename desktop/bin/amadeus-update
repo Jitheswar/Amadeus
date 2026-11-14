@@ -1,11 +1,21 @@
 #!/bin/bash
-# Update the whole system: a snapshot first, then packages, applications from the AUR, and harnesses.
+# Update the whole system: a snapshot, mirror ranking on the first run, then packages, AUR applications and harnesses.
+# In the try session nothing is kept after a restart, so no snapshot is taken there.
 # Run as your user, not as root. Only the newest five snapshots are kept; amadeus-rollback goes back to one.
 set -euo pipefail
 (( EUID != 0 )) || { echo "Run amadeus-update as your user; it asks for the password when needed."; exit 1; }
-sudo snapper -c root create --cleanup-algorithm number --description "before update $(date '+%Y-%m-%d %H:%M')"
-sudo snapper -c root cleanup number
-echo "Snapshot taken. If this update breaks something: amadeus-rollback"
+# The try session runs from memory. Its changes disappear at shutdown, and it has no snapshots
+# to take or go back to; the installer writes this marker before the desktop starts.
+if [[ -e ${AMADEUS_TRY_MARKER:-/run/amadeus-try} ]]; then
+  echo "Try session: no snapshot is taken, and everything installed or updated here lasts until you restart."
+else
+  sudo snapper -c root create --cleanup-algorithm number --description "before update $(date '+%Y-%m-%d %H:%M')"
+  sudo snapper -c root cleanup number
+  echo "Snapshot taken. If this update breaks something: amadeus-rollback"
+fi
+# The first update ranks the official mirrors once: quality first, then measured speed.
+# Later updates skip it until the lists are a month old; a failed ranking keeps the old lists.
+sudo amadeus-mirrors
 sudo pacman -Syu
 amadeus-aur update
 amadeus-harness update

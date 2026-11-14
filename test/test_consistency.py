@@ -269,6 +269,19 @@ class CatalogueTest(unittest.TestCase):
                 for source in sources.split():
                     self.assertRegex(source, r"^(pacman|aur|mise):[^:\s]+$", f"{path.name}: {source!r}")
 
+    def test_system_repositories_come_before_the_aur(self):
+        # The order the catalogue documents and the commands enforce: official builds first.
+        for path in sorted((ROOT / "desktop/catalog").glob("*.list")):
+            for line in read(path).splitlines():
+                if not line.strip() or line.startswith("#") or "\t" not in line:
+                    continue
+                seen_aur = False
+                for source in line.split("\t", 1)[1].split():
+                    if source.startswith("aur:"):
+                        seen_aur = True
+                    elif source.startswith("pacman:"):
+                        self.assertFalse(seen_aur, f"{path.name}: {line!r} lists the AUR before the repositories")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

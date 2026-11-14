@@ -140,7 +140,20 @@ stick: a temporary user, logged straight in, with every change kept in memory, s
 is written to any disk. It adds the desktop packages to the live medium (about a
 gigabyte) and runs Arch's kernel, which the live medium boots, not CachyOS's: enough to
 judge the hardware and the desktop, not the kernel tuning. The install entry is the
-second one in the menu.
+second one in the menu. The try session fetches the repository package lists once the
+network comes up, so the Install menu and the catalogue show what can be added; it
+installs nothing by itself, and without a connection the lists stay empty.
+
+**Mirrors are chosen for quality first, then speed.** The first `amadeus-update` ranks
+the official mirrors once: the Arch list from the Mirror Status data (fully synced, HTTPS,
+synced in the last 12 hours, the twenty best-scored servers), then a measured download
+speed from this connection; the CachyOS list is its own official mirrorlist, ranked by
+fetching a package database from each entry. Country is not a filter: a nearby mirror is
+not automatically good, and the speed test measures the path that a download will use.
+The previous lists are kept, the new ones are checked with `pacman -Syy`, and a failure
+puts the previous lists back. It is repeated after a month, or when a package replaces a
+list. Cost: about half a minute on the first update, once a month; no timer and no
+background service.
 
 ## Desktop shell and generated applications: Quickshell (QML)
 
@@ -236,6 +249,8 @@ In this order, and the install catalogue encodes it per entry:
 
 An entry lists its sources best first and the first that still exists is used, so the
 catalogue keeps working when a package moves into or out of the repositories.
+`amadeus-aur` refuses a name the system repositories already carry, so the order holds
+even when a package is asked for by name rather than chosen from the catalogue.
 
 Two small background helpers were added with the shortcuts: a clipboard watcher (cliphist,
 a few MB, idle until something is copied) for clipboard history, and nothing for copy and

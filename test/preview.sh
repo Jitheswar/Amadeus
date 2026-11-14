@@ -32,6 +32,8 @@ run() {
   ipc shell popover power 1780; shot 6-power 0.8
   ipc shell popover wifi 1650; shot 7-wifi 0.8
   ipc shell popover sudo 800; shot 8-sudo 0.8
+  ipc shell popover volume 1750; shot 9-volume 0.8
+  ipc shell popover display 1660; shot 10-display 0.8
   ipc shell popover "" 0; sleep 0.4
 
   printf 'Apps\nInstall\nRemove\nUpdate\nDefaults\n' | amadeus-pick Amadeus >/dev/null 2>&1 &

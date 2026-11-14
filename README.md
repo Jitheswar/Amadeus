@@ -25,7 +25,7 @@ It is built for one machine: Core i5-13450HX, RTX 3050 6 GB with Intel UHD graph
 | **Generated apps** | The AI writes small applications from a shared component library. Each runs in its own sandbox with only the permissions its manifest declares, and keeps a version history. |
 | **Desktop** | Hyprland, with a bar, launcher, menus and notifications drawn by the system's own shell; a scratchpad that floats over everything; screenshots and screen recording built in. |
 | **Look** | Its own identity: warm black with a single amber accent, floating rounded surfaces, and short, decisive motion. One theme file drives the shell, the panel and every generated app. |
-| **Applications** | Steam, ProtonPlus, Brave Origin, Claude Desktop, Claude Code (through mise, like every AI coding harness), Discord, Telegram, herdr, LocalSend, LibreOffice, mpv, plus a terminal, file manager, document viewer, image viewer and camera. Nothing else. |
+| **Applications** | Steam, ProtonPlus, Brave Origin, Claude Desktop, Claude Code (through mise, like every AI coding harness), Discord, Telegram, herdr, LocalSend, LibreOffice, mpv, plus a terminal, file manager, document viewer, image viewer and camera. Nothing else. ProtonPlus, Brave Origin, Claude Desktop, herdr and LocalSend are not in the official repositories; they are installed from their publisher's release through AUR recipes, and the installer asks before including them. |
 
 ### For AI agents
 

@@ -333,7 +333,7 @@ esac""")
         listed = self.run_cmd("amadeus-catalog", "terminal", env=env)
         self.assert_ok(listed)
         self.assertIn("Foot  (installed)\tpacman:foot", listed.stdout)
-        self.assertIn("Kitty\taur:kitty-git", listed.stdout)
+        self.assertIn("Kitty  (AUR)\taur:kitty-git", listed.stdout)
         self.assertIn("Tool\tmise:opencode", listed.stdout)
         self.assertIn("terminal", self.run_cmd("amadeus-catalog", "nope", env=env).stdout)
 
@@ -457,6 +457,7 @@ esac""")
             "printf 'pkgname = demo\\n\\tpkgver = 1.2\\n' > \"$dest/.SRCINFO\"",
         ])
         self.stub("git", body=body)
+        self.stub("pacman", body='case "$1 $2" in "-Si demo") exit 1 ;; *) exit 0 ;; esac')
         self.stub("makepkg")
         p = self.run_cmd("amadeus-aur", "install", "demo", env={"AMADEUS_AUR_YES": "1"})
         self.assert_ok(p)
@@ -471,12 +472,64 @@ esac""")
             "printf 'pkgname = demo\\n\\tsource = https://example.org/demo-1.2.tar.gz\\n' > \"$dest/.SRCINFO\"",
         ])
         self.stub("git", body=body)
+        self.stub("pacman", body='case "$1 $2" in "-Si demo") exit 1 ;; *) exit 0 ;; esac')
         self.stub("makepkg")
         p = self.run_cmd("amadeus-aur", "install", "demo", input="n\n")
         self.assertEqual(p.returncode, 1)
         self.assertIn("Downloads from", p.stdout)
         self.assertIn("https://example.org/demo-1.2.tar.gz", p.stdout)
         self.assertEqual(self.calls_of("makepkg"), [])
+
+    def test_aur_refuses_a_package_the_repositories_have(self):
+        # The stub package manager answers "this is in a repository", as pacman does for foot.
+        p = self.run_cmd("amadeus-aur", "install", "foot")
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn("system repositories", p.stdout)
+        self.assertEqual(self.calls_of("git"), [])
+
+    # ---- updating ------------------------------------------------------------
+    def test_update_takes_a_snapshot_first(self):
+        self.stub("amadeus-aur")
+        self.stub("amadeus-harness")
+        self.stub("amadeus-mirrors")
+        p = self.run_cmd("amadeus-update")
+        self.assert_ok(p)
+        self.assertIn("Snapshot taken", p.stdout)
+        self.assertEqual([c[0] for c in self.calls_of("sudo")], ["snapper", "snapper", "amadeus-mirrors", "pacman"])
+        self.assertEqual(self.calls_of("sudo")[-1], ["pacman", "-Syu"])
+
+    def test_update_in_the_try_session_skips_the_snapshot(self):
+        marker = self.tmp / "try-session"
+        marker.touch()
+        self.stub("amadeus-aur")
+        self.stub("amadeus-harness")
+        self.stub("amadeus-mirrors")
+        p = self.run_cmd("amadeus-update", env={"AMADEUS_TRY_MARKER": str(marker)})
+        self.assert_ok(p)
+        self.assertIn("Try session", p.stdout)
+        self.assertEqual(self.calls_of("sudo"), [["amadeus-mirrors"], ["pacman", "-Syu"]])
+
+    # ---- mirrors -------------------------------------------------------------
+    def test_mirrors_print_the_official_choice_without_changing(self):
+        d = self.tmp / "pacman.d"
+        d.mkdir()
+        (d / "cachyos-v3-mirrorlist").write_text(
+            "# official list\nServer = https://cachyos.example/$arch_v3/$repo\n")
+        self.stub("reflector", body="""save=""; prev=""
+for a in "$@"; do [[ $prev == --save ]] && save=$a; prev=$a; done
+printf 'Server = https://arch.example/$repo/os/$arch\\n' > "$save"
+""")
+        self.stub("curl", body="""case "$*" in
+  *archlinux.org/mirrors/status/json*) exit 0 ;;
+  *cachyos*) printf '0.1' ;;
+  *) exit 0 ;;
+esac
+""")
+        p = self.run_cmd("amadeus-mirrors", "--print", env={"AMADEUS_MIRROR_DIR": str(d)})
+        self.assert_ok(p)
+        self.assertIn("Server = https://arch.example/$repo/os/$arch", p.stdout)
+        self.assertIn("Server = https://cachyos.example/$arch_v3/$repo", p.stdout)
+        self.assertFalse((d / "mirrorlist").exists(), "printing must not write a mirror list")
 
     # ---- shortcuts ----------------------------------------------------------
     def test_keys_are_read_from_the_configuration_file(self):
@@ -595,17 +648,24 @@ esac""")
         p = self.run_cmd("amadeus-update")
         self.assert_ok(p)
         sudo = self.calls_of("sudo")
-        self.assertEqual([c[0] for c in sudo], ["snapper", "snapper", "pacman"])
+        self.assertEqual([c[0] for c in sudo], ["snapper", "snapper", "amadeus-mirrors", "pacman"])
         self.assertEqual(sudo[0][:7], ["snapper", "-c", "root", "create", "--cleanup-algorithm", "number", "--description"])
         self.assertEqual(len(sudo[0]), 8)
         self.assertTrue(sudo[0][7].startswith("before update "))
         self.assertEqual(sudo[1], ["snapper", "-c", "root", "cleanup", "number"])
-        self.assertEqual(sudo[2], ["pacman", "-Syu"])
+        self.assertEqual(sudo[2], ["amadeus-mirrors"])
+        self.assertEqual(sudo[3], ["pacman", "-Syu"])
         self.assertEqual(self.calls_of("amadeus-aur"), [["update"]])
         self.assertEqual(self.calls_of("amadeus-harness"), [["update"]])
         calls = [line.split("\t") for line in self.calls.read_text().splitlines()]
-        self.assertEqual(calls, [["sudo", *sudo[0]], ["sudo", *sudo[1]], ["sudo", *sudo[2]],
+        self.assertEqual(calls, [["sudo", *sudo[0]], ["sudo", *sudo[1]], ["sudo", *sudo[2]], ["sudo", *sudo[3]],
                                  ["amadeus-aur", "update"], ["amadeus-harness", "update"]])
+    def test_install_menu_fetches_missing_package_lists(self):
+        # Without a sync database the menu cannot show anything; it should offer to fetch them.
+        self.stub("pacman", rc=1)
+        self.stub("amadeus-terminal")
+        self.assert_ok(self.run_cmd("amadeus-menu", "install"))
+        self.assertIn("pacman -Sy", self.calls_of("amadeus-terminal")[-1][-1])
 
     # ---- the menu builds commands without running them ----------------------
     def test_menu_routes_to_commands(self):
@@ -774,6 +834,28 @@ cat >/dev/null
         self.assert_ok(set_size)
         self.assertEqual(self.calls_of("gsettings")[-1],
                          ["set", "org.gnome.desktop.interface", "text-scaling-factor", "1.25"])
+
+    def test_display_scale_of_the_focused_monitor(self):
+        self.hyprctl_json()
+        self.stub("Hyprland", output="config ok")
+        self.stub("notify-send")
+        hyprland = self.config / "hypr/hyprland.lua"
+        hyprland.parent.mkdir(parents=True)
+        hyprland.write_text("-- config\n")
+        self.assertEqual(self.run_cmd("amadeus-display", "scale").stdout.strip(), "1.0")
+        self.assert_ok(self.run_cmd("amadeus-display", "scale", "1.25"))
+        written = (self.config / "hypr/display.lua").read_text()
+        self.assertIn('hl.monitor({ output = "eDP-1", mode = "1920x1080@60.00", position = "auto", scale = 1.25 })', written)
+        self.assertEqual(self.calls_of("hyprctl")[-1], ["reload"])
+        self.assertIn("eDP-1: scale 1.25", " ".join(self.calls_of("notify-send")[-1]))
+
+    def test_display_scale_refuses_a_bad_value(self):
+        self.hyprctl_json()
+        for value in ("8", "1.25oops", "nan", "1;error('injected')", "1\nerror('injected')"):
+            with self.subTest(value=value):
+                self.assertNotEqual(self.run_cmd("amadeus-display", "scale", value).returncode, 0)
+        self.assertFalse((self.config / "hypr/display.lua").exists())
+        self.assertNotIn(["reload"], self.calls_of("hyprctl"))
 
     def test_screenshot_screen_is_saved_and_copied(self):
         self.hyprctl_json()
