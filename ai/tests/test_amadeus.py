@@ -126,6 +126,25 @@ QML = 'import QtQuick\nimport Quickshell\nimport "Amadeus"\nAppWindow { title: "
 
 
 class AppsTest(unittest.TestCase):
+    def test_git_failure_restores_the_committed_version(self):
+        real_git = apps._git
+        for command in ("add", "commit"):
+            app_id = "fail-" + command
+            apps.save(app_id, "Fail", "", {"shell.qml": QML % "old"})
+            def failing_git(d, *args):
+                if args[0] == command:
+                    return subprocess.CompletedProcess(args, 1, "", "simulated git failure")
+                return real_git(d, *args)
+            with mock.patch.object(apps, "_git", side_effect=failing_git):
+                with self.assertRaisesRegex(apps.AppError, "simulated git failure"):
+                    apps.save(app_id, files={"shell.qml": QML % "new", "extra.js": "var x = 1"})
+            d = apps.app_dir(app_id)
+            self.assertEqual(apps.manifest(app_id)["version"], 1)
+            self.assertIn("old", (d / "shell.qml").read_text())
+            self.assertFalse((d / "extra.js").exists())
+            self.assertEqual(real_git(d, "status", "--porcelain").stdout, "")
+            self.assertEqual(len(apps.history(app_id)), 1)
+
     def test_rollback_removes_the_destination_of_a_rename(self):
         apps.save("rename", "Rename", "", {"shell.qml": QML % "one", "old.js": "var a = 1\n"})
         apps.save("rename", files={"old.js": None, "new.js": "var a = 1\n"})
@@ -169,6 +188,18 @@ class AppsTest(unittest.TestCase):
         with self.assertRaises(apps.AppError):
             apps.save("keep", files={"shell.qml": "import QtQuick\nItem { this is not qml"})
         self.assertIn("good", (apps.app_dir("keep") / "shell.qml").read_text())
+
+    def test_failed_new_app_leaves_nothing(self):
+        with self.assertRaises(AttributeError):
+            apps.save("txnew", "Tx", "", "shell.qml")
+        self.assertFalse(apps.app_dir("txnew").exists())
+
+    def test_failed_update_keeps_the_previous_version(self):
+        apps.save("tx", "Tx", "", {"shell.qml": QML % "one"})
+        with self.assertRaises(AttributeError):
+            apps.save("tx", files="shell.qml")
+        self.assertIn("one", (apps.app_dir("tx") / "shell.qml").read_text())
+        self.assertEqual(apps.manifest("tx")["version"], 1)
 
     def test_file_names_cannot_escape(self):
         for bad in ("../evil.qml", "/etc/x.qml", "manifest.json", "Amadeus/Theme.qml", ".git/config", "a.sh"):
