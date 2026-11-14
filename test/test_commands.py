@@ -588,6 +588,25 @@ esac""")
         self.assert_ok(self.run_cmd("amadeus-power-menu"))
         self.assertNotIn("Hibernate", sent.read_text())
 
+    # ---- the update command -------------------------------------------------
+    def test_update_snapshots_first_then_updates_packages_and_tools(self):
+        self.stub("amadeus-aur")
+        self.stub("amadeus-harness")
+        p = self.run_cmd("amadeus-update")
+        self.assert_ok(p)
+        sudo = self.calls_of("sudo")
+        self.assertEqual([c[0] for c in sudo], ["snapper", "snapper", "pacman"])
+        self.assertEqual(sudo[0][:7], ["snapper", "-c", "root", "create", "--cleanup-algorithm", "number", "--description"])
+        self.assertEqual(len(sudo[0]), 8)
+        self.assertTrue(sudo[0][7].startswith("before update "))
+        self.assertEqual(sudo[1], ["snapper", "-c", "root", "cleanup", "number"])
+        self.assertEqual(sudo[2], ["pacman", "-Syu"])
+        self.assertEqual(self.calls_of("amadeus-aur"), [["update"]])
+        self.assertEqual(self.calls_of("amadeus-harness"), [["update"]])
+        calls = [line.split("\t") for line in self.calls.read_text().splitlines()]
+        self.assertEqual(calls, [["sudo", *sudo[0]], ["sudo", *sudo[1]], ["sudo", *sudo[2]],
+                                 ["amadeus-aur", "update"], ["amadeus-harness", "update"]])
+
     # ---- the menu builds commands without running them ----------------------
     def test_menu_routes_to_commands(self):
         self.stub("amadeus-terminal")
