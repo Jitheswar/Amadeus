@@ -252,6 +252,9 @@ catalogue keeps working when a package moves into or out of the repositories.
 `amadeus-aur` refuses a name the system repositories already carry, so the order holds
 even when a package is asked for by name rather than chosen from the catalogue.
 
+Gaming and chat clients are opt-in through the Amadeus menu. Their catalogue entries
+name the official Arch repository explicitly, so those installs use its signed packages.
+
 Two small background helpers were added with the shortcuts: a clipboard watcher (cliphist,
 a few MB, idle until something is copied) for clipboard history, and nothing for copy and
 paste themselves, which send the standard keys to the focused window on demand.

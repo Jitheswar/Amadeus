@@ -52,6 +52,30 @@ def desktop_exec(value):
 
 
 class Commands(unittest.TestCase):
+    def test_optional_category_menus_prepare_repository_installs(self):
+        for menu, label, source in (("Gaming", "Steam", "multilib/steam"),
+                                    ("Chat", "Discord", "extra/discord")):
+            with self.subTest(menu=menu):
+                (self.tmp / "picker.answers").unlink(missing_ok=True)
+                self.picker(menu, label + "\tpacman:" + source)
+                self.stub("amadeus-catalog", output=label + "\tpacman:" + source + "\n")
+                self.stub("amadeus-terminal")
+                self.assert_ok(self.run_cmd("amadeus-menu"))
+                self.assertIn([menu.lower()], self.calls_of("amadeus-catalog"))
+                command = self.calls_of("amadeus-terminal")[-1][-1]
+                self.assertIn("amadeus-catalog install", command)
+                self.assertIn("pacman:" + source, command)
+                self.assertEqual(self.calls_of("sudo"), [])
+
+    def test_qualified_repository_packages_are_detected_as_installed(self):
+        catalog = self.tmp / "qualified-catalog"
+        catalog.mkdir()
+        (catalog / "gaming.list").write_text("Steam\tpacman:multilib/steam\n")
+        self.stub("pacman", body='case "$1 $2" in "-Si multilib/steam"|"-Q steam") exit 0 ;; *) exit 1 ;; esac')
+        result = self.run_cmd("amadeus-catalog", "gaming", env={"AMADEUS_CATALOG": str(catalog)})
+        self.assert_ok(result)
+        self.assertIn("Steam  (installed)\tpacman:multilib/steam", result.stdout)
+
     def test_launcher_applies_user_precedence_before_eligibility(self):
         ns = {"__name__": "launcher_validation"}
         source = (BIN / "amadeus-launcher").read_text().rsplit("\nmain()", 1)[0]

@@ -65,10 +65,13 @@ t "network is up"                              bash -c 'nmcli -t general status 
 t "root account is locked"                     bash -c 'passwd -S root | grep -q " L "'
 t "CachyOS kernel is running"                  bash -c 'uname -r | grep -q cachyos'
 t "CachyOS repositories come first"            bash -c 'pacman-conf --repo-list | head -1 | grep -q cachyos && pacman -Q cachyos-settings linux-cachyos'
-t "multilib enabled (Steam)"                   bash -c 'pacman-conf --repo-list | grep -qx multilib'
-t "core packages installed"                    pacman -Q hyprland quickshell steam libreoffice-fresh amadeus amadeus-desktop snapper
+t "multilib available for optional gaming"                   bash -c 'pacman-conf --repo-list | grep -qx multilib'
+t "core packages installed"                    pacman -Q hyprland quickshell nautilus libreoffice-fresh amadeus amadeus-desktop snapper
 t "package lists are ready"                    bash -c 'pacman -Si foot >/dev/null'
 t "mirror ranking tools installed"             pacman -Q curl reflector
+t "gaming and chat clients are optional"       bash -c 'for p in steam protonplus discord telegram-desktop; do if pacman -Q "$p" >/dev/null 2>&1; then echo "$p is installed by default"; exit 1; fi; done'
+t "Gaming offers Steam from the official repository" bash -c 'as amadeus-catalog gaming | grep -q "pacman:multilib/steam"'
+t "Chat offers official repository clients"   bash -c 'out=$(as amadeus-catalog chat); echo "$out"; grep -q "pacman:extra/discord" <<<"$out" && grep -q "pacman:extra/telegram-desktop" <<<"$out"'
 echo "--- snapshots"
 t "installing a package takes no snapshot"   bash -c 'before=$(snapper -c root list | wc -l); pacman -Sy --noconfirm --needed tree >/dev/null && [[ $(snapper -c root list | wc -l) == $before ]]'
 t "copy of /boot kept for rollback"            test -f /.bootbackup/vmlinuz-linux-cachyos
@@ -86,9 +89,9 @@ t "bar drop-downs open and close"              bash -c 'shell shell popover cale
 t "stay awake switches"                        bash -c 'shell shell awake true; shell shell state | grep -q "\"awake\":true" && shell shell awake false'
 t "passwordless administrator switch works and ends" bash -c '/usr/lib/amadeus-os/sudo-helper on 15m '$U' && as amadeus-sudo | grep -q "^on until" && sudo -u '$U' sudo -n true && /usr/lib/amadeus-os/sudo-helper off && ! sudo -u '$U' sudo -n true 2>/dev/null && as amadeus-sudo | grep -qx off'
 t "notifications are shown by the shell"       bash -c 'as notify-send "Self-test" "hello"; sleep 1; s=$(shell shell state); echo "$s"; echo "$s" | grep -q "\"notifications\":[1-9]"'
-t "launcher lists installed applications"      bash -c 'as amadeus-launcher --print | grep -q "^Steam"'
+t "launcher lists installed applications"      bash -c 'as amadeus-launcher --print | grep -q "^Files"'
 t "no separate launcher or notification program" bash -c '! pacman -Q fuzzel mako 2>/dev/null | grep -q .'
-t "AUR lookup works"                           bash -c 'as amadeus-aur info protonplus | grep -q "^Name"'
+t "AUR lookup works"                           bash -c 'as amadeus-aur info brave-origin-bin | grep -q "^Name"'
 t "AUR leaves repository packages to pacman"  bash -c 'out=$(as amadeus-aur install foot 2>&1); echo "$out"; grep -q "system repositories" <<<"$out"'
 t "AUR build tools installed"                  pacman -Q base-devel fakeroot debugedit
 t "mirror ranking reports the official choice" bash -c 'as amadeus-mirrors --print | grep -q "^Server = "'
@@ -150,7 +153,7 @@ while read -r line; do
   case $line in PASS*) pass=$((pass+1)) ;; FAIL*) fail=$((fail+1)) ;; esac
 done < <(as python3 /usr/local/bin/amadeus-e2e 2>&1)
 echo "--- applications outside the Arch repositories"
-for p in protonplus brave-origin-bin claude-desktop herdr-bin localsend-bin; do t "$p installed" pacman -Q $p; done
+for p in brave-origin-bin claude-desktop herdr-bin localsend-bin; do t "$p installed" pacman -Q $p; done
 echo "--- ama doctor"
 as ama doctor || true
 echo "--- resources"

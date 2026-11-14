@@ -256,6 +256,24 @@ class BuildReferenceTest(unittest.TestCase):
 
 
 class CatalogueTest(unittest.TestCase):
+    def test_optional_clients_are_absent_from_default_package_lists(self):
+        defaults = set()
+        for name in ("apps", "aur"):
+            for line in read(ROOT / ("installer/packages." + name)).splitlines():
+                if not line.startswith("#"):
+                    defaults.update(line.split())
+        self.assertFalse(defaults & {"steam", "protonplus", "discord", "telegram-desktop"})
+
+    def test_optional_menus_use_only_official_repository_sources(self):
+        expected = {"gaming": {"pacman:multilib/steam"},
+                    "chat": {"pacman:extra/discord", "pacman:extra/telegram-desktop"}}
+        for category, sources in expected.items():
+            actual = set()
+            for line in read(ROOT / ("desktop/catalog/" + category + ".list")).splitlines():
+                if line.strip() and not line.startswith("#"):
+                    actual.update(line.split("\t", 1)[1].split())
+            self.assertEqual(actual, sources)
+
     def test_every_catalogue_line_names_a_source(self):
         files = sorted((ROOT / "desktop/catalog").glob("*.list"))
         self.assertTrue(files)

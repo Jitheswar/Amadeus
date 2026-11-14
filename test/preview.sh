@@ -36,7 +36,7 @@ run() {
   ipc shell popover display 1660; shot 10-display 0.8
   ipc shell popover "" 0; sleep 0.4
 
-  printf 'Apps\nInstall\nRemove\nUpdate\nDefaults\n' | amadeus-pick Amadeus >/dev/null 2>&1 &
+  amadeus-menu >/dev/null 2>&1 &
   shot 2-menu; quickshell ipc -p /usr/share/amadeus-os/shell call pick cancel
 
   printf '%s\n' firefox foot fuzzel fzf gamemode gamescope gimp git git-lfs github-cli gnome-keyring go grim gst-plugins-good gtk4 handbrake htop imv inkscape |

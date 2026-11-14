@@ -1,6 +1,6 @@
 #!/bin/bash
-# The Amadeus menu (Super+Space): Apps, Trigger, Install, Remove, Update, Setup, System, About.
-# Usage: amadeus-menu [apps|trigger|install|remove|update|setup|system|about]
+# The Amadeus menu (Super+Space): applications, optional software, desktop setup and system actions.
+# Usage: amadeus-menu [apps|trigger|install|gaming|chat|remove|update|setup|system|about]
 pick()   { amadeus-pick "$@"; }
 term()   { amadeus-terminal --title "Amadeus: $1" -e bash -c "$2; echo; read -rsn1 -p 'Press any key to close.'"; }
 quoted() { local out; out=$(xargs -d '\n' printf '%q ' <<<"$1"); printf '%s' "$out"; }
@@ -163,10 +163,12 @@ setup_menu() {
   esac
 }
 
-case ${1:-$(printf '%s\n' Apps Trigger Install Remove Update Setup System About | pick "Amadeus")} in
+case ${1:-$(printf '%s\n' Apps Trigger Install Gaming Chat Remove Update Setup System About | pick "Amadeus")} in
   Apps|apps)         exec amadeus-launcher ;;
   Trigger|trigger)   trigger_menu ;;
   Install|install)   install_menu ;;
+  Gaming|gaming)     catalog gaming game ;;
+  Chat|chat)         catalog chat "chat client" ;;
   Remove|remove)     remove_menu ;;
   Update|update)
     what=$(printf 'Everything\nHarnesses and tools only' | pick "Update") || exit 0

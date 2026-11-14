@@ -1,4 +1,4 @@
 # Applications that are not in the Arch repositories. Each is built from its AUR recipe,
 # which downloads the publisher's own release, into the repository on the ISO.
 # AI coding harnesses (Claude Code, Codex, ...) are not here: they are installed per user through mise.
-protonplus brave-origin-bin claude-desktop herdr-bin localsend-bin
+brave-origin-bin claude-desktop herdr-bin localsend-bin

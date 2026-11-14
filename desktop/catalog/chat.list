@@ -1,0 +1,3 @@
+# Optional chat clients from the official Arch repositories.
+Discord	pacman:extra/discord
+Telegram	pacman:extra/telegram-desktop

@@ -1,0 +1,2 @@
+# Optional gaming applications from the official Arch repositories.
+Steam	pacman:multilib/steam
