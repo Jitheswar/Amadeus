@@ -53,6 +53,18 @@ be stopped, and have everything it changed undone together. **Super+A** opens th
 pointed at the window you are looking at, so "summarise this" or "make this half width"
 means that window.
 
+Open **Settings** in the panel to choose a subscription, API provider or local model.
+**Setup → Defaults → Agent** saves the agent this panel uses; choosing another agent
+in the panel overrides the next request. Missing coding agents are installed through
+the existing **Install → Harness** menu. API keys are saved privately.
+
+The AI control at the top right shows the default agent and opens subscription usage.
+Usage is fetched when opened or refreshed, using each agent's existing sign-in.
+
+Start typing an installed app or setting name from any menu to find it across menus.
+Selecting a global result closes the original menu and opens the app or setting.
+Text size in Setup or the display popover adjusts the shell, panel, GTK apps and
+terminal configuration together; existing terminals may need a new window.
 
 | | |
 |---|---|
@@ -64,7 +76,7 @@ means that window.
 | `ama doctor` | check drivers, GPU, sandbox, providers and applications |
 | `ama discover` | a live map of the system: commands, files, tools, permissions |
 | `Super+K` | every keyboard shortcut and system command, searchable |
-| `Super+Space` | the Amadeus menu: Apps, Trigger, Install, Remove, Update, Setup, System, About |
+| `Super+Space` | the Amadeus menu, with applications and settings searchable from every list |
 | `Super+Shift+Enter` | your default AI coding harness, in a terminal |
 | `Super+C` · `Super+V` · `Super+Ctrl+V` | copy and paste that work the same everywhere, terminals included · clipboard history |
 | `Super+S` · `Super+Alt+S` | show or hide the scratchpad over everything · send the focused window to it |
@@ -84,7 +96,7 @@ means that window.
 |---|---|
 | Left | Workspaces, and the title of the focused window. |
 | Centre | Administrator-without-password switch (15 minutes, 30 minutes, 1 hour, or until turned off), stay-awake switch, the day and 12-hour time (click for a calendar), the weather. |
-| Right | Applications running in the background, Bluetooth, Wi-Fi, volume, brightness, battery, and the Amadeus button. Each opens a small panel: devices and networks to connect to, sliders, and the power mode. |
+| Right | Applications running in the background, Bluetooth, Wi-Fi, volume, display, AI usage, battery, and the Amadeus button. Each opens a small panel: devices and networks to connect to, sliders, and the power mode. |
 
 Power mode follows the cable: performance when plugged in, balanced on battery, battery
 saver under 20%. The layout is a file (`~/.config/amadeus/bar.json`); ask Amadeus to
@@ -98,7 +110,7 @@ rearrange it, or edit it.
 | **Remove** | Packages, harnesses and tools, web apps. |
 | **Update** | Everything, or only what mise manages. |
 | **Trigger** | Capture: screenshot, and the three kinds of screen recording. |
-| **Setup** | Display resolution and scaling, GPU (automatic, NVIDIA for everything, or Intel only), text size, defaults (terminal, editor, harness, browser, and what opens each kind of file), and Config, which opens any of the system's configuration files in your editor. |
+| **Setup** | Display resolution and scaling, GPU (automatic, NVIDIA for everything, or Intel only), text size, defaults (including the panel agent and what opens each kind of file), and Config, which opens any of the system's configuration files in your editor. |
 | **System** | Lock, suspend, hibernate, log out, restart, shut down. |
 | **About** | The facts about this machine. |
 
