@@ -91,6 +91,17 @@ class AuditTest(unittest.TestCase):
         nxt = audit.record("action", tool="after")
         self.assertEqual(nxt["prev"], big["hash"])
         self.assertEqual(audit.verify()[:2], (True, 2))
+    def test_read_skips_malformed_records(self):
+        f = config.STATE / "audit.jsonl"
+        f.unlink(missing_ok=True)
+        audit.record("action", tool="a")
+        with open(f, "a") as fh:
+            fh.write("not json\n")
+            fh.write("[1, 2]\n")
+            fh.write('{"no": "ts"}\n')
+        recs = audit.read(10)
+        self.assertEqual([r["tool"] for r in recs], ["a"])
+        self.assertEqual(audit.read(0), [])
         f.unlink()
 
 
