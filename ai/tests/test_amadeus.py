@@ -309,6 +309,13 @@ class Mock(BaseHTTPRequestHandler):
 
 
 class ProviderTest(unittest.TestCase):
+    def test_retry_after_invalid_numbers_use_backoff(self):
+        from amadeus.providers.http import _retry_delay
+        for value in ("inf", "-inf", "nan", "not a date", ""):
+            self.assertEqual(_retry_delay(value, 2), 4)
+        self.assertEqual(_retry_delay("0.25", 2), 0.25)
+        self.assertEqual(_retry_delay("-1", 2), 0)
+
     def test_claude_error_reads_a_bounded_stderr_tail(self):
         from amadeus.providers.cli import ClaudeCLI
         from amadeus.providers import ProviderError
@@ -433,6 +440,37 @@ class CliTest(unittest.TestCase):
         self.assertEqual(f.stat().st_mode & 0o777, 0o600)
         self.assertEqual(f.read_text(), "new-key")
         f.unlink()
+    def test_retry_after_http_date_is_understood(self):
+        from amadeus.providers.http import post_json
+        hits = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers.get("content-length", 0)))
+                hits.append(1)
+                if len(hits) == 1:
+                    self.send_response(429)
+                    self.send_header("retry-after", "Wed, 21 Oct 2015 07:28:00 GMT")
+                    self.send_header("content-length", "0")
+                    self.end_headers()
+                else:
+                    data = b'{"ok": true}'
+                    self.send_response(200)
+                    self.send_header("content-length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+
+            def log_message(self, *a):
+                pass
+
+        srv = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            self.assertEqual(post_json(f"http://127.0.0.1:{srv.server_port}/x", {}, {}), {"ok": True})
+        finally:
+            srv.shutdown()
+            srv.server_close()
+        self.assertEqual(len(hits), 2)
 
 
 class DaemonTest(unittest.TestCase):
