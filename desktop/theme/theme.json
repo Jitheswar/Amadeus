@@ -15,5 +15,6 @@
   "radius": 12,
   "fast": 110,
   "normal": 180,
-  "slow": 260
+  "slow": 260,
+  "font_size": 14
 }

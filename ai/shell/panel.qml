@@ -140,7 +140,7 @@ ShellRoot {
             if (root.providerOptions.some(p => p.name === name)) { root.selectedProvider = name; root.providerOverride = true }
         }
         function state(): string { return JSON.stringify({ open: root.open, tasks: root.nextTask, running: root.running, connected: sock.connected,
-            provider: root.selectedProvider, defaultProvider: root.defaultProvider, settings: root.settingsOpen }) }
+            fontSize: Theme.size, provider: root.selectedProvider, defaultProvider: root.defaultProvider, settings: root.settingsOpen }) }
     }
     ListModel { id: log }
 

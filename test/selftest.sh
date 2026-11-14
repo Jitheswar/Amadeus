@@ -101,7 +101,7 @@ t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus
 t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
 t "file manager shortcut is listed"            bash -c 'as amadeus-keys --print | grep -q "^Super + Shift + F .*Files"'
 t "system look applies to applications"        bash -c 'as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark && fc-match sans-serif | grep -qi inter && test -f /usr/share/amadeus-os/theme.json'
-t "text size can be set and restored"          bash -c 'as amadeus-display text 110% >/dev/null && as gsettings get org.gnome.desktop.interface text-scaling-factor | grep -q "1.1" && as amadeus-display text 100% >/dev/null'
+t "text size applies to the shell and terminals" bash -c 'as amadeus-text-size 16 >/dev/null && as amadeus-display text | grep -q "16 px" && grep -q "font_size.*16" /home/'$U'/.config/amadeus/theme.json && grep -q ":size=13" /home/'$U'/.config/foot/foot.ini && sleep 1 && shell shell state | grep -q "fontSize.*16" && as amadeus-display text reset >/dev/null'
 t "display scale can be set and restored"      bash -c 'as amadeus-display scale 1.25 >/dev/null && as amadeus-display scale | grep -q 1.25 && as amadeus-display scale 1 >/dev/null'
 t "Claude Code is installed only on request"    bash -c '! as bash -lc "command -v claude" >/dev/null 2>&1'
 t "a harness installs through mise (Claude Code)" bash -c 'as bash -lc "amadeus-harness install claude" >/dev/null 2>&1; as bash -lc "mise ls --global" | grep -q "^claude" && as bash -lc "claude --version"'

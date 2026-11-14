@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 // One look for every Amadeus surface and every generated app. Values come from the
 // system theme (passed in by the launcher), so everything matches and follows a theme change.
@@ -19,7 +20,16 @@ QtObject {
     readonly property color bad: pick("AMA_BAD", "#ff6b5e")
     readonly property string font: pick("AMA_FONT", "Inter")
     readonly property string mono: pick("AMA_MONO", "JetBrains Mono")
-    readonly property int size: 14
+    property var personal: ({})
+    property QtObject personalFile: FileView {
+        path: Quickshell.env("XDG_CONFIG_HOME") ? Quickshell.env("XDG_CONFIG_HOME") + "/amadeus/theme.json" : Quickshell.env("HOME") + "/.config/amadeus/theme.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: { try { personal = JSON.parse(text()) } catch (e) { personal = ({}) } }
+        onLoadFailed: personal = ({})
+    }
+    readonly property int size: Math.max(9, Math.min(20, Number(personal.font_size || pick("AMA_FONT_SIZE", "14")) || 14))
     readonly property int gap: 12
     readonly property int radius: Number(pick("AMA_RADIUS", "12"))
     // Motion: short and decisive. Things arrive quickly and settle gently; nothing bounces.

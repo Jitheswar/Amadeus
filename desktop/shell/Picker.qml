@@ -148,13 +148,13 @@ Scope {
                 width: title.implicitWidth + 20; height: 28; radius: 14
                 color: Qt.rgba(pick.style.accent.r, pick.style.accent.g, pick.style.accent.b, 0.14)
                 Text { id: title; anchors.centerIn: parent; text: pick.prompt; color: pick.style.accent
-                       font.family: pick.style.font; font.pixelSize: 13; font.weight: Font.Medium }
+                       font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(13); font.weight: Font.Medium }
             }
             TextInput {
                 id: input
                 anchors { left: chip.right; right: parent.right; verticalCenter: chip.verticalCenter; leftMargin: 14; rightMargin: 18 }
                 color: pick.style.fg; selectionColor: pick.style.accent; selectedTextColor: pick.style.bg
-                font.family: pick.style.font; font.pixelSize: 16; clip: true
+                font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(16); clip: true
                 onTextChanged: if (pick.open) pick.refilter()
                 Text { anchors.fill: parent; verticalAlignment: Text.AlignVCenter; visible: !input.text; text: pick.items.length ? "Search" : "Type here"
                        color: pick.style.dim; font: input.font; opacity: 0.7 }
@@ -202,7 +202,7 @@ Scope {
                     width: view.width; height: 34
                     Text { anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: tick.left; leftMargin: 16; rightMargin: 8 }
                            text: pick.label(line.modelData); elide: Text.ElideRight
-                           color: line.on ? pick.style.accent : pick.style.fg; font.family: pick.style.font; font.pixelSize: 14 }
+                           color: line.on ? pick.style.accent : pick.style.fg; font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(14) }
                     Rectangle { id: tick; visible: line.on; width: 8; height: 8; radius: 4; color: pick.style.accent
                                 anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter } }
                     MouseArea { anchors.fill: parent; hoverEnabled: true
@@ -220,7 +220,7 @@ Scope {
                                 }
                                 onClicked: { pick.select(line.index); pick.accept() } }
                 }
-                Text { anchors.centerIn: parent; visible: pick.shown.length === 0; color: pick.style.dim; font.family: pick.style.font; font.pixelSize: 14
+                Text { anchors.centerIn: parent; visible: pick.shown.length === 0; color: pick.style.dim; font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(14)
                        text: pick.allowNew ? (input.text.trim() ? pick.newLabel : "Type, then press Enter") : "Nothing matches" }
             }
             Rectangle { visible: box.wide; width: 1; color: pick.style.line; anchors { left: view.right; leftMargin: 10; top: rule.bottom; bottom: foot.top; bottomMargin: 10 } }
@@ -231,12 +231,12 @@ Scope {
                 contentHeight: info.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
                 Text { id: info; width: parent.width; text: pick.detail; color: pick.style.fg; opacity: 0.9
-                       font.family: pick.style.mono; font.pixelSize: 12; lineHeight: 1.25; wrapMode: Text.Wrap }
+                       font.family: pick.style.mono; font.pixelSize: pick.style.fontPixels(12); lineHeight: 1.25; wrapMode: Text.Wrap }
             }
             Text {
                 id: foot
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 18; rightMargin: 18; bottomMargin: 12 }
-                color: pick.style.dim; font.family: pick.style.font; font.pixelSize: 12; elide: Text.ElideRight
+                color: pick.style.dim; font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(12); elide: Text.ElideRight
                 text: (pick.multi ? "Tab  select several" + (pick.nMarked ? " · " + pick.nMarked + " selected" : "") + "      " : "")
                     + "Enter  choose      Esc  close" + (pick.preview2 ? "      Alt+B  " + (pick.alt ? "details" : pick.hint || "more") : "")
             }

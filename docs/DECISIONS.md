@@ -296,3 +296,10 @@ keys stay in the private secrets directory and never enter the provider listing.
 The Antigravity adapter uses its official headless CLI and workspace MCP setup,
 with native shell, file and browser operations denied; system actions still go
 through the daemon's policy and audit boundary.
+
+## Unified text size
+
+One text-size setting follows Omarchy's approach: live shell and panel sizing,
+GTK scaling quantized to whole font points, and terminal configuration together.
+The default remains Amadeus's 14px shell / 11pt terminal size. A terminal that
+cannot reload its configuration takes the size in a new window.

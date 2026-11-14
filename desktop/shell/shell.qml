@@ -17,7 +17,7 @@ ShellRoot {
     // ---- theme: /usr/share/amadeus-os/theme.json, overridden by ~/.config/amadeus/theme.json
     property var theme: ({ bg: "#0f0e0d", surface: "#191715", raised: "#26221e", line: "#342f29", fg: "#f1ebe1", dim: "#9c948a",
                            accent: "#ffa14a", accent2: "#ff6f3c", good: "#8fd19e", warn: "#f4c35b", bad: "#ff6b5e",
-                           font: "Inter", mono: "JetBrains Mono", radius: 12, fast: 110, normal: 180, slow: 260 })
+                           font: "Inter", mono: "JetBrains Mono", font_size: 14, radius: 12, fast: 110, normal: 180, slow: 260 })
     property var shipped: ({})
     property var personal: ({})
     function retheme() { theme = Object.assign({}, theme, shipped, personal) }
@@ -37,6 +37,8 @@ ShellRoot {
     readonly property color warn: theme.warn
     readonly property string font: theme.font
     readonly property string mono: theme.mono
+    readonly property real textScale: Math.max(9, Math.min(20, Number(theme.font_size) || 14)) / 14
+    function fontPixels(n) { return Math.round(n * textScale) }
     readonly property int radius: theme.radius
     readonly property int fast: theme.fast
     readonly property int normal: theme.normal
@@ -54,7 +56,7 @@ ShellRoot {
     }
     IpcHandler {
         target: "shell"
-        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, notifications: notifications.count, popover: root.pop, awake: root.awake }) }
+        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, fontSize: root.fontPixels(14), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
         // For automation and tests: open a drop-down at a horizontal position, or close it with "".
         function popover(name: string, x: int): void { root.popX = x; root.pop = name }
         function awake(on: bool): void { root.awake = on }
@@ -124,13 +126,26 @@ ShellRoot {
     function setBright(v) { bright = v; run(["brightnessctl", "-q", "set", Math.round(v * 100) + "%"]) }
 
     // The display panel follows the commands it runs; they are also the manual for them.
-    property int textSize: 100
+    property int textSize: 14
     property real scale: 1.0
     Process { id: readText; command: ["amadeus-display", "text"]
               stdout: SplitParser { onRead: line => { const n = parseInt(line); if (n > 0) root.textSize = n } } }
     Process { id: readScale; command: ["amadeus-display", "scale"]
               stdout: SplitParser { onRead: line => { const v = parseFloat(line); if (v > 0) root.scale = v } } }
-    function setTextSize(p) { textSize = p; run(["amadeus-display", "text", p + "%"]) }
+    property bool textChanging: false
+    Process { id: changeText
+        onExited: (code, status) => {
+            root.textChanging = false
+            readText.running = true
+            if (code !== 0) root.run(["notify-send", "-a", "Amadeus", "Text size was not changed", "Check the terminal configuration and try again."])
+        }
+    }
+    function setTextSize(p) {
+        if (textChanging) return
+        textChanging = true
+        changeText.command = ["amadeus-display", "text", String(p)]
+        changeText.running = true
+    }
     function setScale(v) { scale = v; run(["amadeus-display", "scale", String(v)]) }
 
     property bool wifiOn: demo
@@ -178,7 +193,7 @@ ShellRoot {
     property bool recording: false
 
     // ---- bar widgets
-    component Label: Text { color: root.fg; font.pixelSize: 13; font.family: root.font; verticalAlignment: Text.AlignVCenter
+    component Label: Text { color: root.fg; font.pixelSize: root.fontPixels(13); font.family: root.font; verticalAlignment: Text.AlignVCenter
                             Behavior on color { ColorAnimation { duration: root.fast } } }
     // A control in the bar: an icon, sometimes a short reading beside it. Lit when its thing is on,
     // raised while pointed at or while its panel is open.
@@ -198,7 +213,7 @@ ShellRoot {
         Row { id: inner; anchors.centerIn: parent; spacing: 6
             Icon { name: tool.icon; size: 16; anchors.verticalCenter: parent.verticalCenter
                    color: tool.alert ? root.warn : (tool.lit ? root.accent : root.fg) }
-            Label { visible: tool.reading !== ""; text: tool.reading; font.pixelSize: 12; font.features: { "tnum": 1 }
+            Label { visible: tool.reading !== ""; text: tool.reading; font.pixelSize: root.fontPixels(12); font.features: { "tnum": 1 }
                     color: tool.alert ? root.warn : root.fg; anchors.verticalCenter: parent.verticalCenter } }
         scale: over.pressed ? 0.94 : 1
         Behavior on scale { NumberAnimation { duration: 80 } }

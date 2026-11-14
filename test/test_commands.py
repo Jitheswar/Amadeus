@@ -851,13 +851,35 @@ cat >/dev/null
         self.assertEqual(display.read_text(), "-- old setting\n")
         self.assertIn("Display setting not applied", " ".join(self.calls_of("notify-send")[-1]))
 
-    def test_display_text_size(self):
-        self.stub("gsettings", output="1.0")
-        self.assertEqual(self.run_cmd("amadeus-display", "text").stdout.strip(), "100%")
-        set_size = self.run_cmd("amadeus-display", "text", "125%")
-        self.assert_ok(set_size)
+    def test_display_text_size_updates_shell_gtk_and_terminal(self):
+        self.stub("gsettings", body='[[ $3 == font-name ]] && echo "Inter 11" || echo 1.0')
+        self.stub("foot")
+        terminal = self.config / "foot/foot.ini"
+        terminal.parent.mkdir()
+        terminal.write_text("[main]\nfont=JetBrains Mono:size=11\n")
+        theme = self.config / "amadeus/theme.json"
+        theme.parent.mkdir()
+        theme.write_text('{"accent": "#ffa14a"}')
+        self.assertEqual(self.run_cmd("amadeus-display", "text").stdout.strip(), "14 px")
+        self.assert_ok(self.run_cmd("amadeus-display", "text", "16"))
+        self.assertEqual(json.loads(theme.read_text()), {"accent": "#ffa14a", "font_size": 16})
+        self.assertIn(":size=13", terminal.read_text())
         self.assertEqual(self.calls_of("gsettings")[-1],
-                         ["set", "org.gnome.desktop.interface", "text-scaling-factor", "1.25"])
+                         ["set", "org.gnome.desktop.interface", "text-scaling-factor", "1.1818"])
+        self.assertEqual(self.run_cmd("amadeus-display", "text").stdout.strip(), "16 px")
+        self.assert_ok(self.run_cmd("amadeus-display", "text", "reset"))
+        self.assertEqual(json.loads(theme.read_text())["font_size"], 14)
+
+    def test_display_text_size_restores_files_when_validation_fails(self):
+        self.stub("gsettings", body='[[ $3 == font-name ]] && echo "Inter 11" || echo 1.0')
+        self.stub("foot", rc=1)
+        terminal = self.config / "foot/foot.ini"
+        terminal.parent.mkdir()
+        terminal.write_text("[main]\nfont=JetBrains Mono:size=11\n")
+        self.assertNotEqual(self.run_cmd("amadeus-display", "text", "18").returncode, 0)
+        self.assertIn(":size=11", terminal.read_text())
+        self.assertFalse((self.config / "amadeus/theme.json").exists())
+        self.assertEqual(self.calls_of("gsettings")[-1][-1], "1.0")
 
     def test_display_scale_of_the_focused_monitor(self):
         self.hyprctl_json()

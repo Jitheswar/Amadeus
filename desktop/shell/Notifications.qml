@@ -64,11 +64,11 @@ Scope {
                     anchors { left: parent.left; right: parent.right; top: parent.top; leftMargin: 22; rightMargin: 16; topMargin: 14 }
                     spacing: 3
                     Text { width: parent.width; text: card.modelData.appName.toUpperCase(); visible: text !== ""; color: notes.style.dim
-                           font.family: notes.style.font; font.pixelSize: 10; font.letterSpacing: 0.8; font.weight: Font.Medium; elide: Text.ElideRight }
+                           font.family: notes.style.font; font.pixelSize: notes.style.fontPixels(10); font.letterSpacing: 0.8; font.weight: Font.Medium; elide: Text.ElideRight }
                     Text { width: parent.width; text: card.modelData.summary; color: notes.style.fg; wrapMode: Text.Wrap
-                           font.family: notes.style.font; font.pixelSize: 14; font.weight: Font.DemiBold }
+                           font.family: notes.style.font; font.pixelSize: notes.style.fontPixels(14); font.weight: Font.DemiBold }
                     Text { width: parent.width; text: card.modelData.body; visible: text !== ""; color: notes.style.fg; opacity: 0.82
-                           font.family: notes.style.font; font.pixelSize: 13; lineHeight: 1.2
+                           font.family: notes.style.font; font.pixelSize: notes.style.fontPixels(13); lineHeight: 1.2
                            wrapMode: Text.Wrap; textFormat: Text.PlainText; maximumLineCount: 6; elide: Text.ElideRight }
                     Row {
                         spacing: 8
@@ -82,7 +82,7 @@ Scope {
                                 width: label.implicitWidth + 20; height: 26; radius: 13
                                 color: tap.containsMouse ? notes.style.accent : notes.style.raised
                                 Behavior on color { ColorAnimation { duration: notes.style.fast } }
-                                Text { id: label; anchors.centerIn: parent; text: act.modelData.text; font.family: notes.style.font; font.pixelSize: 12
+                                Text { id: label; anchors.centerIn: parent; text: act.modelData.text; font.family: notes.style.font; font.pixelSize: notes.style.fontPixels(12)
                                        color: tap.containsMouse ? notes.style.bg : notes.style.fg }
                                 MouseArea { id: tap; anchors.fill: parent; hoverEnabled: true; onClicked: act.modelData.invoke() }
                             }

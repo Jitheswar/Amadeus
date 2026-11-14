@@ -157,7 +157,7 @@ setup_menu() {
   case $(printf '%s\n' Display GPU 'Text size' Defaults Config | pick "Setup") in
     GPU)         gpu_menu ;;
     Display)     exec amadeus-display ;;
-    "Text size") local s; s=$(printf '%s\n' '90%' '100%' '110%' '125%' '150%' | pick "Text size (now $(amadeus-display text))") || exit 0
+    "Text size") local s; s=$(printf '%s\n' 12 14 16 18 20 | pick "Text size (now $(amadeus-display text))") || exit 0
                  say "$(amadeus-display text "$s")" ;;
     Defaults)    defaults_menu ;;
     Config)      config_menu ;;

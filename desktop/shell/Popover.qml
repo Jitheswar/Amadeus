@@ -19,8 +19,8 @@ Scope {
     onOpenChanged: if (open) showing = shell.pop
     Connections { target: pop.shell; function onPopChanged() { if (pop.shell.pop !== "") pop.showing = pop.shell.pop } }
 
-    component Title: Text { color: pop.shell.dim; font.family: pop.shell.font; font.pixelSize: 11; font.letterSpacing: 0.8; font.weight: Font.Medium }
-    component Body: Text { color: pop.shell.fg; font.family: pop.shell.font; font.pixelSize: 13 }
+    component Title: Text { color: pop.shell.dim; font.family: pop.shell.font; font.pixelSize: pop.shell.fontPixels(11); font.letterSpacing: 0.8; font.weight: Font.Medium }
+    component Body: Text { color: pop.shell.fg; font.family: pop.shell.font; font.pixelSize: pop.shell.fontPixels(13) }
     // A row you can click: optional icon, text, optional note on the right, a tick when chosen.
     component Choice: Rectangle {
         id: choice
@@ -37,7 +37,7 @@ Scope {
         Body { text: choice.text; elide: Text.ElideRight; color: choice.chosen ? pop.shell.accent : pop.shell.fg
                anchors { left: glyph.visible ? glyph.right : parent.left; right: side.left; leftMargin: 10; rightMargin: 8; verticalCenter: parent.verticalCenter } }
         Row { id: side; spacing: 8; anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
-            Body { text: choice.note; color: pop.shell.dim; font.pixelSize: 12 }
+            Body { text: choice.note; color: pop.shell.dim; font.pixelSize: pop.shell.fontPixels(12) }
             Icon { visible: choice.chosen; name: "check"; size: 14; color: pop.shell.accent; anchors.verticalCenter: parent.verticalCenter } }
         MouseArea { id: over; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: choice.picked() }
     }
@@ -51,7 +51,7 @@ Scope {
         color: pill.chosen ? pop.shell.accent : (over.containsMouse ? pop.shell.raised : "transparent")
         border.width: 1; border.color: pill.chosen ? pop.shell.accent : pop.shell.line
         Behavior on color { ColorAnimation { duration: pop.shell.fast } }
-        Body { id: label; anchors.centerIn: parent; text: pill.text; font.pixelSize: 12
+        Body { id: label; anchors.centerIn: parent; text: pill.text; font.pixelSize: pop.shell.fontPixels(12)
                color: pill.chosen ? pop.shell.bg : pop.shell.fg }
         MouseArea { id: over; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pill.picked() }
     }
@@ -87,7 +87,7 @@ Scope {
             readonly property date today: new Date()
             function shift(n) { shown = new Date(shown.getFullYear(), shown.getMonth() + n, 1) }
             Item { width: parent.width; height: 28
-                Body { text: Qt.formatDate(cal.shown, "MMMM yyyy"); font.pixelSize: 15; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter; x: 4 }
+                Body { text: Qt.formatDate(cal.shown, "MMMM yyyy"); font.pixelSize: pop.shell.fontPixels(15); font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter; x: 4 }
                 Row { anchors { right: parent.right; verticalCenter: parent.verticalCenter } spacing: 4
                     Repeater { model: [["left", -1], ["right", 1]]
                         Rectangle { required property var modelData; width: 28; height: 28; radius: 8; color: arrow.containsMouse ? pop.shell.raised : "transparent"
@@ -113,12 +113,12 @@ Scope {
         Column { width: 280; spacing: 4
             readonly property var dev: UPower.displayDevice
             Title { text: "POWER"; x: 10 }
-            Body { x: 10; visible: pop.shell.hasBattery; color: pop.shell.dim; font.pixelSize: 12; bottomPadding: 6
+            Body { x: 10; visible: pop.shell.hasBattery; color: pop.shell.dim; font.pixelSize: pop.shell.fontPixels(12); bottomPadding: 6
                    text: pop.shell.batteryPct + "% · " + (UPower.onBattery ? "on battery" : "plugged in") }
             Choice { icon: "leaf"; text: "Battery saver"; chosen: PowerProfiles.profile === PowerProfile.PowerSaver; onPicked: PowerProfiles.profile = PowerProfile.PowerSaver }
             Choice { icon: "scale"; text: "Balanced"; chosen: PowerProfiles.profile === PowerProfile.Balanced; onPicked: PowerProfiles.profile = PowerProfile.Balanced }
             Choice { icon: "bolt"; text: "Performance"; visible: PowerProfiles.hasPerformanceProfile; chosen: PowerProfiles.profile === PowerProfile.Performance; onPicked: PowerProfiles.profile = PowerProfile.Performance }
-            Body { x: 10; width: parent.width - 20; wrapMode: Text.Wrap; color: pop.shell.dim; font.pixelSize: 11; topPadding: 6; visible: pop.shell.hasBattery
+            Body { x: 10; width: parent.width - 20; wrapMode: Text.Wrap; color: pop.shell.dim; font.pixelSize: pop.shell.fontPixels(11); topPadding: 6; visible: pop.shell.hasBattery
                    text: "Chosen for you when power changes: performance when plugged in, balanced on battery, battery saver under 20%." }
         }
     }
@@ -143,7 +143,7 @@ Scope {
                          text: modelData.description || modelData.nickname || modelData.name
                          chosen: pop.shell.demo ? modelData.id === 1 : Pipewire.defaultAudioSink === modelData
                          onPicked: if (!pop.shell.demo) Pipewire.preferredDefaultAudioSink = modelData } }
-            Body { x: 10; visible: pop.shell.outputs.length === 0; color: pop.shell.dim; font.pixelSize: 12; height: 24; verticalAlignment: Text.AlignVCenter
+            Body { x: 10; visible: pop.shell.outputs.length === 0; color: pop.shell.dim; font.pixelSize: pop.shell.fontPixels(12); height: 24; verticalAlignment: Text.AlignVCenter
                    text: "No output devices" }
             Title { text: "INPUT"; x: 10; topPadding: 4 }
             Repeater { model: pop.shell.inputs.slice(0, 6)
@@ -151,12 +151,12 @@ Scope {
                          text: modelData.description || modelData.nickname || modelData.name
                          chosen: pop.shell.demo ? modelData.id === 3 : Pipewire.defaultAudioSource === modelData
                          onPicked: if (!pop.shell.demo) Pipewire.preferredDefaultAudioSource = modelData } }
-            Body { x: 10; visible: pop.shell.inputs.length === 0; color: pop.shell.dim; font.pixelSize: 12; height: 24; verticalAlignment: Text.AlignVCenter
+            Body { x: 10; visible: pop.shell.inputs.length === 0; color: pop.shell.dim; font.pixelSize: pop.shell.fontPixels(12); height: 24; verticalAlignment: Text.AlignVCenter
                    text: "No input devices" }
         }
     }
     Component { id: display
-        Column { id: disp; width: 300; spacing: 8
+        Column { id: disp; width: Math.max(300, 300 * pop.shell.textScale); spacing: 8
             Item { width: parent.width; height: 24
                 Title { text: "BRIGHTNESS"; x: 10; anchors.verticalCenter: parent.verticalCenter; visible: pop.shell.hasBattery }
                 Body { text: Math.round(pop.shell.bright * 100) + "%"; color: pop.shell.dim; font.features: { "tnum": 1 }; visible: pop.shell.hasBattery
@@ -165,8 +165,8 @@ Scope {
                 Slider { value: pop.shell.bright; onMoved: v => pop.shell.setBright(Math.max(0.02, v)) } }
             Title { text: "TEXT SIZE"; x: 10 }
             Row { x: 10; spacing: 6
-                Repeater { model: [90, 100, 110, 125, 150]
-                    Pill { required property int modelData; text: modelData + "%"; chosen: pop.shell.textSize === modelData
+                Repeater { model: [12, 14, 16, 18, 20]
+                    Pill { required property int modelData; enabled: !pop.shell.textChanging; text: modelData + " px"; chosen: pop.shell.textSize === modelData
                            onPicked: pop.shell.setTextSize(modelData) } } }
             Title { text: "SCALE"; x: 10; topPadding: 4 }
             Row { x: 10; spacing: 6
@@ -186,7 +186,7 @@ Scope {
             Repeater { model: pop.shell.wifiOn ? pop.shell.nets.slice(0, 8) : []
                 Choice { required property var modelData; icon: "wifi"; text: modelData.name; note: (modelData.secure ? "" : "open  ") + modelData.signal + "%"; chosen: modelData.active
                          onPicked: { pop.shell.run(["amadeus-wifi", "connect", modelData.name]); pop.shell.pop = "" } } }
-            Body { x: 10; visible: !pop.shell.wifiOn || pop.shell.nets.length === 0; color: pop.shell.dim; font.pixelSize: 12; height: 30; verticalAlignment: Text.AlignVCenter
+            Body { x: 10; visible: !pop.shell.wifiOn || pop.shell.nets.length === 0; color: pop.shell.dim; font.pixelSize: pop.shell.fontPixels(12); height: 30; verticalAlignment: Text.AlignVCenter
                    text: pop.shell.wifiOn ? "Looking for networks…" : "Wi-Fi is off" }
         }
     }
@@ -202,7 +202,7 @@ Scope {
                          note: modelData.connected ? (modelData.batteryAvailable ? Math.round(modelData.battery * 100) + "%" : "connected") : (modelData.paired ? "" : "new")
                          onPicked: modelData.connected ? modelData.disconnect() : (modelData.paired ? modelData.connect() : modelData.pair()) } }
             Choice { visible: !!(bt.adapter && bt.adapter.enabled); text: bt.adapter && bt.adapter.discovering ? "Looking for devices…" : "Look for new devices"; onPicked: bt.adapter.discovering = !bt.adapter.discovering }
-            Body { x: 10; visible: !bt.adapter || !bt.adapter.enabled; color: pop.shell.dim; font.pixelSize: 12; height: 30; verticalAlignment: Text.AlignVCenter
+            Body { x: 10; visible: !bt.adapter || !bt.adapter.enabled; color: pop.shell.dim; font.pixelSize: pop.shell.fontPixels(12); height: 30; verticalAlignment: Text.AlignVCenter
                    text: bt.adapter ? "Bluetooth is off" : "This computer has no Bluetooth" }
         }
     }
@@ -211,13 +211,13 @@ Scope {
             Title { text: "RUNNING IN THE BACKGROUND"; x: 10; height: 26; verticalAlignment: Text.AlignVCenter }
             Repeater { model: SystemTray.items
                 Choice { required property var modelData; text: modelData.tooltipTitle || modelData.title || modelData.id; onPicked: { modelData.activate(); pop.shell.pop = "" } } }
-            Body { x: 10; visible: SystemTray.items.values.length === 0; color: pop.shell.dim; font.pixelSize: 12; height: 30; verticalAlignment: Text.AlignVCenter; text: "Nothing right now" }
+            Body { x: 10; visible: SystemTray.items.values.length === 0; color: pop.shell.dim; font.pixelSize: pop.shell.fontPixels(12); height: 30; verticalAlignment: Text.AlignVCenter; text: "Nothing right now" }
         }
     }
     Component { id: sudo
         Column { width: 300; spacing: 4
             Title { text: "ADMINISTRATOR WITHOUT PASSWORD"; x: 10; height: 26; verticalAlignment: Text.AlignVCenter }
-            Body { x: 10; width: parent.width - 20; wrapMode: Text.Wrap; color: pop.shell.dim; font.pixelSize: 12; bottomPadding: 6
+            Body { x: 10; width: parent.width - 20; wrapMode: Text.Wrap; color: pop.shell.dim; font.pixelSize: pop.shell.fontPixels(12); bottomPadding: 6
                    text: pop.shell.sudoOn ? "On " + pop.shell.sudoUntil + ". Anything running as you can change the system without asking."
                                           : "While on, anything running as you can change the system without asking. You are asked for your password once to turn it on." }
             Repeater { model: pop.shell.sudoOn ? [] : [["15 minutes", "15m"], ["30 minutes", "30m"], ["1 hour", "1h"], ["Until I turn it off", "always"]]

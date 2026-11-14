@@ -2,7 +2,7 @@
 # Display setup: resolution, refresh rate, scaling and text size.
 #   amadeus-display                 choose a display, then its resolution or scale, from menus
 #   amadeus-display scale [VALUE]   show or set the focused display's scale (for example 1.25)
-#   amadeus-display text [SIZE]     show or set text size for applications (for example 110%)
+#   amadeus-display text [9..20|reset]  show or set one text size for the shell, apps and terminals
 # Resolution and scale are written to ~/.config/hypr/display.lua. The whole desktop
 # configuration is checked first; a setting the desktop rejects is not kept.
 set -euo pipefail
@@ -40,10 +40,8 @@ PY
 }
 
 if [[ ${1:-} == text ]]; then
-  now=$(gsettings get org.gnome.desktop.interface text-scaling-factor 2>/dev/null || echo 1.0)
-  [[ -n ${2:-} ]] || { awk -v n="$now" 'BEGIN { printf "%d%%\n", n * 100 + 0.5 }'; exit 0; }
-  gsettings set org.gnome.desktop.interface text-scaling-factor "$(awk -v p="${2%\%}" 'BEGIN { printf "%.2f", p / 100 }')"
-  echo "Text size: ${2%\%}%"; exit 0
+  shift
+  exec amadeus-text-size "$@"
 fi
 
 if [[ ${1:-} == scale ]]; then
