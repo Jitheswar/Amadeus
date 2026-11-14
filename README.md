@@ -144,7 +144,7 @@ appears in a window and the virtual machine running it sees only that drive.
    `sudo dd if=out/amadeus-os-*.iso of=/dev/sdX bs=4M status=progress oflag=sync`
 2. Boot it (UEFI, Secure Boot off) and choose **Install Amadeus OS**. The guided installer starts: keyboard,
    internet (optional), your name and password, time zone, disk, encryption,
-   applications, then a summary.
+   optional extras, then a summary. The extras answer does not change the base apps.
 3. Nothing is written until you type the disk's name at the summary. Then it installs,
    which takes about ten minutes and needs no internet: every package is on the ISO. It
    then offers to restart. Connect afterwards, from the bar, for updates.

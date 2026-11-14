@@ -10,7 +10,7 @@ export GUM_INPUT_CURSOR_FOREGROUND=$ACCENT GUM_INPUT_PROMPT_FOREGROUND=$ACCENT G
        GUM_FILTER_PROMPT_FOREGROUND=$ACCENT GUM_CONFIRM_PROMPT_FOREGROUND=$FG GUM_CONFIRM_SELECTED_BACKGROUND=$ACCENT \
        GUM_CONFIRM_SELECTED_FOREGROUND='#0f0e0d' GUM_SPIN_SPINNER_FOREGROUND=$ACCENT
 
-STEPS=(Keyboard Internet You Time Disk Apps)
+STEPS=(Keyboard Internet You Time Disk Extras)
 # Every page: the wordmark with the worldline number, then the steps as one line, lit up to where you are.
 screen() {   # screen STEP_NUMBER (1-6, 0 for none, 7 for all done) [HEADING]
   local at=${1:-0} i mark colour line=""
@@ -122,17 +122,21 @@ gum confirm --default=yes --affirmative "Encrypt" --negative "Do not encrypt" \
   "  Encrypt the disk? Recommended: without the password nobody can read it, even with the disk in hand." || ENCRYPT=no
 
 # ---- applications
-screen 6 "Anything else?"
+screen 6 "Optional extras"
+note "The base desktop and default apps are installed either way, including btop and fastfetch." \
+     "Steam and chat clients are available later from Gaming and Chat in the Amadeus menu." \
+     "Claude Desktop is optional under Install > AI; Claude Code is under Install > Harness."
+echo
 EXTRAS=yes
 gum confirm --default=yes --affirmative "Include them" --negative "Leave them out" \
-  "  Include Brave Origin, herdr and LocalSend?" \
-  "  (Brave Origin, herdr and LocalSend come from publisher releases through AUR recipes.)" || EXTRAS=no
+  "  Add the optional extras: Brave Origin, herdr and LocalSend?" \
+  "  These publisher releases are packaged through AUR recipes." || EXTRAS=no
 
 # ---- summary
 screen 7 "Ready"
 gum style --margin "0 2" --border thick --border-foreground "$ACCENT" --padding "1 3" --foreground "$FG" \
   "Name          $FULL ($USERNAME)" "Computer      $HOSTNAME" "Keyboard      $KEYMAP" "Time zone     $TIMEZONE" \
-  "Disk          $line" "Encrypted     $ENCRYPT" "Applications  $([[ $EXTRAS == yes ]] && echo included || echo "left out")"
+  "Disk          $line" "Encrypted     $ENCRYPT" "Base apps     always installed" "Optional extras $([[ $EXTRAS == yes ]] && echo included || echo "left out")"
 echo
 gum style --margin "0 2" --foreground "$BAD" "Everything on ${DISK#/dev/} will be permanently erased."
 confirm=$(input --header "  Type ${DISK#/dev/} to install, or leave empty to go back" --placeholder "${DISK#/dev/}") || exit 1
