@@ -40,6 +40,14 @@ def hj(what):
     return json.loads(hyprctl("-j", what) or "null")
 
 
+def focused_window():
+    """The focused window in the shape the panel takes as context, or None."""
+    w = hj("activewindow") or {}
+    if not w.get("address"):
+        return None
+    return {"id": w["address"], "app": w.get("class") or "", "title": (w.get("title") or "")[:120]}
+
+
 def dispatch(expr):
     """Run one Hyprland dispatcher, written in its Lua form: hl.dsp...."""
     return hyprctl("dispatch", expr)
