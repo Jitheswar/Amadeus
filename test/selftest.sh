@@ -66,7 +66,7 @@ t "root account is locked"                     bash -c 'passwd -S root | grep -q
 t "CachyOS kernel is running"                  bash -c 'uname -r | grep -q cachyos'
 t "CachyOS repositories come first"            bash -c 'pacman-conf --repo-list | head -1 | grep -q cachyos && pacman -Q cachyos-settings linux-cachyos'
 t "multilib available for optional gaming"                   bash -c 'pacman-conf --repo-list | grep -qx multilib'
-t "core packages installed"                    pacman -Q hyprland quickshell nautilus libreoffice-fresh amadeus amadeus-desktop snapper
+t "core packages installed"                    pacman -Q hyprland quickshell nautilus btop fastfetch libreoffice-fresh amadeus amadeus-desktop snapper
 t "package lists are ready"                    bash -c 'pacman -Si foot >/dev/null'
 t "mirror ranking tools installed"             pacman -Q curl reflector
 t "gaming and chat clients are optional"       bash -c 'for p in steam protonplus discord telegram-desktop claude-desktop; do if pacman -Q "$p" >/dev/null 2>&1; then echo "$p is installed by default"; exit 1; fi; done'
