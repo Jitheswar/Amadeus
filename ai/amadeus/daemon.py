@@ -127,7 +127,6 @@ class Daemon:
         s["cancel"].clear()
         s["history"].append({"role": "user", "text": prompt})
         pname = provider or self.cfg["ai"]["provider"]
-        audit.record("request", session=session, provider=pname, prompt=prompt)
 
         def emit(kind, data):
             if kind == "_proc":          # a subscription provider's process, kept so the task can be stopped
@@ -138,11 +137,14 @@ class Daemon:
         def execute(name, args):
             emit("tool", {"name": name, "args": args})
             return self.execute(name, args, session=session)
+        agent_started = False
         try:
+            audit.record("request", session=session, provider=pname, prompt=prompt)
             prov = providers.make(pname, self.cfg)
             if prov.kind == "chat":
                 text = agent.run_chat(prov, s["history"], execute, emit, int(self.cfg["ai"].get("max_steps", 40)), stopped=s["cancel"].is_set)
             else:
+                agent_started = True
                 text = prov.run(agent.system_prompt(), s["history"], session, emit)
                 s["history"].append({"role": "assistant", "text": text, "calls": []})
             return {"session": session, "provider": pname, "text": text, "stopped": s["cancel"].is_set(), "changed": F.changed_by(session)}
@@ -151,6 +153,11 @@ class Daemon:
                 return {"session": session, "provider": pname, "text": "", "stopped": True, "changed": F.changed_by(session)}
             s["history"].pop()
             raise RuntimeError(str(e))
+        except Exception:
+            # The model never produced anything; do not leave a dangling user turn.
+            if not agent_started and s["history"] and s["history"][-1]["role"] == "user":
+                s["history"].pop()
+            raise
         finally:
             s["running"] = False
 

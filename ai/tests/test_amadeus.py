@@ -372,6 +372,16 @@ class ProviderTest(unittest.TestCase):
 
 
 class DaemonTest(unittest.TestCase):
+    def test_unexpected_cli_failure_preserves_its_request(self):
+        d = Daemon()
+        provider = mock.Mock(kind="agent")
+        provider.run.side_effect = OSError("output stream failed after tools ran")
+        with mock.patch("amadeus.daemon.providers.make", return_value=provider):
+            with self.assertRaises(OSError):
+                d.ask(mock.Mock(), 1, "keep my request", session="cli-partial")
+        self.assertEqual(d.sessions["cli-partial"]["history"][0], {"role": "user", "text": "keep my request"})
+        self.assertFalse(d.sessions["cli-partial"]["running"])
+
     @classmethod
     def setUpClass(cls):
         cls.d = Daemon()
@@ -383,6 +393,15 @@ class DaemonTest(unittest.TestCase):
         self.assertTrue(self.d.execute("nope", {})[1])
         self.assertTrue(self.d.execute("fs_read", {})[1])
         self.assertTrue(self.d.execute("fs_read", "x")[1])
+
+    def test_failed_audit_does_not_wedge_the_session(self):
+        d = Daemon()
+        with mock.patch("amadeus.daemon.audit.record", side_effect=OSError("disk full")) as record:
+            with self.assertRaises(OSError):
+                d.ask(mock.Mock(), 1, "hello", session="s-audit")
+        record.assert_called_once_with("request", session="s-audit", provider=d.cfg["ai"]["provider"], prompt="hello")
+        self.assertFalse(d.sessions["s-audit"]["running"])
+        self.assertEqual(d.sessions["s-audit"]["history"], [])
 
     def test_denied_write_does_not_happen(self):
         target = Path.home() / ".amadeus-test-write"
