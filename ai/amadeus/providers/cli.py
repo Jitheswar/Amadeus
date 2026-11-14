@@ -44,8 +44,9 @@ class ClaudeCLI:
                "--no-session-persistence", "--setting-sources", ""]
         if self.model:
             cmd += ["--model", self.model]
+        err = tempfile.TemporaryFile("w+b", dir=config.RUN)
         try:
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err, text=True,
                                  env=_env(session), cwd=config.WORKSPACE, stdin=subprocess.DEVNULL)
             emit("_proc", p)
             final, said = "", []
@@ -65,9 +66,13 @@ class ClaudeCLI:
                         raise ProviderError(f"claude: {final[:500]}")
             p.wait()
             if p.returncode and not (final or said):
-                raise ProviderError(f"claude exited {p.returncode}: {p.stderr.read()[-500:]}")
+                err.seek(0, os.SEEK_END)
+                err.seek(max(0, err.tell() - 2000))
+                detail = err.read(2000).decode("utf-8", errors="replace")[-500:]
+                raise ProviderError(f"claude exited {p.returncode}: {detail}")
             return final or "\n".join(said)
         finally:
+            err.close()
             os.unlink(f.name)
 
 

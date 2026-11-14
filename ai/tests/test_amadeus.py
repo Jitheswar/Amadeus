@@ -309,6 +309,17 @@ class Mock(BaseHTTPRequestHandler):
 
 
 class ProviderTest(unittest.TestCase):
+    def test_claude_error_reads_a_bounded_stderr_tail(self):
+        from amadeus.providers.cli import ClaudeCLI
+        from amadeus.providers import ProviderError
+        fake = Path(TMP) / "fake-claude-error"
+        fake.write_text("#!/usr/bin/env python3\nimport sys\nsys.stderr.write('x' * 200000 + 'tail-error')\nsys.exit(1)\n")
+        fake.chmod(0o755)
+        with self.assertRaises(ProviderError) as error:
+            ClaudeCLI("claude-cli", {"command": str(fake)}).run("s", [{"role": "user", "text": "hi"}], "s", lambda *a: None)
+        self.assertTrue(str(error.exception).endswith("tail-error"))
+        self.assertLess(len(str(error.exception)), 550)
+
     @classmethod
     def setUpClass(cls):
         cls.srv = HTTPServer(("127.0.0.1", 0), Mock)
@@ -376,6 +387,27 @@ class ProviderTest(unittest.TestCase):
         from amadeus.providers.anthropic import Anthropic
         with self.assertRaises(providers.ProviderError):
             Anthropic("nokey", {"key_env": "AMADEUS_NO_SUCH_KEY"}).chat("s", [{"role": "user", "text": "x"}], [])
+
+    def test_claude_cli_does_not_deadlock_on_stderr(self):
+        """Claude Code can log more than a pipe buffer to stderr. If it is not drained
+        while stdout is read, the child blocks and the provider never returns."""
+        fake = Path(TMP) / "fake-claude"
+        fake.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, sys\n"
+            "sys.stderr.write('x' * 200000)\n"
+            "sys.stderr.flush()\n"
+            "print(json.dumps({'type': 'result', 'result': 'done'}))\n"
+        )
+        fake.chmod(0o755)
+        code = ("import sys\n"
+                f"sys.path.insert(0, {str(ROOT)!r})\n"
+                "from amadeus.providers.cli import ClaudeCLI\n"
+                f"print(ClaudeCLI('claude-cli', {{'command': {str(fake)!r}}}).run("
+                "'s', [{'role': 'user', 'text': 'hi'}], 'sess', lambda *a: None))\n")
+        p = T.sh([sys.executable, "-c", code], timeout=15, env=dict(os.environ, PYTHONPATH=str(ROOT)))
+        self.assertEqual(p.returncode, 0, p.stderr[-1000:])
+        self.assertEqual(p.stdout.strip(), "done")
 
 
 class CliTest(unittest.TestCase):
