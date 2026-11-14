@@ -36,14 +36,15 @@ def from_file(path):
     """o.bind("KEYS", "Description", ...) lines, following dofile()."""
     out, seen = {}, set()
     def read(p):
-        p = Path(p)
+        p = Path(p).resolve()
         if p in seen or not p.is_file():
             return
         seen.add(p)
         for line in p.read_text(errors="replace").splitlines():
             m = re.search(r'dofile\("([^"]+)"\)', line)
             if m:
-                read(m.group(1))
+                target = Path(m.group(1)).expanduser()
+                read(target if target.is_absolute() else p.parent / target)
             m = re.match(r'\s*o\.bind\("([^"]+)",\s*"([^"]*)"', line)
             if m:
                 parts = [x.strip() for x in m.group(1).split("+")]
