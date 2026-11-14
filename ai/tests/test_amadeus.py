@@ -442,6 +442,35 @@ class TaskTest(unittest.TestCase):
         self.assertFalse(d.stop("nope"))
 
 
+class SystemToolTest(unittest.TestCase):
+    def test_valid_prefixes_reach_the_same_helper_boundary(self):
+        from amadeus.tools import system
+        with mock.patch.object(system.root, "call") as call:
+            for unit in (":demo.service", r"\x2edemo.service"):
+                system.sys_service_control({"action": "start", "unit": unit, "scope": "system"}, None)
+                call.assert_called_with("systemctl", action="start", unit=unit)
+            for pkg in ("_demo", "+demo", "@demo"):
+                system.pkg_manage({"action": "install", "packages": [pkg]}, None)
+                call.assert_called_with("pacman", action="install", packages=[pkg])
+
+    def test_option_like_names_are_refused(self):
+        from amadeus.tools import system
+        self.assertTrue(system.UNIT_RE.match("getty@tty1.service"))
+        self.assertTrue(system.PKG_RE.match("lib32-glibc"))
+        for unit in ("--now", "-H", ".service"):
+            with self.assertRaises(T.ToolError, msg=unit):
+                system.sys_service_control({"action": "start", "unit": unit, "scope": "user"}, None)
+        for pkg in ("-Syu", "--overwrite=*", ".hidden"):
+            with self.assertRaises(T.ToolError, msg=pkg):
+                system.pkg_manage({"action": "install", "packages": [pkg]}, None)
+        with self.assertRaises(T.ToolError):
+            system.sys_service_control({"action": "--now", "unit": "demo.service", "scope": "user"}, None)
+        with self.assertRaises(T.ToolError):
+            system.sys_service_control({"action": "start", "unit": "demo.service", "scope": "bogus"}, None)
+        with self.assertRaises(T.ToolError):
+            system.pkg_manage({"action": "install", "packages": "htop"}, None)
+
+
 class HelperTest(unittest.TestCase):
     def test_names_are_validated_before_any_command_runs(self):
         source = (ROOT / "priv/amadeus-priv").read_text().rsplit("\nmain()", 1)[0]
