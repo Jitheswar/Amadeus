@@ -73,6 +73,7 @@ Item {
             Row {
                 spacing: Theme.gap * 0.5
                 Btn { text: "Set as default"; enabled: !!settings.chosen.name; onClicked: settings.makeDefault(settings.selected) }
+                Btn { text: "Use default"; enabled: settings.selected !== settings.defaultName; onClicked: settings.choose("") }
                 Btn { text: "Refresh"; onClicked: settings.refresh() }
             }
             Row {

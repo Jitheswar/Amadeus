@@ -37,6 +37,10 @@ ShellRoot {
         byRequest = requests
     }
     function refreshProviders() { if (sock.connected) providerRequest("providers", {}) }
+    function chooseProvider(name) {
+        if (!name) { selectedProvider = defaultProvider; providerOverride = false; return }
+        if (providerOptions.some(p => p.name === name)) { selectedProvider = name; providerOverride = name !== defaultProvider }
+    }
     function setTask(t, patch) {
         const all = Object.assign({}, tasks)
         all[t] = Object.assign({}, all[t] || {}, patch)
@@ -91,6 +95,7 @@ ShellRoot {
                 providerOptions = m.result.providers || []
                 defaultProvider = m.result.default || ""
                 if (!providerOverride || !providerOptions.some(p => p.name === selectedProvider)) selectedProvider = defaultProvider
+                if (selectedProvider === defaultProvider) providerOverride = false
                 settingsMessage = ""
             }
             return
@@ -137,7 +142,7 @@ ShellRoot {
         function ask(text: string): void { root.open = true; input.text = text; root.submit(true) }
         function settings(): void { root.open = true; root.settingsOpen = true; root.refreshProviders() }
         function agent(name: string): void {
-            if (root.providerOptions.some(p => p.name === name)) { root.selectedProvider = name; root.providerOverride = true }
+            root.chooseProvider(name)
         }
         function state(): string { return JSON.stringify({ open: root.open, tasks: root.nextTask, running: root.running, connected: sock.connected,
             fontSize: Theme.size, provider: root.selectedProvider, defaultProvider: root.defaultProvider, settings: root.settingsOpen }) }
@@ -198,7 +203,7 @@ ShellRoot {
                 visible: root.settingsOpen
                 anchors { left: parent.left; right: parent.right; top: agentLine.bottom; bottom: parent.bottom; topMargin: Theme.gap }
                 options: root.providerOptions; selected: root.selectedProvider; defaultName: root.defaultProvider; message: root.settingsMessage
-                onChoose: name => { root.selectedProvider = name; root.providerOverride = true }
+                onChoose: name => root.chooseProvider(name)
                 onMakeDefault: name => root.providerRequest("provider_default", { name: name })
                 onSaveApi: (name, fields, key) => root.providerRequest("provider_save", { name: name, settings: fields, api_key: key })
                 onRefresh: root.refreshProviders()
