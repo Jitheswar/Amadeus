@@ -110,6 +110,17 @@ class AppsTest(unittest.TestCase):
         self.assertIn("one", (apps.app_dir("demo") / "shell.qml").read_text())
         self.assertEqual(len(apps.history("demo")), 4)
 
+    def test_app_name_cannot_inject_desktop_entry_fields(self):
+        apps.save("inject", "Evil\nExec=touch /tmp/pwned", "d", {"shell.qml": QML % "x"})
+        with tempfile.TemporaryDirectory(prefix="amadeus-home-") as tmp:
+            home = Path(tmp)
+            env = {k: v for k, v in os.environ.items() if k != "AMADEUS_DATA"}
+            with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(apps.Path, "home", return_value=home):
+                apps._desktop_entry(apps.manifest("inject"))
+            text = (home / ".local/share/applications/amadeus-inject.desktop").read_text()
+        self.assertEqual([l for l in text.splitlines() if l.startswith("Exec=")], ["Exec=ama app run inject"])
+        self.assertIn("Name=Evil Exec=touch /tmp/pwned", text)
+
     def test_broken_update_is_rejected_and_old_version_kept(self):
         apps.save("keep", "Keep", "", {"shell.qml": QML % "good"})
         with self.assertRaises(apps.AppError):

@@ -169,12 +169,17 @@ def remove(app_id):
     return str(trash)
 
 
+def _entry_value(s):
+    """One desktop-entry line: a name or comment cannot add fields."""
+    return re.sub(r"[\x00-\x1f\x7f]+", " ", str(s)).strip()
+
+
 def _desktop_entry(m):
     if os.environ.get("AMADEUS_DATA"):      # test and development runs stay out of the real launcher
         return
     f = Path.home() / f".local/share/applications/amadeus-{m['id']}.desktop"
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(f"[Desktop Entry]\nType=Application\nName={m['name']}\nComment={m['description']}\n"
+    f.write_text(f"[Desktop Entry]\nType=Application\nName={_entry_value(m['name'])}\nComment={_entry_value(m['description'])}\n"
                  f"Exec=ama app run {m['id']}\nIcon=applications-other\nCategories=Utility;Amadeus;\n")
 
 
