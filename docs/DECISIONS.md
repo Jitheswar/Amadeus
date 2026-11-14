@@ -320,3 +320,12 @@ Codex app-server rate limits, and Antigravity's quota summary. It runs only when
 opened or explicitly refreshed, caches quota results for a minute, bounds replies,
 and never sends credentials to the UI or follows authenticated redirects. API
 providers without subscription limits say so rather than showing invented meters.
+
+## Desktop credential storage
+
+GNOME Keyring is not installed by default. Automatic Secret Service activation on
+a fresh desktop can otherwise ask the user to create or unlock a separate keyring.
+Users who want a desktop keyring can install a Secret Service provider from the
+package menu. Applications that require Secret Service need a provider before
+they can store credentials. Existing keyring files are not removed. Amadeus API keys continue to use its
+private, permission-restricted secrets directory.

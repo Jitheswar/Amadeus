@@ -96,6 +96,7 @@ t "AUR leaves repository packages to pacman"  bash -c 'out=$(as amadeus-aur inst
 t "AUR build tools installed"                  pacman -Q base-devel fakeroot debugedit
 t "mirror ranking reports the official choice" bash -c 'as amadeus-mirrors --print | grep -q "^Server = "'
 t "sound services are running"                 bash -c 'as systemctl --user is-active --quiet pipewire.socket pipewire-pulse.socket wireplumber.service'
+t "desktop keyring is off by default"           bash -c '! pacman -Q gnome-keyring >/dev/null 2>&1 && ! pgrep -u "$U" -f gnome-keyring-daemon && names=$(as gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.ListActivatableNames) && [[ $names != *org.freedesktop.secrets* ]]'
 t "terminal configuration is valid"            bash -c 'as foot --check-config'
 t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/hypr/default.lua'
 t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
