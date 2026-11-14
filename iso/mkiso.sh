@@ -64,7 +64,7 @@ repo-add -q $OFF/amadeus-offline.db.tar.gz $OFF/*.pkg.tar.zst
 # The package lists that describe exactly what was collected. The installer copies them
 # onto a system installed without a connection, and the try session uses them before it
 # can sync; pacman reads only the repositories configured on the running system.
-install -d $OFF/sync && cp $ROOT/db/sync/*.db $OFF/sync/
+install -d $OFF/sync && cp -p $ROOT/db/sync/*.db $OFF/sync/
 echo "   $(ls $OFF/*.pkg.tar.zst | wc -l) packages, $(du -sh $OFF | cut -f1)"
 
 echo "==> Assembling the profile"
@@ -77,6 +77,7 @@ cp -r $REPO $A/opt/amadeus-repo
 cp -r $OFF $A/opt/amadeus-offline
 install -m755 $SRC/installer/amadeus-install $SRC/installer/amadeus-setup $SRC/iso/live/amadeus-autoinstall $SRC/desktop/bin/amadeus-rollback $A/usr/local/bin/
 install -m644 $SRC/installer/packages.* $A/usr/share/amadeus-install/
+install -m644 $SRC/iso/live/amadeus-seed-package-lists $A/usr/share/amadeus-install/
 install -m644 $SRC/iso/live/amadeus-autoinstall.service $A/etc/systemd/system/
 ln -sf ../amadeus-autoinstall.service $A/etc/systemd/system/multi-user.target.wants/
 cp $SRC/iso/live/motd $A/etc/motd

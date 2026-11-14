@@ -277,7 +277,8 @@ if [[ $ONLINE == yes ]]; then
 else
   mkdir -p $T/var/lib/pacman/sync
   # The medium carries the lists that match the packages it installed.
-  [[ -d /opt/amadeus-offline/sync ]] && cp -n /opt/amadeus-offline/sync/*.db $T/var/lib/pacman/sync/ 2>/dev/null || true
+  python3 "$SHARE/amadeus-seed-package-lists" /opt/amadeus-offline/sync "$T/var/lib/pacman/sync" ||
+    echo "  The package lists could not be copied; the first update will fetch them."
   [[ -n $(ls $T/var/lib/pacman/sync/*.db 2>/dev/null) ]] || echo "  Install will show no packages until you update with a connection."
 fi
 

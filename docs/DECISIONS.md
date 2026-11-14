@@ -329,3 +329,12 @@ Users who want a desktop keyring can install a Secret Service provider from the
 package menu. Applications that require Secret Service need a provider before
 they can store credentials. Existing keyring files are not removed. Amadeus API keys continue to use its
 private, permission-restricted secrets directory.
+
+## Package index snapshots from the install medium
+
+The medium seeds missing package indexes for offline catalogue browsing. A seeded
+index is marked as due for refresh rather than given its copy time: HTTP conditional
+requests must not keep an old database while downloading a newer detached signature.
+Seeding publishes each file atomically and never replaces an existing index. The try
+session and installed-system setup use the same helper; signature verification stays
+with pacman when the first online sync downloads current metadata.

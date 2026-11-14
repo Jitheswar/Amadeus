@@ -5,8 +5,8 @@ Every external program these commands talk to is a stand-in: nothing here starts
 session, changes a package, asks for a password or touches the user's own files.
 The commands are run from the repository, in a throwaway HOME, with a PATH whose
 first entry holds the stand-ins and whose result is checked."""
-import gzip, json, os, re, shlex, shutil, subprocess, tempfile, threading, time, unittest
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import gzip, json, os, re, shlex, shutil, subprocess, sys, tempfile, threading, time, unittest
+from http.server import BaseHTTPRequestHandler, HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 from pathlib import Path
 from unittest import mock
@@ -53,6 +53,52 @@ def desktop_exec(value):
 
 
 class Commands(unittest.TestCase):
+    def test_seeded_package_indexes_fetch_updated_data_instead_of_http_304(self):
+        from functools import partial
+        from email.utils import formatdate
+        from urllib.request import Request, urlopen
+        from urllib.error import HTTPError
+        medium, target, remote = (self.tmp / x for x in ("medium", "sync", "remote"))
+        medium.mkdir(); remote.mkdir()
+        (medium / "extra.db").write_bytes(b"old database from the medium")
+        (remote / "extra.db").write_bytes(b"new database matching the current signature")
+        published = int(time.time()) - 3600
+        os.utime(remote / "extra.db", (published, published))
+        class Quiet(SimpleHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+        server = HTTPServer(("127.0.0.1", 0), partial(Quiet, directory=str(remote)))
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        url = f"http://127.0.0.1:{server.server_port}/extra.db"
+        try:
+            # The old copy-at-install-time behaviour incorrectly produces Not Modified.
+            with self.assertRaises(HTTPError) as error:
+                urlopen(Request(url, headers={"If-Modified-Since": formatdate(time.time(), usegmt=True)}), timeout=3)
+            self.assertEqual(error.exception.code, 304)
+            error.exception.close()
+            result = subprocess.run([sys.executable, str(ROOT / "iso/live/amadeus-seed-package-lists"), str(medium), str(target)], capture_output=True, text=True)
+            self.assert_ok(result)
+            request = Request(url, headers={"If-Modified-Since": formatdate((target / "extra.db").stat().st_mtime, usegmt=True)})
+            with urlopen(request, timeout=3) as response:
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.read(), (remote / "extra.db").read_bytes())
+        finally:
+            server.shutdown(); server.server_close(); thread.join(timeout=3)
+
+    def test_seeding_keeps_existing_validated_package_indexes(self):
+        medium, target = self.tmp / "medium", self.tmp / "sync"
+        medium.mkdir(); target.mkdir()
+        (medium / "extra.db").write_bytes(b"old snapshot")
+        (target / "extra.db").write_bytes(b"already refreshed")
+        (target / "extra.db.sig").write_bytes(b"matching signature")
+        before = (target / "extra.db").stat().st_mtime_ns
+        result = subprocess.run([sys.executable, str(ROOT / "iso/live/amadeus-seed-package-lists"), str(medium), str(target)], capture_output=True, text=True)
+        self.assert_ok(result)
+        self.assertEqual((target / "extra.db").read_bytes(), b"already refreshed")
+        self.assertEqual((target / "extra.db.sig").read_bytes(), b"matching signature")
+        self.assertEqual((target / "extra.db").stat().st_mtime_ns, before)
+        self.assertEqual(list(target.glob(".amadeus-seed-*")), [])
+
     def test_defaults_agent_opens_provider_settings(self):
         self.picker("Defaults", "Agent")
         self.stub("ama")

@@ -9,7 +9,7 @@ After=network-online.target NetworkManager.service NetworkManager-wait-online.se
 # The catalogue and the Install menu read these lists. The medium carries a matching set,
 # so they work before a connection; the sync then refreshes them when there is one.
 Type=oneshot
-ExecStartPre=-/usr/bin/sh -c 'mkdir -p /var/lib/pacman/sync && cp -n /opt/amadeus-offline/sync/*.db /var/lib/pacman/sync/'
+ExecStartPre=-/usr/bin/python3 /usr/share/amadeus-install/amadeus-seed-package-lists /opt/amadeus-offline/sync /var/lib/pacman/sync
 ExecStart=-/usr/bin/pacman -Sy --noconfirm
 RemainAfterExit=yes
 

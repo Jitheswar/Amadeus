@@ -1,0 +1,34 @@
+#!/usr/bin/python3
+# Seed package indexes from the medium without masking the first online refresh.
+import os, shutil, sys, tempfile
+from pathlib import Path
+
+
+def seed(source, destination):
+    destination.mkdir(parents=True, exist_ok=True)
+    for database in sorted(source.glob("*.db")):
+        if not database.is_file():
+            continue
+        target = destination / database.name
+        if target.exists() or target.is_symlink():
+            continue
+        fd, name = tempfile.mkstemp(prefix=".amadeus-seed-", dir=destination)
+        os.close(fd)
+        try:
+            shutil.copyfile(database, name)
+            os.chmod(name, 0o644)
+            # A copied snapshot is not an HTTP freshness timestamp. A new mtime can
+            # retain an old database via HTTP 304 while its newer signature arrives.
+            os.utime(name, (0, 0))
+            try:
+                os.link(name, target)
+            except FileExistsError:
+                pass
+        finally:
+            Path(name).unlink(missing_ok=True)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        sys.exit("Usage: amadeus-seed-package-lists SOURCE DESTINATION")
+    seed(Path(sys.argv[1]), Path(sys.argv[2]))
