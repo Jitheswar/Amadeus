@@ -95,7 +95,7 @@ def main():
     print(f"       active provider: {cfg['ai']['provider']}")
 
     print("\nApplications")
-    apps = {"brave-origin": "Brave Origin", "claude-desktop": "Claude Desktop", "claude": "Claude Code",
+    apps = {"brave-origin": "Brave Origin", 
             "nautilus": "Files (Nautilus)", "foot": "Terminal (foot)", "herdr": "herdr",
             "papers": "Documents (Papers)", "imv": "Images (imv)", "libreoffice": "LibreOffice", "localsend": "LocalSend", "mpv": "mpv",
             "snapshot": "Camera (Snapshot)", "git": "git", "gh": "GitHub CLI"}

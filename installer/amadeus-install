@@ -40,7 +40,7 @@ ask TIMEZONE "Time zone" "$(curl -fsm5 https://ipapi.co/timezone 2>/dev/null || 
 [[ -f /usr/share/zoneinfo/$TIMEZONE ]] || die "unknown time zone $TIMEZONE"
 ask LOCALE "Locale" en_US.UTF-8
 ask KEYMAP "Console keymap" us
-ask EXTRAS "Install the AUR-only extras (Brave Origin, Claude Desktop, herdr, LocalSend) and Claude Code (yes/no)" yes
+ask EXTRAS "Install the AUR-only extras (Brave Origin, herdr, LocalSend) (yes/no)" yes
 # A system on a USB drive is portable: it may start on a different computer from the one
 # installing it, so the boot image covers any hardware and the NVIDIA driver is included.
 PORTABLE=${PORTABLE:-auto}
@@ -266,15 +266,6 @@ for s in NetworkManager greetd bluetooth power-profiles-daemon thermald ananicy-
 done
 ln -sf ../run/systemd/resolve/stub-resolv.conf $T/etc/resolv.conf
 ch systemctl --global enable amadeusd.service pipewire.socket pipewire-pulse.socket wireplumber.service >/dev/null 2>&1 || true
-
-if [[ $EXTRAS == yes && $ONLINE == no ]]; then
-  echo "  Claude Code is set up once you are online: Super+Space, Install, Harness."
-elif [[ $EXTRAS == yes ]]; then
-  # AI coding harnesses live in the user's home, managed by mise. Claude Code is the default one.
-  say "Claude Code"
-  ch runuser -u "$USERNAME" -- env HOME="/home/$USERNAME" MISE_YES=1 mise use --global claude@latest \
-    || echo "  Claude Code could not be installed now. Later: Super+Space, Install, Harness."
-fi
 
 # The Install menu and amadeus-catalog read pacman's package lists. An install from the
 # medium leaves none for the repositories the new system uses, so fetch them now when

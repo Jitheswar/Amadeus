@@ -69,7 +69,7 @@ t "multilib available for optional gaming"                   bash -c 'pacman-con
 t "core packages installed"                    pacman -Q hyprland quickshell nautilus libreoffice-fresh amadeus amadeus-desktop snapper
 t "package lists are ready"                    bash -c 'pacman -Si foot >/dev/null'
 t "mirror ranking tools installed"             pacman -Q curl reflector
-t "gaming and chat clients are optional"       bash -c 'for p in steam protonplus discord telegram-desktop; do if pacman -Q "$p" >/dev/null 2>&1; then echo "$p is installed by default"; exit 1; fi; done'
+t "gaming and chat clients are optional"       bash -c 'for p in steam protonplus discord telegram-desktop claude-desktop; do if pacman -Q "$p" >/dev/null 2>&1; then echo "$p is installed by default"; exit 1; fi; done'
 t "Gaming offers Steam from the official repository" bash -c 'as amadeus-catalog gaming | grep -q "pacman:multilib/steam"'
 t "Chat offers official repository clients"   bash -c 'out=$(as amadeus-catalog chat); echo "$out"; grep -q "pacman:extra/discord" <<<"$out" && grep -q "pacman:extra/telegram-desktop" <<<"$out"'
 echo "--- snapshots"
@@ -103,7 +103,7 @@ t "file manager shortcut is listed"            bash -c 'as amadeus-keys --print 
 t "system look applies to applications"        bash -c 'as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark && fc-match sans-serif | grep -qi inter && test -f /usr/share/amadeus-os/theme.json'
 t "text size can be set and restored"          bash -c 'as amadeus-display text 110% >/dev/null && as gsettings get org.gnome.desktop.interface text-scaling-factor | grep -q "1.1" && as amadeus-display text 100% >/dev/null'
 t "display scale can be set and restored"      bash -c 'as amadeus-display scale 1.25 >/dev/null && as amadeus-display scale | grep -q 1.25 && as amadeus-display scale 1 >/dev/null'
-t "the install worked without internet"       bash -c 'grep -q "Claude Code is set up once you are online" /var/log/amadeus-install.log'
+t "Claude Code is installed only on request"    bash -c '! as bash -lc "command -v claude" >/dev/null 2>&1'
 t "a harness installs through mise (Claude Code)" bash -c 'as bash -lc "amadeus-harness install claude" >/dev/null 2>&1; as bash -lc "mise ls --global" | grep -q "^claude" && as bash -lc "claude --version"'
 t "harness list comes from mise"               bash -c 'out=$(as bash -lc "amadeus-harness list"); echo "$out" | grep -q "Claude Code  (installed)" && echo "$out" | grep -q "^Codex"'
 t "defaults: terminal, editor, harness"        bash -c 'out=$(as amadeus-default); echo "$out"; echo "$out" | grep -q "terminal *foot" && echo "$out" | grep -q "harness *claude" && as amadeus-default editor nano | grep -q "Default editor: nano"'
@@ -153,7 +153,7 @@ while read -r line; do
   case $line in PASS*) pass=$((pass+1)) ;; FAIL*) fail=$((fail+1)) ;; esac
 done < <(as python3 /usr/local/bin/amadeus-e2e 2>&1)
 echo "--- applications outside the Arch repositories"
-for p in brave-origin-bin claude-desktop herdr-bin localsend-bin; do t "$p installed" pacman -Q $p; done
+for p in brave-origin-bin herdr-bin localsend-bin; do t "$p installed" pacman -Q $p; done
 echo "--- ama doctor"
 as ama doctor || true
 echo "--- resources"

@@ -262,7 +262,7 @@ class CatalogueTest(unittest.TestCase):
             for line in read(ROOT / ("installer/packages." + name)).splitlines():
                 if not line.startswith("#"):
                     defaults.update(line.split())
-        self.assertFalse(defaults & {"steam", "protonplus", "discord", "telegram-desktop"})
+        self.assertFalse(defaults & {"steam", "protonplus", "discord", "telegram-desktop", "claude-desktop"})
 
     def test_optional_menus_use_only_official_repository_sources(self):
         expected = {"gaming": {"pacman:multilib/steam"},
