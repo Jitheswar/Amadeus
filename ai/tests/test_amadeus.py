@@ -119,6 +119,13 @@ class AuditTest(unittest.TestCase):
         audit.record("action", tool="a")
         f.write_text(f.read_text() + "not json\n")
         self.assertEqual(audit.verify(), (False, 2, 2))
+    def test_log_is_private_even_if_it_already_existed(self):
+        f = config.STATE / "audit.jsonl"
+        f.unlink(missing_ok=True)
+        f.write_text("")
+        f.chmod(0o644)
+        audit.record("action", tool="a")
+        self.assertEqual(f.stat().st_mode & 0o777, 0o600)
         f.unlink()
 
 
@@ -369,6 +376,31 @@ class ProviderTest(unittest.TestCase):
         from amadeus.providers.anthropic import Anthropic
         with self.assertRaises(providers.ProviderError):
             Anthropic("nokey", {"key_env": "AMADEUS_NO_SUCH_KEY"}).chat("s", [{"role": "user", "text": "x"}], [])
+
+
+class CliTest(unittest.TestCase):
+    def test_permission_failure_keeps_the_previous_secret(self):
+        from amadeus import cli
+        f = config.CONFIG / "secrets" / "keep-provider"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("keep-this-secret")
+        with mock.patch("getpass.getpass", return_value="replacement"), mock.patch("os.fchmod", side_effect=PermissionError("not owner")):
+            with self.assertRaises(PermissionError):
+                cli.provider_cmd(None, ["key", "keep-provider"])
+        self.assertEqual(f.read_text(), "keep-this-secret")
+        f.unlink()
+
+    def test_secret_file_is_private_even_if_it_already_existed(self):
+        from amadeus import cli
+        f = config.CONFIG / "secrets" / "test-provider"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("old")
+        f.chmod(0o644)
+        with mock.patch("getpass.getpass", return_value="new-key"), mock.patch("builtins.print"):
+            cli.provider_cmd(None, ["key", "test-provider"])
+        self.assertEqual(f.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(f.read_text(), "new-key")
+        f.unlink()
 
 
 class DaemonTest(unittest.TestCase):

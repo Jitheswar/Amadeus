@@ -48,6 +48,7 @@ def record(kind, **fields):
         rec["hash"] = hashlib.sha256(json.dumps(rec, sort_keys=True).encode()).hexdigest()
         fd = os.open(p, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
         with os.fdopen(fd, "a") as f:
+            os.fchmod(f.fileno(), 0o600)    # also close the descriptor if chmod fails
             f.write(json.dumps(rec) + "\n")
     return rec
 

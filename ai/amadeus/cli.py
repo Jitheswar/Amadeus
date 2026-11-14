@@ -228,9 +228,11 @@ def provider_cmd(c, args):
         import getpass
         key = getpass.getpass(f"API key for {args[1]} (stored in ~/.config/amadeus/secrets, mode 600): ").strip()
         f = config.CONFIG / "secrets" / args[1]
-        fd = os.open(f, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        os.write(fd, key.encode())
-        os.close(fd)
+        fd = os.open(f, os.O_WRONLY | os.O_CREAT, 0o600)
+        with os.fdopen(fd, "w") as out:
+            os.fchmod(out.fileno(), 0o600)    # tighten existing files before changing their content
+            out.truncate(0)
+            out.write(key)
         return print("saved")
     sys.exit(HELP)
 
