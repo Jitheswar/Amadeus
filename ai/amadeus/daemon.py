@@ -120,16 +120,19 @@ class Daemon:
     # ---- conversations -----------------------------------------------------
     def ask(self, conn, rid, prompt, session=None, provider=None):
         session = session or uuid.uuid4().hex[:10]
-        s = self.sessions.setdefault(session, {"history": [], "conn": None, "cancel": threading.Event(), "proc": None})
-        if s.get("running"):
-            raise RuntimeError("this task is still running")
-        s.update(conn=conn, rid=rid, running=True, proc=None)
-        s["cancel"].clear()
-        s["history"].append({"role": "user", "text": prompt})
+        # Requests have independent threads; reserving a session must be atomic.
+        with self.lock:
+            s = self.sessions.setdefault(session, {"history": [], "conn": None, "cancel": threading.Event(), "proc": None})
+            if s.get("running"):
+                raise RuntimeError("this task is still running")
+            s.update(conn=conn, rid=rid, running=True, proc=None)
+            s["cancel"].clear()
+            start = len(s["history"])
+            s["history"].append({"role": "user", "text": prompt})
         pname = provider or self.cfg["ai"]["provider"]
 
         def emit(kind, data):
-            if kind == "_proc":          # a subscription provider's process, kept so the task can be stopped
+            if kind == "_proc":
                 s["proc"] = data
             else:
                 conn.event(rid, kind, data)
@@ -137,7 +140,7 @@ class Daemon:
         def execute(name, args):
             emit("tool", {"name": name, "args": args})
             return self.execute(name, args, session=session)
-        agent_started = False
+        completed, agent_started = False, False
         try:
             audit.record("request", session=session, provider=pname, prompt=prompt)
             prov = providers.make(pname, self.cfg)
@@ -147,19 +150,21 @@ class Daemon:
                 agent_started = True
                 text = prov.run(agent.system_prompt(), s["history"], session, emit)
                 s["history"].append({"role": "assistant", "text": text, "calls": []})
+            completed = True
             return {"session": session, "provider": pname, "text": text, "stopped": s["cancel"].is_set(), "changed": F.changed_by(session)}
         except providers.ProviderError as e:
             if s["cancel"].is_set():
                 return {"session": session, "provider": pname, "text": "", "stopped": True, "changed": F.changed_by(session)}
-            s["history"].pop()
             raise RuntimeError(str(e))
-        except Exception:
-            # The model never produced anything; do not leave a dangling user turn.
-            if not agent_started and s["history"] and s["history"][-1]["role"] == "user":
-                s["history"].pop()
-            raise
         finally:
-            s["running"] = False
+            if not completed:
+                if agent_started:
+                    # CLI tools may already have run; preserve their request for the next turn.
+                    s["history"].append({"role": "assistant", "text": "The agent did not complete this request. Tool actions may have run; check the audit log before retrying.", "calls": []})
+                else:
+                    del s["history"][start:]    # never replay half-finished API tool calls
+            with self.lock:
+                s["running"] = False
 
     def stop(self, session):
         """Stop a running task: no further tool runs for it, and its provider process ends."""

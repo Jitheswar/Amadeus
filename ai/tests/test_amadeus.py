@@ -436,6 +436,51 @@ class CliTest(unittest.TestCase):
 
 
 class DaemonTest(unittest.TestCase):
+    def test_an_active_session_rejects_a_second_request(self):
+        d = Daemon()
+        entered, release = threading.Event(), threading.Event()
+        errors = []
+        class Blocking:
+            kind = "agent"
+            def run(self, *args):
+                entered.set()
+                if not release.wait(5):
+                    raise RuntimeError("test did not release the provider")
+                return "done"
+        def first():
+            try:
+                d.ask(mock.Mock(), 1, "first", session="shared")
+            except Exception as error:
+                errors.append(error)
+        with mock.patch("amadeus.daemon.providers.make", return_value=Blocking()):
+            thread = threading.Thread(target=first)
+            thread.start()
+            try:
+                self.assertTrue(entered.wait(5))
+                with self.assertRaisesRegex(RuntimeError, "still running"):
+                    d.ask(mock.Mock(), 2, "second", session="shared")
+            finally:
+                release.set()
+                thread.join(5)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(errors, [])
+        self.assertEqual([m["text"] for m in d.sessions["shared"]["history"]], ["first", "done"])
+        self.assertFalse(d.sessions["shared"]["running"])
+
+    def test_session_reservation_is_protected_by_the_daemon_lock(self):
+        d = Daemon()
+        class Guarded(dict):
+            def get(inner, key, *args):
+                if key == "running":
+                    self.assertTrue(d.lock.locked())
+                return super().get(key, *args)
+        d.sessions["locked"] = Guarded(history=[], conn=None, cancel=threading.Event(), proc=None)
+        with mock.patch("amadeus.daemon.providers.make", side_effect=RuntimeError("unavailable")):
+            with self.assertRaisesRegex(RuntimeError, "unavailable"):
+                d.ask(mock.Mock(), 1, "hello", session="locked")
+        self.assertEqual(d.sessions["locked"]["history"], [])
+
+
     def test_unexpected_cli_failure_preserves_its_request(self):
         d = Daemon()
         provider = mock.Mock(kind="agent")
@@ -521,6 +566,31 @@ class DaemonTest(unittest.TestCase):
             os.umask(old)
         self.assertEqual(log.stat().st_mode & 0o777, 0o600)
         self.assertEqual(log.read_text(), "")
+    def test_failed_provider_turn_does_not_poison_history(self):
+        from amadeus import providers
+
+        class Flaky:
+            kind = "chat"
+            name = "flaky"
+
+            def __init__(self):
+                self.turns = 0
+
+            def chat(self, system, history, tools):
+                self.turns += 1
+                if self.turns == 1:
+                    return {"text": "", "calls": [{"id": "c1", "name": "sys_status", "args": {}}], "raw": None, "stop": "tools"}
+                raise providers.ProviderError("upstream failed")
+
+        class Conn:
+            def event(self, *a):
+                pass
+
+        with mock.patch("amadeus.daemon.providers.make", return_value=Flaky()):
+            with self.assertRaises(RuntimeError):
+                self.d.ask(Conn(), "r1", "do it", session="failed-turn")
+        self.assertEqual(self.d.sessions["failed-turn"]["history"], [])
+        self.assertFalse(self.d.sessions["failed-turn"]["running"])
 
 
 class TaskTest(unittest.TestCase):
