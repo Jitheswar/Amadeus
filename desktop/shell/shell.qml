@@ -52,13 +52,16 @@ ShellRoot {
         function start(prompt: string, infile: string, pipe: string, options: string): void { picker.start(prompt, infile, pipe, options) }
         // For automation and tests: choose a line by its text, or close.
         function choose(line: string): void { if (picker.open) picker.finish("ok", [line]) }
+        function query(text: string): void { if (picker.open) picker.search(text) }
+        function accept(): void { if (picker.open) picker.accept() }
         function cancel(): void { if (picker.open) picker.finish("cancel", []) }
     }
     IpcHandler {
         target: "shell"
-        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, fontSize: root.fontPixels(14), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
+        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, searchResults: picker.shown.slice(0, 40).map(x => picker.label(x)), fontSize: root.fontPixels(14), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
         // For automation and tests: open a drop-down at a horizontal position, or close it with "".
         function popover(name: string, x: int): void { root.popX = x; root.pop = name }
+        function settings(name: string): void { root.popX = Quickshell.screens[0].width / 2; root.pop = name }
         function awake(on: bool): void { root.awake = on }
         function recording(on: bool): void { root.recording = on }
     }

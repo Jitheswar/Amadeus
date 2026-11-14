@@ -20,7 +20,8 @@ install_menu() {
     term "package lists" "sudo pacman -Sy && echo 'Package lists are ready. Open Install again.'"
     exit 0
   fi
-  case $(printf '%s\n' Terminal Browser Editor AI Development Harness 'Web app' Packages AUR | pick "Install") in
+  local choice=${1:-$(printf '%s\n' Terminal Browser Editor AI Development Harness 'Web app' Packages AUR | pick "Install")}
+  case $choice in
     Terminal)    catalog terminal terminal ;;
     Browser)     catalog browser browser ;;
     Editor)      catalog editor editor ;;
@@ -73,8 +74,11 @@ declare -A KINDS=(
   [Mail]="x-scheme-handler/mailto"
 )
 
+default_choices() { printf '%s\n' Terminal Editor Harness Agent Browser Files Images Video Music Documents Mail; }
+
 defaults_menu() {
-  local kind; kind=$(printf '%s\n' Terminal Editor Harness Agent Browser Files Images Video Music Documents Mail | pick "Default") || exit 0
+  local kind=${1:-$(default_choices | pick "Default")}
+  [[ -n $kind ]] || exit 0
   case $kind in
     Agent) exec ama panel settings ;;
     Terminal|Editor|Harness)
@@ -104,16 +108,26 @@ defaults_menu() {
 }
 
 # Every file a user is meant to edit, found by looking: what exists is offered.
-config_menu() {
-  local c=${XDG_CONFIG_HOME:-$HOME/.config} f lines=""
+config_choices() {
+  local c=${XDG_CONFIG_HOME:-$HOME/.config} f
   for f in "Desktop and shortcuts:$c/hypr/hyprland.lua" "Display:$c/hypr/display.lua" "Added by Amadeus:$c/hypr/amadeus.lua" \
            "Bar layout:$c/amadeus/bar.json" "Look and motion:$c/amadeus/theme.json" "Defaults:$c/amadeus/defaults" \
            "AI providers and permissions:$c/amadeus/config.toml" "Terminal (foot):$c/foot/foot.ini" "Lock screen:$c/swaylock/config" \
            "Idle and sleep:$c/swayidle/config" "About screen:$c/fastfetch/config.jsonc" "Default applications:$c/mimeapps.list" \
            "Shell (bash):$HOME/.bashrc" "System look, shipped (read only):/usr/share/amadeus-os/theme.json"; do
-    [[ -e ${f#*:} || ${f%%:*} == "Look and motion" ]] && lines+="${f%%:*}"$'\t'"${f#*:}"$'\n'
+    [[ -e ${f#*:} || ${f%%:*} == "Look and motion" ]] && printf '%s\t%s\n' "${f%%:*}" "${f#*:}"
   done
-  local choice; choice=$(printf '%s' "$lines" | pick --preview 'head -c 6000 "${1##*	}" 2>/dev/null || echo "Not created yet. Choosing it starts a new file."' "Edit") || exit 0
+}
+
+config_menu() {
+  local choice="" label path
+  if [[ -n ${1:-} ]]; then
+    while IFS=$'\t' read -r label path; do
+      [[ $label == "$1" ]] && choice=$label$'\t'$path
+    done < <(config_choices)
+  else
+    choice=$(config_choices | pick --preview 'head -c 6000 "${1##*	}" 2>/dev/null || echo "Not created yet. Choosing it starts a new file."' "Edit") || exit 0
+  fi
   [[ -n $choice ]] && exec amadeus-editor "${choice##*$'\t'}"
 }
 
@@ -154,7 +168,8 @@ gpu_menu() {
 }
 
 setup_menu() {
-  case $(printf '%s\n' Display GPU 'Text size' Defaults Config | pick "Setup") in
+  local choice=${1:-$(printf '%s\n' Display GPU 'Text size' Defaults Config | pick "Setup")}
+  case $choice in
     GPU)         gpu_menu ;;
     Display)     exec amadeus-display ;;
     "Text size") local s; s=$(printf '%s\n' 12 14 16 18 20 | pick "Text size (now $(amadeus-display text))") || exit 0
@@ -167,14 +182,19 @@ setup_menu() {
 case ${1:-$(printf '%s\n' Apps Trigger Install Gaming Chat Remove Update Setup System About | pick "Amadeus")} in
   Apps|apps)         exec amadeus-launcher ;;
   Trigger|trigger)   trigger_menu ;;
-  Install|install)   install_menu ;;
+  Install|install)   install_menu "${2:-}" ;;
   Gaming|gaming)     catalog gaming game ;;
   Chat|chat)         catalog chat "chat client" ;;
   Remove|remove)     remove_menu ;;
   Update|update)
     what=$(printf 'Everything\nHarnesses and tools only' | pick "Update") || exit 0
     [[ $what == Everything ]] && term "update" "amadeus-update" || term "update" "amadeus-harness update" ;;
-  Setup|setup)       setup_menu ;;
+  Setup|setup)       setup_menu "${2:-}" ;;
+  Defaults|defaults) defaults_menu "${2:-}" ;;
+  Config|config)     config_menu "${2:-}" ;;
+  --settings-index)
+    while read -r kind; do printf 'default:%s\tDefault %s\n' "$kind" "$kind"; done < <(default_choices)
+    while IFS=$'\t' read -r label path; do printf 'config:%s\t%s\n' "$label" "$label"; done < <(config_choices) ;;
   System|system)     exec amadeus-power-menu ;;
   About|about)       amadeus-terminal --title "About" -e bash -c "fastfetch; read -rsn1" ;;
 esac

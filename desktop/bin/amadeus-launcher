@@ -2,15 +2,15 @@
 # Application launcher: pick an installed application and start it; text that matches nothing goes to Amadeus.
 """Applications are read from the desktop entries installed now. Games and applications
 that ask for the dedicated GPU are started on the NVIDIA card; everything else on Intel."""
-import os, re, shlex, shutil, subprocess, sys
+import json, os, re, shlex, shutil, subprocess, sys
 from pathlib import Path
 
 DIRS = [Path.home() / ".local/share/applications", Path("/usr/local/share/applications"), Path("/usr/share/applications")]
 NVIDIA = {"__NV_PRIME_RENDER_OFFLOAD": "1", "__GLX_VENDOR_LIBRARY_NAME": "nvidia", "__VK_LAYER_NV_optimus": "NVIDIA_only"}
 
 
-def entries():
-    out = {}
+def entries(include_settings=False):
+    out, paths = {}, {}
     for d in reversed(DIRS):
         for f in sorted(d.glob("*.desktop")):
             e, section = {}, None
@@ -21,11 +21,49 @@ def entries():
                     k, v = line.split("=", 1)
                     e[k] = v
             out[f.stem] = e
+            paths[f.stem] = f
     # A higher-priority entry masks the system copy even when it is hidden or unusable.
-    return {name: e for name, e in out.items()
-            if e.get("Exec") and e.get("NoDisplay") != "true" and e.get("Hidden") != "true"
-            and e.get("Type", "Application") == "Application"
-            and (not e.get("TryExec") or shutil.which(e["TryExec"]))}
+    explicit, owners = None, {}
+    system_paths = [str(path) for path in paths.values() if not path.is_relative_to(DIRS[0])]
+    if shutil.which("pacman") and system_paths:
+        env = dict(os.environ, LC_ALL="C")
+        try:
+            query = subprocess.run(["pacman", "-Qqe"], capture_output=True, text=True, timeout=5, env=env)
+            if query.returncode == 0 and query.stdout.strip():
+                explicit = set(query.stdout.splitlines())
+                query = subprocess.run(["pacman", "-Qo", "--", *system_paths], capture_output=True, text=True, timeout=5, env=env)
+                for line in query.stdout.splitlines():
+                    match = re.fullmatch(r"(.+) is owned by (\S+) \S+", line)
+                    if match:
+                        owners[match[1]] = match[2]
+        except (OSError, subprocess.SubprocessError):
+            pass
+    primary = {}
+    for name, path in paths.items():
+        owner = owners.get(str(path))
+        if owner and name.lower().split(".")[-1] == owner.lower():
+            primary.setdefault(owner, set()).add(name)
+    desktop = set(os.environ.get("XDG_CURRENT_DESKTOP", "Hyprland").split(":"))
+    def eligible(name, e):
+        if not e.get("Exec") or e.get("NoDisplay") == "true" or e.get("Hidden") == "true" or e.get("Type", "Application") != "Application":
+            return False
+        if e.get("TryExec") and not shutil.which(e["TryExec"]):
+            return False
+        if e.get("OnlyShowIn") and not desktop.intersection(e["OnlyShowIn"].split(";")):
+            return False
+        if desktop.intersection(e.get("NotShowIn", "").split(";")):
+            return False
+        owner = owners.get(str(paths[name]))
+        personal = paths[name].is_relative_to(DIRS[0])
+        setting = "Settings" in e.get("Categories", "").split(";")
+        if setting and not include_settings:
+            return False
+        if not personal and owner in primary and name not in primary[owner]:
+            return False
+        if setting and include_settings:
+            return True
+        return explicit is None or owner is None or owner in explicit or paths[name].is_relative_to(DIRS[0])
+    return {name: e for name, e in out.items() if eligible(name, e)}
 
 
 def has_nvidia():
@@ -63,8 +101,15 @@ def start(e):
 
 
 def main():
-    apps = entries()
+    apps = entries(include_settings="--json" in sys.argv or "--launch" in sys.argv)
     lines = sorted((f"{e.get('Name', i)}\t{i}" for i, e in apps.items()), key=str.lower)
+    if "--json" in sys.argv:
+        return print(json.dumps([{"id": i, "label": e.get("Name", i), "kind": "Setting" if "Settings" in e.get("Categories", "").split(";") else "Application", "keywords": e.get("Keywords", "") + " " + e.get("GenericName", "")}
+                                 for i, e in apps.items()]))
+    if len(sys.argv) == 3 and sys.argv[1] == "--launch":
+        if sys.argv[2] not in apps:
+            sys.exit("That application is no longer available.")
+        return start(apps[sys.argv[2]])
     if "--print" in sys.argv:
         return print("\n".join(lines))
     p = subprocess.run(["amadeus-pick", "--new", "--new-label", "Press Enter to ask Amadeus", "Apps"], input="\n".join(lines), capture_output=True, text=True)
@@ -75,4 +120,5 @@ def main():
         subprocess.run(["ama", "panel", "ask", choice])
 
 
-main()
+if __name__ == "__main__":
+    main()

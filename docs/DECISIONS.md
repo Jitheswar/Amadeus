@@ -303,3 +303,12 @@ One text-size setting follows Omarchy's approach: live shell and panel sizing,
 GTK scaling quantized to whole font points, and terminal configuration together.
 The default remains Amadeus's 14px shell / 11pt terminal size. A terminal that
 cannot reload its configuration takes the size in a new window.
+
+## Search across menus
+
+The picker indexes installed applications and Amadeus settings once per opening,
+then searches that index locally. A global selection cancels its original menu
+before launching its action, so a settings or application ID cannot be mistaken
+for a package, display mode or another local menu choice. The application list
+respects desktop visibility and package ownership; settings stay discoverable in
+search while dependency helpers and secondary backend launchers stay out of Apps.

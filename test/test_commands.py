@@ -9,6 +9,7 @@ import gzip, json, os, re, shlex, shutil, subprocess, tempfile, threading, time,
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 BIN = ROOT / "desktop/bin"
@@ -52,6 +53,52 @@ def desktop_exec(value):
 
 
 class Commands(unittest.TestCase):
+    def test_defaults_agent_opens_provider_settings(self):
+        self.picker("Defaults", "Agent")
+        self.stub("ama")
+        self.assert_ok(self.run_cmd("amadeus-menu", "setup"))
+        self.assertEqual(self.calls_of("ama"), [["panel", "settings"]])
+
+    def test_launcher_hides_dependency_helpers_but_keeps_explicit_apps(self):
+        ns = {"__name__": "launcher_validation"}
+        exec(compile((BIN / "amadeus-launcher").read_text(), "launcher", "exec"), ns)
+        user, system = self.tmp / "user-desktops", self.tmp / "system-desktops"
+        user.mkdir(); system.mkdir()
+        for name in ("helper", "wanted"):
+            (system / (name + ".desktop")).write_text("[Desktop Entry]\nName=" + name + "\nExec=true\n")
+        ns["DIRS"] = [user, system]
+        self.stub("pacman", body=f'''case "$1" in
+  -Qqe) printf 'wanted-package\n' ;;
+  -Qo) printf '%s is owned by helper-package 1\n%s is owned by wanted-package 1\n' {system}/helper.desktop {system}/wanted.desktop ;;
+esac''')
+        with mock.patch.dict(os.environ, {"PATH": self.env["PATH"]}):
+            self.assertEqual(set(ns["entries"]()), {"wanted"})
+            (user / "helper.desktop").write_text("[Desktop Entry]\nName=My helper\nExec=true\n")
+            self.assertEqual(set(ns["entries"]()), {"wanted", "helper"})
+
+    def test_universal_search_returns_actions_without_running_them(self):
+        self.stub("amadeus-launcher", output='[{"id":"files","label":"Files","keywords":"folders"}]')
+        result = self.run_cmd("amadeus-search", "--index")
+        self.assert_ok(result)
+        data = json.loads(result.stdout)
+        self.assertIn("app:files", [x["id"] for x in data])
+        self.assertIn("setting:agent", [x["id"] for x in data])
+        self.assertEqual(self.calls_of("sudo"), [])
+        self.assertNotEqual(self.run_cmd("amadeus-search", "--run", "setting:unknown").returncode, 0)
+
+    def test_search_indexes_existing_configuration_and_default_routes(self):
+        self.stub("amadeus-launcher", output="[]")
+        result = self.run_cmd("amadeus-search", "--index")
+        self.assert_ok(result)
+        ids = {x["id"] for x in json.loads(result.stdout)}
+        self.assertIn("menu:default:Browser", ids)
+        self.assertIn("menu:config:Look and motion", ids)
+        self.assertIn("setting:harness", ids)
+        self.assertNotIn("menu:config:Lock screen", ids)
+        self.stub("amadeus-editor")
+        self.assert_ok(self.run_cmd("amadeus-menu", "config", "Look and motion"))
+        self.assertEqual(self.calls_of("amadeus-editor"), [[str(self.config / "amadeus/theme.json")]])
+
     def test_optional_category_menus_prepare_repository_installs(self):
         for menu, label, source in (("Gaming", "Steam", "multilib/steam"),
                                     ("Chat", "Discord", "extra/discord")):

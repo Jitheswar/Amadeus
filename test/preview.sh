@@ -43,6 +43,9 @@ run() {
     amadeus-pick --multi --preview 'printf "Repository      : extra\nName            : %s\nVersion         : 2.47.1-1\nDescription     : The fast distributed version control system\nArchitecture    : x86_64\nURL             : https://git-scm.com/\nLicenses        : GPL-2.0-only\nDepends On      : curl  expat  perl  openssl  pcre2  zlib-ng\nDownload Size   : 7.4 MiB\nInstalled Size  : 29.1 MiB\nPackager        : Arch Linux\nBuild Date      : Tue 03 Nov 2026\n" "$1"' Install >/dev/null 2>&1 &
   shot 3-install 1.5; quickshell ipc -p /usr/share/amadeus-os/shell call pick cancel
 
+  printf 'Only this menu option\n' | amadeus-pick Chat >/dev/null 2>&1 &
+  sleep 0.8; ipc pick query sound; shot 13-universal-search 1.2; ipc pick cancel
+
   # The panel, answered by the scripted model from the end-to-end test.
   python3 - <<'PY' &
 import sys, threading; sys.path.insert(0, "/src/test")

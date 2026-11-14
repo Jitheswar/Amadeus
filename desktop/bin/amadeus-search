@@ -1,0 +1,79 @@
+#!/usr/bin/python3
+# Find installed applications and desktop settings from any Amadeus menu.
+"""amadeus-search --index | --run ID
+
+The picker reads one index when it opens, then filters locally as you type.
+Actions are resolved again on selection; menu callers never receive foreign IDs.
+"""
+import json, os, subprocess, sys
+from pathlib import Path
+
+SHELL = "/usr/share/amadeus-os/shell"
+SETTINGS = {
+    "display": ("Display settings", "resolution monitor scale brightness backlight", ["amadeus-display"]),
+    "text": ("Text size", "font text sizing typography", ["amadeus-menu", "setup", "Text size"]),
+    "gpu": ("Graphics settings", "gpu nvidia intel battery performance", ["amadeus-menu", "setup", "GPU"]),
+    "defaults": ("Default applications", "default agent terminal editor browser", ["amadeus-menu", "setup", "Defaults"]),
+    "config": ("Configuration", "settings configuration shortcuts theme", ["amadeus-menu", "setup", "Config"]),
+    "agent": ("AI agent settings", "claude codex antigravity subscription api provider default", ["ama", "panel", "settings"]),
+    "harness": ("Install harness", "claude code codex antigravity agent install", ["amadeus-menu", "install", "Harness"]),
+    "install": ("Install software", "applications packages aur browser editor development", ["amadeus-menu", "install"]),
+    "update": ("Update system", "software packages upgrade", ["amadeus-menu", "update"]),
+    "capture": ("Screen capture", "screenshot recording screen microphone", ["amadeus-menu", "trigger"]),
+    "system": ("System actions", "lock logout restart shutdown suspend hibernate", ["amadeus-menu", "system"]),
+    "gaming": ("Gaming", "steam install games", ["amadeus-menu", "gaming"]),
+    "chat": ("Chat", "discord telegram install", ["amadeus-menu", "chat"]),
+    "wifi": ("Wi-Fi settings", "network internet wireless", []),
+    "volume": ("Sound settings", "audio microphone speakers headphones volume", []),
+    "bluetooth": ("Bluetooth settings", "headphones pairing devices", []),
+    "power": ("Power settings", "battery performance profiles", []),
+}
+
+
+def menu_settings():
+    p = subprocess.run(["amadeus-menu", "--settings-index"], capture_output=True, text=True, timeout=5)
+    return dict(line.split("\t", 1) for line in p.stdout.splitlines() if "\t" in line) if p.returncode == 0 else {}
+
+
+def index():
+    result = []
+    p = subprocess.run(["amadeus-launcher", "--json"], capture_output=True, text=True, timeout=10)
+    if p.returncode == 0:
+        for app in json.loads(p.stdout):
+            result.append(dict(app, id="app:" + app["id"], kind=app.get("kind", "Application")))
+    for key, (label, words, _) in SETTINGS.items():
+        result.append({"id": "setting:" + key, "label": label, "keywords": words, "kind": "Setting"})
+    for key, label in menu_settings().items():
+        result.append({"id": "menu:" + key, "label": label, "keywords": "settings configuration defaults", "kind": "Setting"})
+    for item in result:
+        item["label"] = " ".join(str(item["label"]).split())[:160]
+        item["keywords"] = str(item.get("keywords", ""))[:500]
+    return result
+
+
+def main():
+    if sys.argv[1:] == ["--index"]:
+        print(json.dumps(index()))
+        return
+    if len(sys.argv) == 3 and sys.argv[1] == "--run":
+        key = sys.argv[2]
+        if key.startswith("app:"):
+            command = ["amadeus-launcher", "--launch", key[4:]]
+        elif key.startswith("menu:") and key[5:] in menu_settings():
+            category, label = key[5:].split(":", 1)
+            command = ["amadeus-menu", "defaults" if category == "default" else "config", label]
+        elif key.startswith("setting:") and key[8:] in SETTINGS:
+            name = key[8:]
+            command = SETTINGS[name][2]
+            if not command:
+                command = ["quickshell", "ipc", "-p", SHELL, "call", "shell", "settings", name]
+        else:
+            sys.exit("That search result is no longer available.")
+        subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+        return
+    print(__doc__)
+
+
+if __name__ == "__main__":
+    main()

@@ -21,6 +21,8 @@ Scope {
     property bool alt: false
     property var items: []
     property var shown: []
+    property var globalIndex: []
+    property var globalResults: ({})
     property var marked: ({})
     property int index: 0
     property string detail: ""
@@ -48,7 +50,10 @@ Scope {
         input.text = ""
         loader.path = infile
         loader.reload()
+        globalLoad.running = false
+        globalLoad.running = true
     }
+    function search(text) { input.text = text }
     function refilter() {
         const words = input.text.toLowerCase().split(/\s+/).filter(w => w)
         if (!words.length) shown = items.slice(0, 300)
@@ -63,6 +68,20 @@ Scope {
             first.sort((a, b) => a.length - b.length)
             shown = first.concat(rest).slice(0, 300)
         }
+        const extras = {}, globals = []
+        if (words.length && (!allowNew || items.length)) {
+            const localLabels = new Set(shown.map(label))
+            for (const item of globalIndex) {
+                const haystack = (item.label + " " + item.keywords).toLowerCase()
+                if (words.every(w => haystack.indexOf(w) >= 0) && !localLabels.has(item.label)) {
+                    const line = item.label + "\t@global:" + item.id
+                    extras[line] = item
+                    globals.push(line)
+                }
+            }
+        }
+        globalResults = extras
+        shown = shown.concat(globals.slice(0, 40))
         index = 0
         view.positionViewAtBeginning()
         describe.restart()
@@ -72,12 +91,18 @@ Scope {
         pipe = ""; open = false; fetch.running = false; repeat.stop()
     }
     function accept() {
+        if (globalResults[current]) {
+            const id = globalResults[current].id
+            finish("cancel", [])
+            Qt.callLater(() => Quickshell.execDetached(["amadeus-search", "--run", id]))
+            return
+        }
         if (multi && nMarked) finish("ok", Object.keys(marked))
         else if (current) finish("ok", [current])
         else if (allowNew && input.text.trim()) finish("new", [input.text.trim()])
     }
     function mark() {
-        if (!multi || !current) return
+        if (!multi || !current || globalResults[current]) return
         const m = Object.assign({}, marked)
         if (m[current]) delete m[current]; else m[current] = true
         marked = m
@@ -105,12 +130,24 @@ Scope {
         id: describe
         interval: 120
         onTriggered: {
+            if (pick.globalResults[pick.current]) {
+                pick.detail = pick.globalResults[pick.current].kind + " · " + pick.globalResults[pick.current].label
+                return
+            }
             const cmd = pick.alt && pick.preview2 ? pick.preview2 : pick.preview
             fetch.running = false
             if (!cmd || !pick.current) { pick.detail = ""; return }
             fetch.command = ["sh", "-c", cmd, "sh", pick.current]
             fetch.running = true
         }
+    }
+    Process {
+        id: globalLoad
+        command: ["amadeus-search", "--index"]
+        stdout: StdioCollector { onStreamFinished: {
+            try { pick.globalIndex = JSON.parse(text) } catch (e) { pick.globalIndex = [] }
+            if (pick.open) pick.refilter()
+        } }
     }
     Process { id: fetch; stdout: StdioCollector { onStreamFinished: pick.detail = text } }
 
@@ -201,7 +238,7 @@ Scope {
                     readonly property bool on: !!pick.marked[modelData]
                     width: view.width; height: 34
                     Text { anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: tick.left; leftMargin: 16; rightMargin: 8 }
-                           text: pick.label(line.modelData); elide: Text.ElideRight
+                           text: pick.label(line.modelData) + (pick.globalResults[line.modelData] ? "  ·  " + pick.globalResults[line.modelData].kind : ""); textFormat: Text.PlainText; elide: Text.ElideRight
                            color: line.on ? pick.style.accent : pick.style.fg; font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(14) }
                     Rectangle { id: tick; visible: line.on; width: 8; height: 8; radius: 4; color: pick.style.accent
                                 anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter } }
@@ -230,7 +267,7 @@ Scope {
                 clip: true
                 contentHeight: info.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
-                Text { id: info; width: parent.width; text: pick.detail; color: pick.style.fg; opacity: 0.9
+                Text { id: info; textFormat: Text.PlainText; width: parent.width; text: pick.detail; color: pick.style.fg; opacity: 0.9
                        font.family: pick.style.mono; font.pixelSize: pick.style.fontPixels(12); lineHeight: 1.25; wrapMode: Text.Wrap }
             }
             Text {
