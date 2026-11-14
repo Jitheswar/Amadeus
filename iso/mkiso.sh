@@ -69,6 +69,8 @@ echo "   $(ls $OFF/*.pkg.tar.zst | wc -l) packages, $(du -sh $OFF | cut -f1)"
 
 echo "==> Assembling the profile"
 cp -r /usr/share/archiso/configs/releng $P
+# A busy temporary mount must remain an empty directory, never become image data.
+printf '\nairootfs_image_tool_options+=("-one-file-system")\n' >>$P/profiledef.sh
 A=$P/airootfs
 install -d $A/opt $A/usr/local/bin $A/usr/share/amadeus-install $A/etc/systemd/system/multi-user.target.wants
 cp -r $REPO $A/opt/amadeus-repo
