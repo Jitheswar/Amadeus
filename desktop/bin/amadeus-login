@@ -1,0 +1,51 @@
+#!/bin/bash
+# Choose which theme styles the login screen; it can differ from the desktop's.
+#   amadeus-login              pick from the installed themes
+#   amadeus-login current      the theme in use ("default" is the shipped look)
+#   amadeus-login set NAME     use that theme's colours (asks for your password)
+#   amadeus-login reset        back to the shipped look
+# The login screen belongs to the system, so the change is published by root. Only the
+# theme's name and colour values are handed over: root never opens a file of yours.
+set -euo pipefail
+share=${AMADEUS_GREETER_SHARE:-/usr/share/amadeus-os/greeter}
+palette=${AMADEUS_GREETER_PALETTE:-/usr/share/amadeus-os/theme.json}
+dest=${AMADEUS_GREETER_DIR:-/etc/greetd/amadeus}
+
+case ${1:-} in
+  "")
+    name=$({ echo default; amadeus-theme list; } | amadeus-pick "Login screen") || exit 0
+    [[ $name == default ]] && set -- reset || set -- set "$name"
+    exec amadeus-terminal --title "Amadeus: login screen" -e bash -c 'amadeus-login "$@"; echo; read -rsn1 -p "Press any key to close."' _ "$@" ;;
+  current) cat "$dest/name" 2>/dev/null || echo default ;;
+  set)
+    name=${2:?name a theme; amadeus-theme list shows them}
+    (( EUID != 0 )) || { echo "Run amadeus-login as your user; it asks for the password when needed."; exit 1; }
+    mapfile -t colors < <(amadeus-theme colors "$name")
+    (( ${#colors[@]} )) || exit 1
+    exec sudo -- "$(command -v -- "$0")" --publish "$name" "${colors[@]}" ;;
+  reset)
+    if (( EUID != 0 )); then exec sudo -- "$(command -v -- "$0")" reset; fi
+    rm -rf -- "$dest"
+    echo "The login screen uses the shipped look again." ;;
+  --publish)
+    (( EUID == 0 )) || { echo "amadeus-login: --publish is the root step of 'set'." >&2; exit 1; }
+    name=$2; shift 2
+    [[ $name =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || { echo "amadeus-login: not a theme name: $name" >&2; exit 1; }
+    for value in "$@"; do
+      [[ $value =~ ^[a-z0-9]+=#[0-9a-f]{6}$ ]] || { echo "amadeus-login: not a colour: $value" >&2; exit 1; }
+    done
+    # Build beside the destination and swap, so the greeter never reads half a theme.
+    new=$(mktemp -d "${dest%/*}/.amadeus-login.XXXXXX")
+    trap 'rm -rf -- "$new"' EXIT
+    python3 -I "$share/render-theme.py" "$palette" "$new" "$dest" "$@" >/dev/null
+    grep '@[a-z_]*@' "$new/regreet.css" >/dev/null && { echo "The login screen was left as it was: the theme did not render completely." >&2; exit 1; }
+    printf '%s\n' "$name" >"$new/name"
+    rm -f -- "$new"/regreet*.toml "$new/try.toml" "$new/background.svg"
+    chmod 755 "$new"; chmod 644 "$new"/*
+    rm -rf -- "$dest.old"
+    [[ -e $dest ]] && mv -- "$dest" "$dest.old"
+    mv -- "$new" "$dest"
+    rm -rf -- "$dest.old"
+    echo "Login screen: $name. It shows at the next logout or restart; 'amadeus-login reset' goes back." ;;
+  *) sed -n 2,8p "$0"; exit 1 ;;
+esac

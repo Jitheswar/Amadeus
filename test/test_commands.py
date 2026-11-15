@@ -507,6 +507,25 @@ esac""")
         self.assertEqual(json.loads((self.config / "amadeus/theme.json").read_text())["accent"], "#33aaff")
         self.assertEqual(self.run_cmd("amadeus-theme", "set", "nope", env=env).returncode, 1)
 
+    def test_login_screen_hands_root_only_a_name_and_colours(self):
+        env = {"AMADEUS_THEME_SHARE": str(ROOT / "desktop"), "AMADEUS_GREETER_DIR": str(self.tmp / "greeter")}
+        self.assertEqual(self.run_cmd("amadeus-login", "current", env=env).stdout, "default\n")
+        self.assert_ok(self.run_cmd("amadeus-login", "set", "amadeus-light", env=env))
+        call = self.calls_of("sudo")[-1]
+        self.assertEqual(call[1:4], [str(BIN / "amadeus-login"), "--publish", "amadeus-light"])
+        self.assertIn("bg=#f6f1e8", call)
+        for value in call[4:]:
+            self.assertRegex(value, r"^[a-z0-9]+=#[0-9a-f]{6}$")
+        self.assertEqual(self.run_cmd("amadeus-login", "set", "nope", env=env).returncode, 1)
+        # The root step is refused to anyone else, so nothing is written without the password.
+        p = self.run_cmd("amadeus-login", "--publish", "amadeus-light", "bg=#f6f1e8", env=env)
+        self.assertEqual(p.returncode, 1)
+        self.assertFalse((self.tmp / "greeter").exists())
+        self.stub("amadeus-pick", output="amadeus-light", body="cat >/dev/null")
+        self.stub("amadeus-terminal")
+        self.assert_ok(self.run_cmd("amadeus-login", env=env))
+        self.assertEqual(self.calls_of("amadeus-terminal")[-1][-2:], ["set", "amadeus-light"])
+
     # ---- install catalogue --------------------------------------------------
     def test_catalog_says_so_when_it_is_not_installed(self):
         p = self.run_cmd("amadeus-catalog", env={"AMADEUS_CATALOG": str(self.tmp / "missing")})

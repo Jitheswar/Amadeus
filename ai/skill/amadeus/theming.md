@@ -23,6 +23,10 @@ exact locations; `amadeus-theme list` and `amadeus-theme current` show the state
 - **Change one colour everywhere:** change it in the theme file and set the theme
   again. Do not edit a rendered file: the next theme change replaces it.
 
+- **Style the login screen:** `amadeus-login set NAME` uses a theme's colours there,
+  `amadeus-login reset` goes back. It needs the user's password in a terminal, so open
+  one for them or tell them the command; you cannot run it unattended.
+
 ## Pitfalls
 
 - Open terminals keep their colours until a new window is opened. Say so.

@@ -1,11 +1,15 @@
 #!/usr/bin/python3
-"""Build the login screen from the same palette and timings as the desktop."""
+"""Build the login screen from the same palette and timings as the desktop.
+
+render-theme.py THEME.json OUT [INSTALLED_DIR [key=#rrggbb ...]]: the colours given replace the palette's."""
 import json, subprocess, sys
 from pathlib import Path
 from xml.sax.saxutils import escape
 
 theme = json.loads(Path(sys.argv[1]).read_text())
 source, out = Path(__file__).parent, Path(sys.argv[2])
+theme["dir"] = sys.argv[3] if len(sys.argv) > 3 else "/usr/share/amadeus-os/greeter"
+theme.update(arg.split("=", 1) for arg in sys.argv[4:])
 out.mkdir(parents=True, exist_ok=True)
 for name in ("regreet.css", "background.svg"):
     text = (source / (name + ".in")).read_text()

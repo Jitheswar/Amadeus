@@ -7,6 +7,8 @@ style=$share/regreet.css
 profile_mode=$(python3 "$share/profiles.py" /var/lib/regreet/state.toml)
 [[ $profile_mode == single ]] && config=$share/regreet-auto.toml
 [[ -r /etc/greetd/amadeus.toml ]] && config=/etc/greetd/amadeus.toml
+# The look chosen with amadeus-login, then an administrator's own stylesheet.
+[[ -r /etc/greetd/amadeus/regreet.css ]] && style=/etc/greetd/amadeus/regreet.css
 [[ -r /etc/greetd/amadeus.css ]] && style=/etc/greetd/amadeus.css
 [[ -e /run/amadeus-try ]] && config=$share/try.toml
 # Use the integrated GPU for the greeter even after a user's NVIDIA session exits.

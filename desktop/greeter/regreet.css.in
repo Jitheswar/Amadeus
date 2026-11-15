@@ -10,7 +10,7 @@
 * { font-family: "@font@"; font-size: 15px; }
 window {
   background-color: @bg;
-  background-image: url("file:///usr/share/amadeus-os/greeter/background.png");
+  background-image: url("file://@dir@/background.png");
   background-position: center;
   background-size: cover;
   color: @fg;

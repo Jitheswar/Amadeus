@@ -23,7 +23,7 @@ package() {
   # Only files: a test run can leave a __pycache__ directory beside the programs.
   find "$src/bin" -maxdepth 1 -type f -exec install -Dm755 {} -t "$pkgdir/usr/bin/" \;
   python3 "$src/greeter/render-theme.py" "$src/theme/theme.json" "$pkgdir/usr/share/amadeus-os/greeter"
-  install -Dm644 "$src/greeter/profiles.py" -t "$pkgdir/usr/share/amadeus-os/greeter/"
+  install -Dm644 "$src/greeter/profiles.py" "$src/greeter/render-theme.py" "$src"/greeter/*.in -t "$pkgdir/usr/share/amadeus-os/greeter/"
   install -Dm644 "$src/greeter/greetd.toml" -t "$pkgdir/usr/share/amadeus-os/greeter/"
   install -Dm644 "$src"/greeter/wayland-sessions/*.desktop -t "$pkgdir/usr/share/amadeus-os/greeter/wayland-sessions/"
   install -Dm755 "$src/lib/amadeus-greeter" -t "$pkgdir/usr/lib/amadeus-os/"

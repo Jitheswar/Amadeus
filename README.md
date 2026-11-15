@@ -74,6 +74,10 @@ lock screen. A theme is a single `colors.toml`; put your own in
 configuration file you already own is left alone. Open terminals keep their colours
 until a new window is opened.
 
+**Setup → Login screen** (or `amadeus-login`) chooses which theme styles the login
+screen, independently of the desktop. It asks for your password because the login screen
+belongs to the system; `amadeus-login reset` returns to the shipped look.
+
 **Super+C** and **Super+V** copy and paste in every application, terminals and the
 Amadeus panel included. Text in the panel can be selected with the pointer, and each
 answer has a **Copy** button.

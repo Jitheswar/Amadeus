@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Choose one look for the whole system: the shell, the panel, terminals, GTK applications, the lock screen and more.
-"""amadeus-theme [list | current | set NAME | render NAME DIR]
+"""amadeus-theme [list | current | set NAME | render NAME DIR | colors NAME]
 
 A theme is one file, colors.toml. Every application's colours are rendered from it
 through the templates in /usr/share/amadeus-os/themed, the way Omarchy does it, so
@@ -175,6 +175,9 @@ def main():
         print(current())
     elif len(args) == 2 and args[0] == "set":
         apply(args[1])
+    elif len(args) == 2 and args[0] == "colors":
+        c, _ = colors(args[1])
+        print("\n".join(f"{key}={c[source]}" for key, source in SHELL.items()))
     elif len(args) == 3 and args[0] == "render":
         render(args[1], Path(args[2]))
     else:
