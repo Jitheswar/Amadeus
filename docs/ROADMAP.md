@@ -2,14 +2,15 @@
 
 ## Done
 - AI layer: session daemon, capability policy, approvals, hash-chained audit log, undo journal
-- Providers: Claude API, OpenAI-compatible (OpenAI, OpenRouter, local), Claude subscription and Codex through MCP
+- Providers: Claude API, OpenAI-compatible (OpenAI, OpenRouter, local), Claude, Codex and Antigravity subscriptions through MCP
 - Generated-app framework: manifest, sandbox, component library, lint, version history
 - Root mode: separate root helper, restricted or unrestricted, time limit, gone at shutdown
-- Installer: encrypted btrfs, snapshots on every package change, NVIDIA only when present
-- ISO build and VM test harness, both in a container; the full run passes (101 checks on 2026-11-12, CachyOS base and Hyprland): install, first boot, rollback from the system, rollback from the ISO
+- Installer: encrypted btrfs, snapshots before updates, NVIDIA only when present
+- ISO build and VM test harness, both in a container; the full run passes (117 checks on 2026-11-15, CachyOS base and Hyprland): install, first boot, rollback from the system, rollback from the ISO
 - Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
 - End-to-end AI request test on the installed system with a scripted model
 - Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
+- Panel provider settings with a saved default agent and temporary overrides; on-demand subscription usage in the bar
 - Try Amadeus OS from the stick: the desktop running from memory, nothing written to any disk
 - Offline install: every package on the ISO; snapshots only before updates, five kept
 - Setup > GPU: automatic, NVIDIA for everything, or Intel only
@@ -25,7 +26,7 @@
 - Launcher, menus and notifications drawn by the shell; text in the launcher that matches no application goes to Amadeus
 - Install menu for Arch packages and the AUR with a details pane; `amadeus-aur` with recipe review
 - Shortcut and command list (Super+K), read from the live configuration
-- Amadeus menu (Super+Space): Apps, Install, Remove, Update, Defaults
+- Universal application and settings search from every menu, a clean Apps list, and unified shell, panel, GTK and terminal text sizing
 - Desktop on Hyprland (moved from niri): defaults, bar driven by the compositor's events, AI-managed file checked with `Hyprland --verify-config` before it is kept
 - Applications outside the Arch repositories built from publisher releases; no third-party repository
 
