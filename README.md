@@ -10,7 +10,7 @@ includes the packages needed to reach a usable system.
 The target is a Core i5-13450HX laptop with Intel UHD graphics, an RTX 3050 6 GB,
 16 GB RAM and a 1 TB NVMe drive.
 
-> **Pre-release:** the current runtime passed 150 installed-system VM checks, including
+> **Pre-release:** the current runtime passed 153 installed-system VM checks, including
 > both rollback paths, plus the live-session checks. Real hardware and live provider
 > authentication have not been verified. See [Verification](#verification).
 
@@ -298,8 +298,8 @@ source rollback do not replace a backup of personal data.
 
 ## Verification
 
-Runtime [0bf3bae](https://github.com/Jitheswar/Amadeus/commit/0bf3bae)
-passed **150 installed-system checks**: 135 on first boot,
+Runtime [24bc744](https://github.com/Jitheswar/Amadeus/commit/24bc744)
+passed **153 installed-system checks**: 138 on first boot,
 8 after rollback from the running system, and 7 after rollback from the ISO.
 The Try-session checks, fast checks, QML checks and inspected headless previews also passed.
 Installation had no internet access. AI requests used a scripted local model.
@@ -330,6 +330,12 @@ call envelope and the memory commands. Nobody clicked a notice, so the path from
 notification to the panel is untested outside unit tests, as is a task marked for
 unasked changes in a real session. Prompt-cache hits, token reporting and the size of
 the saving have not been measured with a live provider.
+
+A program was crashed on purpose and its notice recorded, and a goal ran end to end
+against the scripted model: three rounds, done only after the checking round. The
+overdue-update reminder and the pick-up of services that failed before login are covered
+by unit tests; the VM only confirmed that a fresh install is not told to update. How
+well a real model writes useful notes and judges its own finish is unknown.
 
 Real hardware, live subscription/API authentication, manual guided-installer interaction,
 full system updates and the explicit GPU modes still need validation. Multi-profile login

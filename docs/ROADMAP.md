@@ -39,7 +39,7 @@ discovery output rather than this roadmap.
 
 ## Verified baseline
 
-The runtime identified in the README passed 150 installed-system VM checks: 135 on first
+The runtime identified in the README passed 153 installed-system VM checks: 138 on first
 boot, 8 after rollback from the running system, and 7 after rollback from the ISO.
 The Try-session checks, fast checks and QML checks also passed; rendered previews were
 inspected. The VM installation had no internet access. AI requests used a scripted model.
