@@ -74,6 +74,11 @@ lock screen. A theme is a single `colors.toml`; put your own in
 configuration file you already own is left alone. Open terminal windows are recoloured
 in place, without interrupting what runs in them.
 
+At the start of a session, a display you have not set up yourself gets a scale chosen
+from its resolution and physical size, and the text size is raised slightly where that
+scale leaves things small. A display that does not report its size keeps scale 1. Any
+choice you make in **Setup → Display** stays and is never replaced.
+
 **Setup → Login screen** (or `amadeus-login`) chooses which theme styles the login
 screen, independently of the desktop. It asks for your password because the login screen
 belongs to the system; `amadeus-login reset` returns to the shipped look.

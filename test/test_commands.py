@@ -1083,6 +1083,50 @@ cat >/dev/null
         self.assertEqual(display.read_text(), "-- old setting\n")
         self.assertIn("Display setting not applied", " ".join(self.calls_of("notify-send")[-1]))
 
+    def monitor(self, name, width, height, mm_w, mm_h, scale=1.0, focused=True):
+        return {"name": name, "focused": focused, "x": 0, "y": 0, "width": width, "height": height, "physicalWidth": mm_w,
+                "physicalHeight": mm_h, "scale": scale, "transform": 0, "refreshRate": 60.0, "activeWorkspace": {"id": 1},
+                "availableModes": [f"{width}x{height}@60.00Hz"]}
+
+    def test_display_auto_suits_scale_and_text_to_the_panel(self):
+        self.stub("Hyprland", output="config ok")
+        self.stub("notify-send")
+        self.stub("gsettings", body='[[ $3 == font-name ]] && echo "Inter 11" || echo 1.0')
+        (self.config / "hypr").mkdir(parents=True)
+        (self.config / "hypr/hyprland.lua").write_text("-- config\n")
+        display, theme = self.config / "hypr/display.lua", self.config / "amadeus/theme.json"
+        cases = (  # panel, the scale the compositor guessed, expected scale line, expected text size
+            (("eDP-1", 1920, 1080, 344, 194), 1.0, None, 15),       # 15.6 inch full HD: scale 1, slightly larger text
+            (("eDP-1", 1920, 1080, 309, 174), 1.0, "scale = 1.25", None),   # 14 inch full HD
+            (("eDP-1", 2560, 1600, 345, 215), 1.0, "scale = 1.6", None),    # 16 inch 2.5K
+            (("eDP-1", 3840, 2160, 344, 194), 1.5, "scale = 2", 15),        # 15.6 inch 4K
+            (("DP-1", 3840, 2160, 597, 336), 1.5, "scale = 1.25", None),    # 27 inch 4K
+            (("DP-1", 2560, 1440, 597, 336), 1.0, None, None),              # 27 inch 1440p
+            (("Virtual-1", 1920, 1080, 0, 0), 1.0, None, None),             # a virtual machine: size unknown
+            (("HDMI-A-1", 3840, 2160, 160, 90), 1.0, None, None))           # a television reporting an aspect ratio, not a size
+        for panel, guessed, scale, text in cases:
+            with self.subTest(panel=panel):
+                display.unlink(missing_ok=True); theme.unlink(missing_ok=True)
+                self.hyprctl_json([self.monitor(*panel, scale=guessed)])
+                self.assert_ok(self.run_cmd("amadeus-display", "auto"))
+                self.assertEqual(scale is not None and scale in display.read_text() if display.exists() else False, scale is not None)
+                self.assertEqual(json.loads(theme.read_text()).get("font_size") if theme.exists() else None, text)
+
+    def test_display_auto_never_replaces_a_choice_made_by_hand(self):
+        self.stub("Hyprland", output="config ok")
+        self.stub("notify-send"); self.stub("gsettings")
+        (self.config / "hypr").mkdir(parents=True)
+        (self.config / "hypr/hyprland.lua").write_text("-- config\n")
+        display, theme = self.config / "hypr/display.lua", self.config / "amadeus/theme.json"
+        mine = '-- Display settings, written by amadeus-display.\n-- eDP-1 {"mode": "1920x1080@60.00", "scale": "1.0"}\n'
+        display.write_text(mine)
+        theme.parent.mkdir(parents=True, exist_ok=True)
+        theme.write_text('{"font_size": 14}')
+        self.hyprctl_json([self.monitor("eDP-1", 3840, 2160, 344, 194)])
+        self.assert_ok(self.run_cmd("amadeus-display", "auto"))
+        self.assertEqual(display.read_text(), mine)
+        self.assertEqual(json.loads(theme.read_text()), {"font_size": 14})
+
     def test_display_text_size_updates_shell_gtk_and_terminal(self):
         self.stub("gsettings", body='[[ $3 == font-name ]] && echo "Inter 11" || echo 1.0')
         self.stub("foot")

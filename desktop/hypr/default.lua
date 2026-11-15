@@ -62,6 +62,7 @@ hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 hl.on("hyprland.start", function()
   hl.exec_cmd("quickshell -p /usr/share/amadeus-os/shell")
   hl.exec_cmd("swayidle -w")
+  hl.exec_cmd("amadeus-display auto")
   hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
   -- Clipboard history: remembers what was copied so Super+Ctrl+V can bring it back.
   hl.exec_cmd("wl-paste --type text --watch cliphist store")

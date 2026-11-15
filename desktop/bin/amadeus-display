@@ -3,6 +3,7 @@
 #   amadeus-display                 choose a display, then its resolution or scale, from menus
 #   amadeus-display scale [VALUE]   show or set the focused display's scale (for example 1.25)
 #   amadeus-display text [9..20|reset]  show or set one text size for the shell, apps and terminals
+#   amadeus-display auto            suit scale and text size to each display you have not set up yourself
 # Resolution and scale are written to ~/.config/hypr/display.lua. The whole desktop
 # configuration is checked first; a setting the desktop rejects is not kept.
 set -euo pipefail
@@ -42,6 +43,44 @@ PY
 if [[ ${1:-} == text ]]; then
   shift
   exec amadeus-text-size "$@"
+fi
+
+# Runs at the start of every session and does nothing once a display has a setting of
+# its own, so a choice made by hand is never replaced.
+if [[ ${1:-} == auto ]]; then
+  monitors=$(hyprctl -j monitors)
+  theme=${XDG_CONFIG_HOME:-$HOME/.config}/amadeus/theme.json
+  plan=$(python3 -c '
+import json, math, re, sys
+monitors, display, theme = json.loads(sys.argv[1]), sys.argv[2], sys.argv[3]
+try: settled = set(re.findall(r"(?m)^-- (\S+) \{", open(display).read()))
+except OSError: settled = set()
+try: sized = "font_size" in json.load(open(theme))
+except (OSError, ValueError): sized = False
+text = 14
+for m in monitors:
+    w, h = m["width"], m["height"]
+    inches = math.hypot(m.get("physicalWidth") or 0, m.get("physicalHeight") or 0) / 25.4
+    scale, rest = 1, 1
+    if inches >= 9:      # smaller is a display that does not report its real size
+        want = math.hypot(w, h) / inches / 125
+        whole = [c for c in (1, 1.25, 1.5, 1.6, 1.75, 2, 2.5, 3) if (w / c).is_integer() and (h / c).is_integer()]
+        scale = max([c for c in whole if c <= want + 0.1] or [1])
+        rest = want / scale
+    if m.get("focused") or len(monitors) == 1:
+        text = 16 if rest >= 1.3 else 15 if rest >= 1.12 else 14
+    if m["name"] not in settled and abs(m["scale"] - scale) > 0.01:
+        print("scale", m["name"], scale)
+if not sized and text != 14:
+    print("text", text)
+' "$monitors" "$file" "$theme")
+  while read -r what a b; do
+    case $what in
+      scale) (save "$a" scale "$b" "$monitors") || true ;;
+      text)  amadeus-text-size "$a" >/dev/null || true ;;
+    esac
+  done <<<"$plan"
+  exit 0
 fi
 
 if [[ ${1:-} == scale ]]; then
