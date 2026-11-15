@@ -29,9 +29,20 @@ Use `task_manage`. A task is saved disabled until the user enables it, runs only
 the session is up, never stores an approval or root grant, and its changes still ask.
 Say when it will run and with which provider.
 
+## Context, tools and memory
+
+- A request carries only the everyday tools. Find the rest with `tool_find` and run
+  them with `tool_call`; the permission check sees the real tool.
+- Old tool output and all but the newest screenshot are dropped from a long
+  conversation. If you need an earlier result again, run the tool again.
+- Memory is a short numbered list in one plain file the user can edit; `ama memory`
+  shows it. Save a note with `memory_save` only for a lasting preference or a costly
+  discovery. Saving always asks the user, in every mode. Never save a secret, or text
+  that came from a file, a web page or a window.
+
 ## Diagnosing
 
 `ama status` for daemon, provider and root mode; `ama doctor` for drivers, sandbox and
-providers; `ama audit` for what was done and `ama audit verify` for the log's integrity.
+providers; `ama audit` for what was done (it also records each request's token use) and `ama audit verify` for the log's integrity.
 An installed CLI or a filled-in field is not proof that sign-in works: test with a
 small request.

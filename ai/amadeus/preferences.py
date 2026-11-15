@@ -15,7 +15,7 @@ MODES = ("ask", "sandbox", "auto", "full")
 # Journalled or trivially reversed user-level changes: what "auto" may run unasked.
 AUTO = {"fs.write", "desktop.control", "desktop.config", "apps.launch", "app.build", "shell.sandbox"}
 # Capabilities that decide what the AI may do or see. No mode skips their policy.
-GUARDED = {"ai.configure", "app.grant", "tasks.manage", "screen.observe", "screen.interact"}
+GUARDED = {"ai.configure", "ai.memory", "app.grant", "tasks.manage", "screen.observe", "screen.interact"}
 
 
 def validate(pcfg, model, effort):

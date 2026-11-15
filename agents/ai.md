@@ -53,10 +53,17 @@ not style.
     per request and is never stored. A new capability that controls what the AI may do
     or see joins the guarded set there. Model tuning never affects a decision.
 
+14. **A request stays small and stable.** Only the tools named in `CORE` in
+    `ai/amadeus/tools/__init__.py` are sent; the rest are reached through `tool_find` and
+    the `tool_call` envelope, which the enforcement point unwraps before policy. Nothing
+    that varies per request goes into the system prompt or the tool list. Memory is
+    capped, user-readable, guarded in every mode and presented to a model as background.
+
 ## Adding a tool
 
 Register it with the `tool` decorator in `ai/amadeus/tools/__init__.py`, in the module
-for its area. Give it the narrowest capability, an honest risk, and a description that
+for its area. Add it to `CORE` only if most requests need it; otherwise make sure
+`tool_find` returns it for the words a request would use. Give it the narrowest capability, an honest risk, and a description that
 tells a model when to use it. If it introduces a capability, add the default to the
 policy in `ai/amadeus/config.py` (ask, unless it only reads). Add a test.
 

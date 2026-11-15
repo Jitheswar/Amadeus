@@ -20,6 +20,7 @@ DEFAULT = """\
 provider = "claude-cli"      # any key under [providers]
 mode = "ask"                 # ask | sandbox | auto; full access is confirmed per request, never saved
 max_steps = 40               # tool-call budget per request
+context_chars = 200000       # older tool results are dropped from a conversation beyond this
 
 # --- Providers. Switch with `ama provider use <name>`. ---------------------
 [providers.claude-cli]       # Claude subscription, through the Claude Code login
@@ -66,6 +67,7 @@ model = "qwen2.5-coder:7b"
 "desktop.control" = "allow"
 "desktop.config" = "ask"
 "ai.configure" = "ask"
+"ai.memory" = "ask"
 "screen.observe" = "ask"
 "screen.interact" = "ask"
 "tasks.manage" = "ask"

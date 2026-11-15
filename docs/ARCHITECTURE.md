@@ -107,6 +107,14 @@ panel. Context from applications, files and accessibility is untrusted data. Nat
 share the human interface's setting wrappers and live action routes. Provider choices
 and the saved default remain independent from terminal harness preferences.
 
+What a request sends is bounded. The tool list is a fixed everyday subset plus a lookup
+tool and a call envelope; the envelope is unwrapped at the enforcement point, so policy,
+approval and audit see the real tool. The system prompt carries no per-request values:
+the time travels with each request's own text. Earlier requests' tool output is dropped
+once a conversation passes its budget, in place, so a cached prefix is rewritten once
+rather than on every step. Memory is a capped list of notes appended to the system
+prompt as background.
+
 A request carries two independent choices. Tuning (model and reasoning effort) is
 validated against what the provider type accepts and merged into that one request's
 copy of the configuration; the saved configuration changes only on an explicit save.

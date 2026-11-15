@@ -32,7 +32,8 @@ def _transcript(history):
         if m["role"] in ("user", "assistant") and m.get("text"):
             lines.append(f"{m['role'].upper()}: {m['text']}")
     prior = ("Conversation so far:\n" + "\n".join(lines[-20:]) + "\n\n") if lines else ""
-    return prior + history[-1]["text"]
+    from ..agent import user_text
+    return prior + user_text(history[-1])
 
 
 def _env(session):

@@ -47,6 +47,7 @@ class Daemon:
 
     # ---- the enforcement point -------------------------------------------
     def execute(self, name, args, session="-", origin="ai", allowed=None):
+        name, args = T.unwrap(name, args)
         t = T.REGISTRY.get(name)
         if not t or (allowed is not None and name not in allowed):
             return f"tool {name} is not available", True
@@ -160,16 +161,21 @@ class Daemon:
             s.update(conn=conn, rid=rid, running=True, proc=None, origin=origin, provider=pname, mode=chosen["mode"])
             s["cancel"].clear()
             start = len(s["history"])
-            s["history"].append({"role": "user", "text": prompt})
+            s["history"].append({"role": "user", "text": prompt, "at": agent.now()})
         self.publish_activity()
+
+        usage = {}
 
         def emit(kind, data):
             if kind == "_proc":
                 s["proc"] = data
+            elif kind == "usage":
+                usage.update(data)
             else:
                 conn.event(rid, kind, data)
 
         def execute(name, args):
+            name, args = T.unwrap(name, args)
             emit("tool", {"name": name, "args": args})
             return self.execute(name, args, session=session, origin=origin)
         completed, agent_started = False, False
@@ -178,13 +184,16 @@ class Daemon:
             audit.record("request", session=session, provider=pname, prompt=prompt, **chosen)
             prov = providers.make(pname, cfg)
             if prov.kind == "chat":
-                text = agent.run_chat(prov, s["history"], execute, emit, int(self.cfg["ai"].get("max_steps", 40)), stopped=s["cancel"].is_set)
+                text = agent.run_chat(prov, s["history"], execute, emit, int(self.cfg["ai"].get("max_steps", 40)), stopped=s["cancel"].is_set,
+                                      budget=int(self.cfg["ai"].get("context_chars", 200000)))
             else:
                 agent_started = True
                 text = prov.run(agent.system_prompt(), s["history"], session, emit)
                 s["history"].append({"role": "assistant", "text": text, "calls": []})
             completed = True
-            return {"session": session, "provider": pname, "text": text, "stopped": s["cancel"].is_set(), "changed": F.changed_by(session)}
+            if usage:
+                audit.record("usage", session=session, provider=pname, **usage)
+            return {"session": session, "provider": pname, "text": text, "stopped": s["cancel"].is_set(), "changed": F.changed_by(session), "usage": usage}
         except providers.ProviderError as e:
             if s["cancel"].is_set():
                 return {"session": session, "provider": pname, "text": "", "stopped": True, "changed": F.changed_by(session)}
@@ -321,8 +330,9 @@ def make_handler(d, app=None):
                 s = p.get("session") or "-"
                 sess = d.sessions.get(s, {})
                 owner = sess.get("conn")
+                name, args = T.unwrap(p["name"], p.get("args") or {})
                 if owner and owner.alive:
-                    owner.event(sess.get("rid"), "tool", {"name": p["name"], "args": p.get("args") or {}})
+                    owner.event(sess.get("rid"), "tool", {"name": name, "args": args})
                 content, err = d.execute(p["name"], p.get("args") or {}, session=s, origin=sess.get("origin", p.get("origin", "ai")))
                 return {"content": content, "is_error": err}
             if m == "tasks":
@@ -358,6 +368,13 @@ def make_handler(d, app=None):
                 return collect(d.cfg, force=bool(p.get("force")))
             if m == "tools":
                 return T.specs()
+            if m == "memory":
+                from . import memory
+                if p.get("forget"):
+                    memory.forget(int(p["forget"]))
+                elif p.get("clear"):
+                    memory.clear()
+                return memory.notes()
             if m == "status":
                 return d.status()
             if m == "reload":

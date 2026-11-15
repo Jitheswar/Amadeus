@@ -22,6 +22,7 @@ HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
   ama doctor                  verify drivers, GPU, sandbox and providers
   ama discover [--json]       a live map of this system: commands, files, tools, policy
   ama skill                   print the built-in guide that teaches an AI agent to manage this system
+  ama memory [forget N | clear]  what Amadeus remembers between requests; the notes are a plain file you can edit
   ama guide [TOPIC]           the topic guides an agent reads before working in one area
   ama panel [toggle | show | hide | window | selection | context JSON | settings | tasks | state | ask TEXT]
                               the docked panel; `window` makes the next request about the focused window
@@ -122,7 +123,8 @@ def mcp():
             elif m == "tools/call":
                 r = c.call("tool", name=p["name"], args=p.get("arguments") or {}, session=session, origin="mcp")
                 from .attachments import mcp_content
-                res = {"content": mcp_content(p["name"], r["content"]), "isError": r["is_error"]}
+                from .tools import unwrap
+                res = {"content": mcp_content(unwrap(p["name"], p.get("arguments") or {})[0], r["content"]), "isError": r["is_error"]}
             elif m == "ping":
                 res = {}
             else:
@@ -313,6 +315,9 @@ def main(argv=None):
         provider_cmd(c, rest)
     elif cmd == "mode" and len(rest) <= 1:
         print("mode: " + (c.call("mode_default", mode=rest[0]) if rest else c.call("providers"))["mode"])
+    elif cmd == "memory" and (not rest or rest == ["clear"] or (len(rest) == 2 and rest[0] == "forget" and rest[1].isdigit())):
+        notes = c.call("memory", forget=rest[1] if rest[:1] == ["forget"] else None, clear=rest == ["clear"])
+        print("\n".join(f"{i:>2}. {n}" for i, n in enumerate(notes, 1)) or "Nothing is remembered.")
     elif cmd == "reload":
         print(c.call("reload"))
     elif cmd == "undo":

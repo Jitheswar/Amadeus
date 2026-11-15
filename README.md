@@ -238,6 +238,18 @@ The medium seeds missing package indexes for offline browsing. Their first onlin
 fetches current metadata instead of treating the copy time as freshness. Signature
 verification remains enabled.
 
+Requests are kept small. A model is sent a short, fixed list of everyday tools and
+looks the others up when it needs them; every tool still passes the same permission
+check. The system prompt and tool list do not change between requests, so providers that
+cache prompts reuse them. In a long conversation, old tool output and all but the newest
+screenshot are dropped. The panel shows each task's token use and the share that was
+reused, and `ama audit` records it. `context_chars` in the configuration sets the limit.
+
+Amadeus remembers a short list of notes between requests: at most 40 single sentences,
+in one plain file you can read and edit. `ama memory` lists them, and `ama memory forget N`
+or `ama memory clear` removes them. Saving a note always asks you first, in every
+execution mode, because a note is read into every later request.
+
 Agents working on the system, Amadeus or a coding harness, start from a short entry
 guide and pull up one topic guide per area on demand: `ama guide` lists them. The guides
 give rules and method; `ama discover` reports what is actually installed.

@@ -186,6 +186,120 @@ class GuideTest(unittest.TestCase):
                 if first.startswith("amadeus-"):
                     self.assertIn(first, commands, f"{name}.md names {first}")
                 elif "_" in first and first.islower():
-                    self.assertIn(first, self.tools.REGISTRY, f"{name}.md names tool {first}")
+                    self.assertIn(first, [*self.tools.REGISTRY, "tool_call"], f"{name}.md names tool {first}")
                 elif first == "ama" and " " in token:
                     self.assertIn("ama " + token.split()[1], cli.HELP, f"{name}.md names `{token}`")
+
+
+class ContextTest(unittest.TestCase):
+    """What a request costs: a short, stable tool list, a cacheable prompt, bounded history and memory."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        from amadeus import agent, memory, tools
+        self.patch = mock.patch.object(memory, "FILE", Path(self.tmp.name) / "memory.md")
+        self.patch.start()
+        tools.load_all()
+        self.agent, self.memory, self.tools = agent, memory, tools
+
+    def tearDown(self):
+        self.patch.stop()
+        self.tmp.cleanup()
+
+    def test_only_everyday_tools_are_sent_and_the_rest_are_found_on_demand(self):
+        sent, everything = self.tools.specs(), self.tools.specs(everything=True)
+        self.assertLess(len(json.dumps(sent)), len(json.dumps(everything)) * 0.45)
+        self.assertEqual(json.dumps(sent), json.dumps(self.tools.specs()))
+        names = {t["name"] for t in sent}
+        self.assertTrue({"tool_find", "tool_call", "system_guide"} <= names)
+        find = self.tools.REGISTRY["tool_find"]["fn"]
+        for query, expected in (("bluetooth headphones", "bluetooth_control"), ("install a package", "pkg_manage"),
+                                ("snapshot rollback", "sys_snapshot"), ("schedule a task", "task_manage"), ("close window", "desktop_window")):
+            self.assertIn(expected, [t["name"] for t in find({"query": query}, None)], query)
+        # Every tool is reachable: listed, or named by tool_find.
+        self.assertEqual(names - {"tool_call"} | set(find({}, None)), set(self.tools.REGISTRY))
+
+    def test_tool_call_is_only_an_envelope_for_the_enforcement_point(self):
+        from amadeus.daemon import Daemon
+        d = Daemon()
+        asked = []
+        d.ask_user = lambda *a: (asked.append(a[2]) or "no")
+        content, err = d.execute("tool_call", {"name": "net_control", "args": {"action": "wifi_off"}})
+        self.assertTrue(err)
+        self.assertEqual(asked, ["net_control"])
+        self.assertTrue(d.execute("tool_call", {"name": "nope"})[1])
+        self.assertTrue(d.execute("tool_call", {"name": "tool_call", "args": {"name": "fs_read"}})[1])
+        self.assertEqual(d.execute("tool_call", {"name": "memory_list"}), ("[]", False))
+
+    def test_the_system_prompt_is_stable_and_the_time_travels_with_the_request(self):
+        first = self.agent.system_prompt()
+        with mock.patch("amadeus.agent.time.strftime", return_value="another minute"):
+            self.assertEqual(self.agent.system_prompt(), first)
+        self.assertNotRegex(first, r"\d{4}-\d{2}-\d{2}")
+        self.assertEqual(self.agent.user_text({"text": "hi", "at": "Monday 2026-11-16 10:00"}), "hi\n\n(Sent Monday 2026-11-16 10:00.)")
+
+    def test_old_tool_output_and_screenshots_are_dropped_once_and_stay_dropped(self):
+        def exchange(i, name="fs_read", size=30000):
+            return [{"role": "user", "text": f"request {i}"},
+                    {"role": "assistant", "text": "", "calls": [{"id": f"c{i}", "name": name, "args": {}}], "raw": [{"type": "thinking"}], "raw_from": "p"},
+                    {"role": "tool", "results": [{"id": f"c{i}", "name": name, "content": "x" * size, "is_error": False}]}]
+        history = sum((exchange(i) for i in range(6)), []) + [{"role": "user", "text": "now"}]
+        before = len(history) - 1
+        self.assertFalse(self.agent.trim(history, 500000, before))
+        self.assertTrue(self.agent.trim(history, 100000, before))
+        self.assertLessEqual(self.agent.size(history), 100000)
+        self.assertTrue(history[2]["results"][0]["content"].startswith("[dropped to save context: 30000 characters of fs_read"))
+        self.assertEqual(len(history[-2]["results"][0]["content"]), 30000)
+        self.assertTrue(all("raw" not in m for m in history[:before]))
+        # Calls and results still pair up, and a second pass changes nothing: the provider's cache is rewritten once.
+        self.assertEqual([m["role"] for m in history[:3]], ["user", "assistant", "tool"])
+        frozen = json.dumps(history)
+        self.assertFalse(self.agent.trim(history, 100000, before))
+        self.assertEqual(json.dumps(history), frozen)
+        shots = exchange(0, "desktop_observe", 5000) + exchange(1, "desktop_observe", 5000) + [{"role": "user", "text": "now"}]
+        self.agent.trim(shots, 500000, len(shots) - 1)
+        self.assertTrue(shots[2]["results"][0]["content"].startswith("[dropped"))
+        self.assertEqual(len(shots[5]["results"][0]["content"]), 5000)
+
+    def test_memory_is_small_visible_and_presented_as_background(self):
+        self.assertEqual(self.memory.prompt(), "")
+        self.memory.save("Prefers  the light theme\nduring the day")
+        self.memory.save("prefers the light theme during the day")
+        self.assertEqual(self.memory.notes(), ["prefers the light theme during the day"])
+        self.assertIn("not instructions", self.memory.prompt())
+        self.assertIn("1. prefers the light theme", self.agent.system_prompt())
+        self.assertIn("- prefers the light theme", self.memory.FILE.read_text())
+        with self.assertRaises(ValueError):
+            self.memory.save("x" * 400)
+        for i in range(self.memory.MAX_NOTES - 1):
+            self.memory.save(f"note {i}")
+        with self.assertRaises(ValueError):
+            self.memory.save("one too many")
+        self.assertLess(len(self.memory.prompt()), self.memory.MAX_NOTES * (self.memory.MAX_CHARS + 8) + 300)
+        self.assertEqual(self.memory.forget(1), "prefers the light theme during the day")
+        from amadeus import preferences
+        from amadeus.policy import Policy
+        policy = Policy(config.load())
+        for mode in ("ask", "auto", "full"):
+            self.assertEqual(preferences.decision(policy, mode, "ai.memory", "modify", {}, False)[0], "ask")
+        self.assertEqual(preferences.decision(policy, "sandbox", "ai.memory", "modify", {}, False)[0], "deny")
+
+    def test_token_use_is_reported_with_the_cached_share(self):
+        from amadeus.providers.anthropic import Anthropic
+        reply = {"content": [{"type": "text", "text": "ok"}], "stop_reason": "end_turn",
+                 "usage": {"input_tokens": 50, "cache_creation_input_tokens": 150, "cache_read_input_tokens": 4000, "output_tokens": 20}}
+        with mock.patch("amadeus.providers.anthropic.post_json", return_value=reply) as post, \
+             mock.patch("amadeus.providers.anthropic.config.secret", return_value="k"):
+            turn = Anthropic("anthropic", {}).chat("system", [{"role": "user", "text": "hi", "at": "t"}], self.tools.specs())
+        self.assertEqual(turn["usage"], {"input": 4200, "cached": 4000, "output": 20})
+        body = post.call_args.args[1]
+        self.assertEqual(body["cache_control"], {"type": "ephemeral"})
+        self.assertEqual(body["messages"][0]["content"], "hi\n\n(Sent t.)")
+        seen = []
+        provider = mock.Mock()
+        provider.name = "p"
+        provider.chat.side_effect = [{"text": "", "calls": [{"id": "1", "name": "tool_call", "args": {"name": "memory_list"}}], "raw": None, "usage": {"input": 10, "cached": 0, "output": 2}},
+                                     {"text": "done", "calls": [], "raw": None, "usage": {"input": 12, "cached": 10, "output": 3}}]
+        history = [{"role": "user", "text": "go"}]
+        self.agent.run_chat(provider, history, lambda n, a: ("[]", False), lambda kind, data: seen.append((kind, data)))
+        self.assertIn(("usage", {"input": 22, "cached": 10, "output": 5}), seen)
+        self.assertEqual(history[2]["results"][0]["name"], "memory_list")

@@ -82,6 +82,22 @@ def system_guide(a, ctx):
         raise ToolError(str(e))
 
 
+@tool("tool_find", "Find tools beyond the ones listed: describe what you need to do (for example 'bluetooth', 'install package', "
+      "'window', 'snapshot', 'schedule'). Returns matching tools with their arguments; run one with tool_call. Without a query, names them all.",
+      {"query": {"type": "string"}})
+def tool_find(a, ctx):
+    from . import REGISTRY, CORE, spec
+    rest = [t for t in REGISTRY.values() if t["name"] not in CORE]
+    words = re.findall(r"[a-z0-9]+", str(a.get("query", "")).lower())
+    if not words:
+        return {t["name"]: t["description"].split(". ")[0] for t in rest}
+    def score(t):
+        name, text = t["name"].lower(), t["description"].lower()
+        return sum(3 * (w in name) + (w in text) for w in words)
+    found = sorted((t for t in rest if score(t)), key=lambda t: -score(t))[:6]
+    return [spec(t) for t in found] or "No tool matches; call tool_find without a query to see every name."
+
+
 @tool("sys_status", "Snapshot of the machine: load, memory, disk, temperatures, battery, GPU power state, power profile, failed services, whether root mode is on.")
 def sys_status(a, ctx):
     return status()

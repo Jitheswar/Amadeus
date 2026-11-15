@@ -564,7 +564,7 @@ class DaemonTest(unittest.TestCase):
         with mock.patch("amadeus.daemon.providers.make", return_value=provider):
             with self.assertRaises(OSError):
                 d.ask(mock.Mock(), 1, "keep my request", session="cli-partial")
-        self.assertEqual(d.sessions["cli-partial"]["history"][0], {"role": "user", "text": "keep my request"})
+        self.assertEqual(d.sessions["cli-partial"]["history"][0]["text"], "keep my request")
         self.assertFalse(d.sessions["cli-partial"]["running"])
 
     @classmethod

@@ -41,9 +41,32 @@ def clip(s, n=12000):
 
 
 def load_all():
-    from . import system, files, shell, desktop, network, apps, controls, interaction, automations  # noqa: F401
+    from . import system, files, shell, desktop, network, apps, controls, interaction, automations, notes  # noqa: F401
     return REGISTRY
 
 
-def specs():
-    return [{"name": t["name"], "description": t["description"], "schema": t["schema"]} for t in REGISTRY.values()]
+# The tools a model is always shown. Everything else is found with tool_find and run with
+# tool_call, so a request does not carry every definition and the list stays byte-stable
+# for prompt caching. Keep this to what most requests need.
+CORE = ("system_guide", "system_discover", "tool_find", "sys_status", "fs_list", "fs_read", "fs_search", "fs_write", "fs_edit",
+        "shell_run", "os_menu", "desktop_settings", "desktop_launch", "memory_save")
+TOOL_CALL = {"name": "tool_call", "description": "Run a tool that tool_find returned. It passes the same permission policy, approval and audit "
+             "as a listed tool; args must follow that tool's schema.",
+             "schema": {"type": "object", "properties": {"name": {"type": "string"}, "args": {"type": "object"}}, "required": ["name"]}}
+
+
+def spec(t):
+    return {"name": t["name"], "description": t["description"], "schema": t["schema"]}
+
+
+def specs(everything=False):
+    if everything:
+        return [spec(t) for t in REGISTRY.values()]
+    return [spec(REGISTRY[name]) for name in CORE if name in REGISTRY] + [TOOL_CALL]
+
+
+def unwrap(name, args):
+    """tool_call is only an envelope: policy, approval and audit see the tool inside it."""
+    if name == "tool_call" and isinstance(args, dict):
+        return args.get("name"), args.get("args") if isinstance(args.get("args"), dict) else {}
+    return name, args

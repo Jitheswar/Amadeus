@@ -169,7 +169,10 @@ ShellRoot {
         else if (m.error) { add(t, "error", m.error); setTask(t, { running: false }) }
         else if (m.result) {
             if (m.result.stopped) { closeApprovals(t); add(t, "note", "Stopped.") }
-            setTask(t, { running: false, changed: m.result.changed || 0 })
+            const u = m.result.usage || {}
+            const k = n => n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n)
+            setTask(t, { running: false, changed: m.result.changed || 0,
+                         cost: u.input ? k(u.input + u.output) + " tokens" + (u.cached ? ", " + Math.round(100 * u.cached / u.input) + "% reused" : "") : "" })
         }
     }
 
@@ -332,7 +335,7 @@ ShellRoot {
                             anchors { left: parent.left; bottom: parent.bottom; margins: Theme.gap * 0.6 }
                             spacing: Theme.gap * 0.6
                             Txt { dim: true; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: Theme.size * 0.85
-                                  text: (row.t.providerLabel || "") + " · " + (row.t.running ? (row.t.stopped ? "stopping…" : "working…") : "done") }
+                                  text: (row.t.providerLabel || "") + " · " + (row.t.running ? (row.t.stopped ? "stopping…" : "working…") : "done") + (row.t.cost ? " · " + row.t.cost : "") }
                             Btn { text: "Stop"; visible: !!row.t.running && !row.t.stopped; onClicked: root.stop(row.task) }
                             Btn { text: row.t.showSteps ? "Hide steps" : "Show steps (" + (row.t.steps || 0) + ")"; visible: (row.t.steps || 0) > 0
                                   onClicked: root.setTask(row.task, { showSteps: !row.t.showSteps }) }

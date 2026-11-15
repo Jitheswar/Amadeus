@@ -3,6 +3,7 @@ llama.cpp, LM Studio, vLLM, and most other hosted providers."""
 import json
 from .. import config
 from ..attachments import split_result
+from ..agent import user_text
 from . import ProviderError
 from .http import post_json
 
@@ -43,13 +44,16 @@ class OpenAICompat:
             except json.JSONDecodeError:
                 args = {"_invalid_json": c["function"].get("arguments")}
             calls.append({"id": c.get("id") or f"call_{len(calls)}", "name": c["function"]["name"], "args": args})
-        return {"text": msg.get("content") or "", "calls": calls, "raw": None, "stop": "tools" if calls else "end"}
+        u = r.get("usage") or {}
+        usage = {"input": u.get("prompt_tokens") or 0, "cached": (u.get("prompt_tokens_details") or {}).get("cached_tokens") or 0,
+                 "output": u.get("completion_tokens") or 0}
+        return {"text": msg.get("content") or "", "calls": calls, "raw": None, "stop": "tools" if calls else "end", "usage": usage}
 
     def _messages(self, history):
         out = []
         for m in history:
             if m["role"] == "user":
-                out.append({"role": "user", "content": m["text"]})
+                out.append({"role": "user", "content": user_text(m)})
             elif m["role"] == "assistant":
                 a = {"role": "assistant", "content": m.get("text") or None}
                 if m.get("calls"):
