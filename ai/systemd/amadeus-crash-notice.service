@@ -1,0 +1,9 @@
+[Unit]
+Description=Amadeus: report a program crash to its user
+# Started by the crash handler when it finishes. The reporting happens here, outside
+# that handler's sandbox, which does not allow switching to the user.
+OnFailure=
+
+[Service]
+Type=oneshot
+ExecStart=@NOTICE@ --crash

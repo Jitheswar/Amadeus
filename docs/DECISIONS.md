@@ -459,7 +459,9 @@ minute and a history that only grew.
 ## Noticing without a resident watcher
 
 Failed services are reported by a systemd drop-in that adds an on-failure hook to every
-service, and crashes by a step after the system's crash handler. An hourly user timer,
+service, and crashes by a step after the system's crash handler. That step only starts a
+separate reporting service: the handler's sandbox does not allow switching to the user
+whose session should hear about it. An hourly user timer,
 which also runs shortly after login, reads disk space, services that failed before the
 session existed, and the date of the last full update from the package log. The update
 reminder is deliberately a date, not a count of pending packages: counting needs a
