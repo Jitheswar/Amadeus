@@ -53,6 +53,23 @@ def desktop_exec(value):
 
 
 class Commands(unittest.TestCase):
+    def test_login_profile_is_prefilled_and_multiple_profiles_keep_the_last_user(self):
+        import importlib.util
+        from types import SimpleNamespace
+        import tomllib
+        spec = importlib.util.spec_from_file_location("login_profiles", ROOT / "desktop/greeter/profiles.py")
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+        one = SimpleNamespace(pw_name="alice", pw_uid=1000, pw_dir="/home/alice", pw_shell="/bin/bash")
+        two = SimpleNamespace(pw_name="bob", pw_uid=1001, pw_dir="/home/bob", pw_shell="/bin/bash")
+        system = SimpleNamespace(pw_name="greeter", pw_uid=987, pw_dir="/var/lib/greetd", pw_shell="/bin/nologin")
+        state = self.tmp / "greeter/state.toml"
+        self.assertEqual(module.prepare(state, [system, one]), "single")
+        self.assertEqual(tomllib.loads(state.read_text())["last_user"], "alice")
+        self.assertEqual(state.stat().st_mode & 0o777, 0o600)
+        state.write_text('last_user = "bob"\n[user_to_last_sess]\nbob = "Amadeus"\n')
+        self.assertEqual(module.prepare(state, [one, two]), "multi")
+        self.assertEqual(tomllib.loads(state.read_text())["last_user"], "bob")
+
     def test_seeded_package_indexes_fetch_updated_data_instead_of_http_304(self):
         from functools import partial
         from email.utils import formatdate

@@ -8,12 +8,16 @@ command = "uwsm start hyprland-uwsm.desktop"
 user = "$USER_NAME"
 G
 install -m755 /run/amadeus-auto/selftest.sh $T/usr/local/bin/amadeus-selftest
+install -m755 /run/amadeus-auto/ui-check.py $T/usr/local/bin/amadeus-ui-check
 install -m755 /run/amadeus-auto/e2e.py $T/usr/local/bin/amadeus-e2e
 sed -i "s/@USER@/$USER_NAME/" $T/usr/local/bin/amadeus-selftest
 cat >$T/etc/systemd/system/amadeus-selftest.service <<U
 [Unit]
 Description=Amadeus OS first-boot self-test
-After=greetd.service
+DefaultDependencies=no
+After=graphical.target greetd.service
+Before=shutdown.target
+Conflicts=shutdown.target
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/amadeus-selftest

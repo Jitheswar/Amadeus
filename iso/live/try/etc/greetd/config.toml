@@ -2,7 +2,7 @@
 [terminal]
 vt = 1
 [default_session]
-command = "agreety --cmd 'uwsm start hyprland-uwsm.desktop'"
+command = "/usr/lib/amadeus-os/amadeus-greeter"
 user = "greeter"
 [initial_session]
 command = "uwsm start hyprland-uwsm.desktop"

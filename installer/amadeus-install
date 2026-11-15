@@ -195,13 +195,7 @@ mkdir -p $T/etc/systemd/journald.conf.d $T/etc/NetworkManager/conf.d
 printf '[Journal]\nSystemMaxUse=200M\n' >$T/etc/systemd/journald.conf.d/size.conf
 printf '[connection]\nwifi.powersave = 3\n' >$T/etc/NetworkManager/conf.d/wifi-powersave.conf
 
-cat >$T/etc/greetd/config.toml <<G
-[terminal]
-vt = 1
-[default_session]
-command = "tuigreet --time --remember --asterisks --greeting 'Amadeus OS · El Psy Kongroo' --theme 'border=yellow;title=yellow;greet=white;prompt=yellow;input=white;time=gray;action=gray;button=yellow;container=black' --cmd 'uwsm start hyprland-uwsm.desktop'"
-user = "greeter"
-G
+install -m644 $T/usr/share/amadeus-os/greeter/greetd.toml $T/etc/greetd/config.toml
 
 if [[ $NVIDIA == yes ]]; then
   # The card powers down fully when idle and wakes only for apps that ask for it.

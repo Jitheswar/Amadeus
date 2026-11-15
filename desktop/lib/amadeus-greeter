@@ -1,0 +1,17 @@
+#!/bin/bash
+# Start the graphical Amadeus login screen, outside the user's desktop and GPU preferences.
+set -euo pipefail
+share=/usr/share/amadeus-os/greeter
+config=$share/regreet.toml
+style=$share/regreet.css
+profile_mode=$(python3 "$share/profiles.py" /var/lib/regreet/state.toml)
+[[ $profile_mode == single ]] && config=$share/regreet-auto.toml
+[[ -r /etc/greetd/amadeus.toml ]] && config=/etc/greetd/amadeus.toml
+[[ -r /etc/greetd/amadeus.css ]] && style=/etc/greetd/amadeus.css
+[[ -e /run/amadeus-try ]] && config=$share/try.toml
+# Use the integrated GPU for the greeter even after a user's NVIDIA session exits.
+[[ -e /dev/dri/intel-card ]] && export WLR_DRM_DEVICES=/dev/dri/intel-card
+# Override only the session entries: Amadeus must go through UWSM to load GPU choices.
+export XDG_DATA_DIRS=$share:/usr/local/share:/usr/share
+export GTK_USE_PORTAL=0 GDK_DEBUG=no-portals
+exec dbus-run-session cage -s -mlast -d -- regreet --config "$config" --style "$style"

@@ -13,6 +13,8 @@ discovery output rather than this roadmap.
   remain independent user choices.
 - A Hyprland desktop with a shared shell, cross-menu app/settings search, filtered app
   and audio-device lists, unified text sizing, capture tools and configurable defaults.
+- A graphical login with account preselection, a profile dropdown when needed, and
+  password-free graphical return to the Try session after logout.
 - Guided and unattended installation, a temporary Try session, an optional extras choice,
   signed offline packages for the target CPU, and package-index snapshots that refresh
   correctly on the first network sync.

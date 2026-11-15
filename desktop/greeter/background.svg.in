@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <radialGradient id="glow"><stop stop-color="@accent@" stop-opacity=".13"/><stop offset="1" stop-color="@bg@" stop-opacity="0"/></radialGradient>
+    <linearGradient id="line"><stop stop-color="@accent@" stop-opacity="0"/><stop offset=".5" stop-color="@accent@" stop-opacity=".25"/><stop offset="1" stop-color="@accent@" stop-opacity="0"/></linearGradient>
+  </defs>
+  <path fill="@bg@" d="M0 0h1920v1080H0z"/>
+  <ellipse cx="1540" cy="820" rx="950" ry="800" fill="url(#glow)"/>
+  <ellipse cx="260" cy="200" rx="750" ry="650" fill="url(#glow)" opacity=".45"/>
+  <g fill="none" stroke="@accent@" stroke-opacity=".085">
+    <circle cx="1560" cy="800" r="370"/><circle cx="1560" cy="800" r="425"/><circle cx="1560" cy="800" r="590"/>
+    <path d="M-70 190 780 1040M-15 135 835 985M40 80 890 930"/>
+  </g>
+  <path d="M510 890h900" stroke="url(#line)"/>
+  <text x="960" y="945" text-anchor="middle" fill="@fg@" font-family="@font@" font-size="32" letter-spacing="8">AMADEUS OS</text>
+  <text x="960" y="980" text-anchor="middle" fill="@accent@" font-family="@mono@" font-size="15" letter-spacing="2">El Psy Kongroo</text>
+</svg>

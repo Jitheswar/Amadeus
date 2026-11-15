@@ -285,7 +285,7 @@ while root mode is on and is gone at shutdown.
 | Document viewer | Papers | Maintained GTK4 successor to Evince |
 | Image viewer | imv | Tiny, keyboard-driven, Wayland-native |
 | Camera | Snapshot | Uses PipeWire/libcamera; the older choices (Cheese, guvcview) do not |
-| Login | greetd + tuigreet | No display-manager stack |
+| Login | greetd + ReGreet on Cage | Native graphical profile/password selection with greetd/PAM retained |
 | Lock and idle | swaylock, swayidle | Compositor-independent |
 | Audio | PipeWire + WirePlumber | Required by screen sharing and Bluetooth audio |
 | Power | power-profiles-daemon + thermald | Uses the Intel driver's own hints; over TLP, which fights it |
@@ -348,3 +348,20 @@ The SquashFS build is restricted to the root filesystem. A temporary system moun
 that survives build-tool cleanup must remain an empty mount directory in the image.
 This avoids reading host sysfs data or other mounted pseudo-filesystems into the ISO.
 The mounted-filesystem fixture and final archive inspection verified that behavior.
+
+## Graphical login
+
+[ReGreet](https://github.com/rharish101/ReGreet), supplied by the
+[official Arch package](https://archlinux.org/packages/extra/x86_64/greetd-regreet/),
+replaces tuigreet. Cage hosts this GTK greeter outside the user compositor, so logout
+and a rejected GPU session do not depend on the user's Hyprland configuration to display
+a login form. greetd/PAM continues to authenticate. A single profile starts at password
+entry; multiple profiles retain the upstream account dropdown and remember the last
+choice. The Try account has an explicit password-free login screen after logout.
+
+The artwork and GTK style are rendered from the desktop palette at package build time.
+Administrator overrides have separate files. Cage and ReGreet run only on the login
+screen, not during the desktop session. ReGreet uses the D-Bus-activated AccountsService
+to enumerate profiles; its actual idle memory needs measurement. This adds a graphical
+compositor and GTK greeter in exchange for accessible native controls and maintained
+authentication, avoiding a custom password-handling UI.

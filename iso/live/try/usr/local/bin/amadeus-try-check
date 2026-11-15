@@ -9,6 +9,7 @@ for _ in $(seq 30); do [[ -n $(pacman -Slq 2>/dev/null) ]] && break; sleep 2; do
 sleep 10
 mkdir -p /mnt/try && mount /dev/disk/by-label/AMADEUSTRY /mnt/try
 {
+  python3 /mnt/try/ui-check.py try
   up && echo "TRY-OK" || echo "TRY-FAILED"
   echo "hyprland: $(pgrep -x Hyprland >/dev/null && echo running || echo missing)"
   echo "shell: $(pgrep -af 'quickshell -p /usr/share/amadeus-os/shell' | grep -c quickshell)"

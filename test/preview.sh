@@ -80,6 +80,32 @@ PY
   ama panel state >"$OUT/large-text-panel.json"
   python3 -c 'import json,sys; assert all(json.load(open(p))["fontSize"] == 20 for p in sys.argv[1:])' "$OUT/large-text-shell.json" "$OUT/large-text-panel.json" || return 1
   tail -3 /tmp/shell.log
+  ama panel hide
+  quickshell ipc -p /usr/share/amadeus-os/shell call shell popover "" 0
+  pkill -f '^quickshell -p /usr/share/amadeus-os/shell$'
+  mkdir -p /run/dbus
+  dbus-uuidgen --ensure=/etc/machine-id
+  dbus-daemon --system --fork
+  /usr/lib/accounts-daemon >"$OUT/accounts.log" 2>&1 &
+  sleep 0.5
+  # The same GTK/Cage greeter as a real login, with upstream's non-authenticating demo mode.
+  python3 /src/desktop/greeter/render-theme.py /src/desktop/theme/theme.json /usr/share/amadeus-os/greeter
+  mkdir -p /var/lib/regreet
+  python3 /src/desktop/greeter/profiles.py /var/lib/regreet/state.toml
+  mkdir -p /usr/share/amadeus-os/greeter/wayland-sessions
+  cp /src/desktop/greeter/wayland-sessions/*.desktop /usr/share/amadeus-os/greeter/wayland-sessions/
+  WLR_BACKENDS=wayland GTK_USE_PORTAL=0 GDK_DEBUG=no-portals XDG_DATA_DIRS=/usr/share/amadeus-os/greeter:/usr/share cage -d -- regreet --demo --verbose --config /usr/share/amadeus-os/greeter/regreet.toml --style /usr/share/amadeus-os/greeter/regreet.css >"$OUT/greeter.log" 2>&1 &
+  greeter=$!
+  sleep 3; kill -0 "$greeter" && pgrep -x regreet >/dev/null || return 1
+  shot 15-login 0.5
+  kill "$greeter"; wait "$greeter" 2>/dev/null
+  WLR_BACKENDS=wayland GTK_USE_PORTAL=0 GDK_DEBUG=no-portals XDG_DATA_DIRS=/usr/share/amadeus-os/greeter:/usr/share cage -d -- regreet --demo --verbose --config /usr/share/amadeus-os/greeter/try.toml --style /usr/share/amadeus-os/greeter/regreet.css >"$OUT/try-greeter.log" 2>&1 &
+  greeter=$!
+  sleep 3; kill -0 "$greeter" && pgrep -x regreet >/dev/null || return 1
+  shot 16-try-login 0.5
+  kill "$greeter"; wait "$greeter" 2>/dev/null
+  if grep -iE "(panicked|theme pars(er|ing) error|could not load|failed to load (css|background))" "$OUT/greeter.log" "$OUT/try-greeter.log"; then return 1; fi
+  return 0
 }
 export -f shot run; export OUT
 dbus-run-session -- bash -c 'sway -c /tmp/sway.conf >/tmp/sway.log 2>&1 & sleep 1; run; rc=$?; grep -iE "error|warn" /tmp/shell.log | head -8; pkill sway; exit $rc'

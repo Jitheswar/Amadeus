@@ -168,6 +168,8 @@ free -m | sed -n 2p | awk '{print "memory used after login: " $3 " MB"}'
 pacman -Qq | wc -l | awk '{print "packages installed: " $1}'
 df -h / | tail -1 | awk '{print "disk used: " $3}'
 
+t "logout uses the graphical greeter and authenticates before restarting the desktop" python3 /usr/local/bin/amadeus-ui-check installed
+
 echo "--- rollback from the running system"
 printf x >>/.bootbackup/vmlinuz-linux-cachyos   # a stale saved kernel, to exercise the repair path
 snapper -c root create -d "rollback-test"

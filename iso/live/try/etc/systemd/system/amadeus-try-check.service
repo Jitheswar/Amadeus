@@ -1,7 +1,11 @@
 [Unit]
 Description=Amadeus OS: report on the try session (only with a test disk attached)
 ConditionPathExists=/dev/disk/by-label/AMADEUSTRY
-After=greetd.service
+# This observer must not hold multi-user.target open while UWSM waits for graphical.target.
+DefaultDependencies=no
+After=graphical.target greetd.service
+Before=shutdown.target
+Conflicts=shutdown.target
 
 [Service]
 Type=oneshot

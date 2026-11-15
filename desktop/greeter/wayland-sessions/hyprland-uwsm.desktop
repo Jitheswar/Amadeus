@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Amadeus
+Comment=Amadeus OS desktop
+Exec=uwsm start hyprland-uwsm.desktop
+Type=Application
+DesktopNames=Hyprland

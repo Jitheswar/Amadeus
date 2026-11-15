@@ -2,7 +2,7 @@
 """End-to-end test of the ISO in QEMU/KVM (runs inside the builder container).
 Phase 1 boots the ISO through UEFI and lets it install unattended onto an empty disk.
 Phase 2 boots that disk, unlocks it, logs into the desktop and runs the self-test."""
-import glob, os, select, shutil, subprocess, sys, time
+import glob, json, os, re, select, shutil, socket, subprocess, sys, time
 
 OUT, SRC = "/out", "/src/test"
 VM = f"{OUT}/vm"
@@ -19,11 +19,38 @@ BASE = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35", "-cpu", "host", 
         "-drive", f"file={disk},if=virtio,format=qcow2,discard=unmap",
         "-drive", f"file={auto},if=virtio,format=raw",
         "-netdev", "user,id=n0", "-device", "virtio-net-pci,netdev=n0",
-        "-monitor", "none", "-serial", "stdio", "-no-reboot"]
+        "-monitor", "none", "-qmp", f"unix:{VM}/qmp.sock,server=on,wait=off", "-device", "qemu-xhci", "-device", "usb-tablet", "-serial", "stdio", "-no-reboot"]
 # The compositor needs 3D acceleration. Use an Intel render node from the machine running the test when there is one.
 node = next((f"/dev/dri/{os.path.basename(r)}" for r in sorted(glob.glob("/sys/class/drm/renderD*"))
              if open(f"{r}/device/vendor").read().strip() == "0x8086"), None)
 BASE += ["-device", "virtio-vga-gl", "-display", f"egl-headless,rendernode={node}"] if node else ["-device", "virtio-vga", "-display", "none"]
+
+
+def qmp_input(action):
+    """Only fixed test input, never guest-provided host commands or paths."""
+    with socket.socket(socket.AF_UNIX) as connection:
+        connection.settimeout(5)
+        connection.connect(f"{VM}/qmp.sock")
+        stream = connection.makefile("rwb", buffering=0)
+        stream.readline()
+        def command(name, arguments=None):
+            stream.write((json.dumps({"execute": name, "arguments": arguments or {}, "id": "ui"}) + "\n").encode())
+            while True:
+                reply = json.loads(stream.readline())
+                if reply.get("id") == "ui":
+                    if "error" in reply: raise RuntimeError(reply["error"])
+                    return reply.get("return")
+        command("qmp_capabilities")
+        def key(name):
+            command("send-key", {"keys": [{"type": "qcode", "data": name}], "hold-time": 60})
+            time.sleep(0.12)
+        def text(value):
+            for char in value: key("minus" if char == "-" else char)
+        if action in ("login-try", "login-installed", "wrong-login", "wrong-login-auto"):
+            if action != "wrong-login-auto": key("ret")
+            time.sleep(0.7)
+            if action != "login-try": text("wrong-password" if action.startswith("wrong-login") else PASSWORD)
+            key("ret")
 
 
 def run(cmd, log, timeout, feed=None, until=None):
@@ -31,12 +58,22 @@ def run(cmd, log, timeout, feed=None, until=None):
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     os.set_blocking(p.stdout.fileno(), False)
     buf, t0, fed = b"", time.time(), False
+    ui_seen = set()
     with open(log, "wb") as f:
         while p.poll() is None and time.time() - t0 < timeout:
             if select.select([p.stdout], [], [], 2)[0]:
                 chunk = p.stdout.read() or b""
                 f.write(chunk); f.flush()
                 buf = (buf + chunk)[-4000:]
+                for action in re.findall(rb"AMADEUS-UI ([a-z-]+)[\r\n]", buf):
+                    action = action.decode()
+                    if action not in ui_seen:
+                        ui_seen.add(action)
+                        try:
+                            qmp_input(action)
+                        except Exception:
+                            p.kill(); p.wait(timeout=5)
+                            raise
                 if feed and not fed and feed[0].encode() in buf:
                     time.sleep(1)
                     p.stdin.write((feed[1] + "\n").encode()); p.stdin.flush()
@@ -76,6 +113,7 @@ if phase in ("all", "try"):
         os.remove(trydisk)
     subprocess.run(["truncate", "-s", "64M", trydisk], check=True)
     subprocess.run(["mkfs.fat", "-n", "AMADEUSTRY", trydisk], check=True, capture_output=True)
+    subprocess.run(["mcopy", "-i", trydisk, f"{SRC}/ui-check.py", "::"], check=True)
     shutil.copy("/usr/share/edk2/x64/OVMF_VARS.4m.fd", tryvars)
     trycmd, i = [], 0
     while i < len(BASE):
@@ -88,6 +126,7 @@ if phase in ("all", "try"):
     run(trycmd, f"{VM}/try-serial.log", 900)
     log = take_from(trydisk, "try.log")
     take_from(trydisk, "try.png")
+    take_from(trydisk, "greeter-try.png")
     print(log[:1500] or "the try session never reported", flush=True)
     if "TRY-OK" not in log:
         sys.exit(1)
@@ -95,7 +134,7 @@ if phase in ("all", "try"):
         print("the try boot reported failed dependencies", flush=True)
         sys.exit(1)
     # The terminal, the Install menu and sound are what the try session is judged on first.
-    for good in ("foot config: ok", "sound: active active active ", "aur build tools: 2"):
+    for good in ("GUI: logout and graphical login passed (try)", "foot config: ok", "sound: active active active ", "aur build tools: 2"):
         if good not in log:
             print(f"the try session reported '{good}' missing", flush=True)
             sys.exit(1)
@@ -127,7 +166,7 @@ EXTRA_CMDLINE="console=tty0 console=ttyS0,115200"
 POST_HOOK=/run/amadeus-auto/posthook.sh
 """
     open(f"{VM}/answers.conf", "w").write(answers)
-    for src in (f"{VM}/answers.conf", f"{SRC}/posthook.sh", f"{SRC}/selftest.sh", f"{SRC}/e2e.py"):
+    for src in (f"{VM}/answers.conf", f"{SRC}/posthook.sh", f"{SRC}/selftest.sh", f"{SRC}/e2e.py", f"{SRC}/ui-check.py"):
         subprocess.run(["mcopy", "-i", auto, src, "::"], check=True)
     # The install runs with no way out to the internet: everything must come from the ISO.
     cmd = [x.replace("user,id=n0", "user,id=n0,restrict=on") for x in BASE] + ["-cdrom", iso]
@@ -167,7 +206,7 @@ if phase in ("all", "boot"):
     for name in ("stage", "rescue.conf", "rescue.log", "selftest-1.log", "selftest-2.log", "selftest-3.log", "desktop.png", "journal-warnings.log"):
         subprocess.run(["mdel", "-i", auto, f"::{name}"], capture_output=True)
     boot_disk(1, "first boot of the installed system")
-    take("desktop.png"); take("journal-warnings.log")
+    take("desktop.png"); take("journal-warnings.log"); take("greeter-installed.png")
     boot_disk(2, "boot after a rollback made from the running system")
 
     print("phase 4: rollback from the ISO ...", flush=True)

@@ -81,6 +81,21 @@ require a new login because the compositor selects its rendering device at start
 The audio picker tracks ready PipeWire endpoints and checks the complete source/sink type.
 Application streams, monitors and virtual nodes are filtered from its device choices.
 
+## Login and session transitions
+
+The installed system starts greetd with a ReGreet/Cage graphical greeter. UWSM starts the
+selected Amadeus session and applies the user's session GPU preference. Greeter-only
+session entries route back through UWSM without changing the user's desktop-entry search
+path. The greeter uses integrated graphics when available, independently of a user's
+selected session GPU. No installed account is automatically authenticated.
+
+A private ReGreet cache stores account and session names, never passwords. Regular login
+profiles under the home directory are preselected; one profile skips directly to password
+entry, while multiple profiles retain the dropdown. The live session has its own first
+automatic login and a graphical password-free return after logout. Palette-generated
+assets ship under the system data directory; separate administrator overrides preserve
+the package's defaults.
+
 ## Generated applications
 
 An app has QML sources, a manifest, private data and source-version history under the

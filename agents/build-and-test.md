@@ -39,6 +39,10 @@ self-test that runs inside the installed system.
 - **`./build.sh preview` shows what the shell looks like**, not how windows behave: it
   runs in a stand-in compositor with a scripted model. Motion can only be judged on a
   real session.
+- **Session transitions need real input.** The VM uses a QMP keyboard to test
+  graphical logout/login and wrong-password rejection. Capture the actual greeter
+  through its compositor. Test observers must run after graphical.target without
+  delaying that target themselves.
 - **The VM test starts with the try session**: the ISO boots its default entry with a
   small disk labelled AMADEUSTRY attached, and `iso/live/try/usr/local/bin/amadeus-try-check`
   reports onto it whether the desktop, the shell and Amadeus came up.

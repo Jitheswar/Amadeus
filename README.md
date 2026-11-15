@@ -151,6 +151,13 @@ starts a temporary desktop in memory without installing to an internal disk. Cha
 are lost on shutdown. The live medium uses Arch's kernel, so its hardware behavior does
 not establish that of the installed CachyOS kernel.
 
+Lock, logout and login are available from the desktop's power controls. Login uses a
+native graphical screen: one installed profile is preselected with password entry ready;
+multiple profiles show a dropdown with the last-used profile selected. No username typing
+is needed. Try starts automatically and returns to the graphical screen after logout;
+select **Amadeus**, then **Login**, with no password. Normal installs use the password
+chosen during setup. Profile selection never stores or bypasses a password.
+
 Choose **Install Amadeus OS** for the guided flow. It asks for identity, network and
 storage choices, then the optional extras selection. Nothing is installed onto the
 selected system disk until its name is typed at the final summary. The target machine's
