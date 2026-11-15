@@ -126,8 +126,8 @@ ShellRoot {
     readonly property bool usageLoading: readUsage.running
 
     // ---- bar layout: ~/.config/amadeus/bar.json lists widget ids for left, center and right
-    property var layout: ({ left: ["title"], center: ["sudo", "awake", "clock", "weather"],
-                            right: ["record", "gpu", "tray", "bluetooth", "network", "volume", "display", "agents", "battery", "power", "amadeus"] })
+    property var layout: ({ left: ["title"], center: ["clock", "weather"],
+                            right: ["record", "gpu", "tray", "sudo", "awake", "bluetooth", "network", "volume", "display", "agents", "battery", "power", "amadeus"] })
     FileView {
         path: Quickshell.env("HOME") + "/.config/amadeus/bar.json"
         watchChanges: true
@@ -362,14 +362,14 @@ ShellRoot {
         Tool { shown: root.hasBattery; icon: !root.demo && !UPower.onBattery ? "bolt" : "battery"; reading: root.batteryPct + "%"; panel: "power"; alert: root.lowBattery } }
     Component { id: wPower; Tool { shown: !root.hasBattery; icon: "power"; panel: "power" } }
     Component { id: wAmadeus
-        Rectangle { id: chip; width: row.implicitWidth + 20; height: 26; radius: 13
-            color: over.containsMouse ? root.accent : "transparent"; border.color: root.accent; border.width: 1
+        Rectangle { id: chip; width: row.implicitWidth + 16; height: 28; radius: 8
+            color: over.containsMouse ? root.raised : "transparent"
             scale: over.pressed ? 0.96 : 1
             Behavior on color { ColorAnimation { duration: root.fast } }
             Behavior on scale { NumberAnimation { duration: 80 } }
             Row { id: row; anchors.centerIn: parent; spacing: 7
-                Rectangle { width: 6; height: 6; radius: 3; anchors.verticalCenter: parent.verticalCenter; color: over.containsMouse ? root.bg : root.accent }
-                Label { text: "Amadeus"; font.weight: Font.Medium; color: over.containsMouse ? root.bg : root.accent } }
+                Rectangle { width: 6; height: 6; radius: 3; anchors.verticalCenter: parent.verticalCenter; color: root.accent }
+                Label { text: "Amadeus"; font.weight: Font.Medium } }
             MouseArea { id: over; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.run(["ama", "panel"]) } } }
     readonly property var widgets: ({ workspaces: wWorkspaces, record: wRecord, title: wTitle, sudo: wSudo, awake: wAwake, clock: wClock, weather: wWeather, gpu: wGpu,
                                       tray: wTray, bluetooth: wBluetooth, network: wNetwork, volume: wVolume, display: wDisplay, agents: wAgents,
@@ -385,24 +385,23 @@ ShellRoot {
 
     Variants {
         model: Quickshell.screens
-        // A floating bar: it sits a few pixels in from the screen edges, like the windows below it.
+        // The bar is the top edge of the desktop, not a box on it: no outline and no gap above,
+        // so only its contents draw the eye.
         PanelWindow {
             id: barWindow
             required property var modelData
             screen: modelData
             anchors { top: true; left: true; right: true }
-            implicitHeight: 46
+            implicitHeight: 36
             color: "transparent"
             // Stay awake: while on, the screen does not dim, lock or sleep by itself.
             IdleInhibitor { window: barWindow; enabled: root.awake }
             Rectangle {
-                anchors { fill: parent; topMargin: 8; leftMargin: 10; rightMargin: 10 }
-                radius: root.radius
-                color: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, 0.94)
-                border.color: root.line; border.width: 1
-                Section { ids: root.layout.left; spacing: 14; anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter } }
+                anchors.fill: parent
+                color: root.bg
+                Section { ids: root.layout.left; spacing: 14; anchors { left: parent.left; leftMargin: 18; verticalCenter: parent.verticalCenter } }
                 Section { ids: root.layout.center; anchors.centerIn: parent }
-                Section { ids: root.layout.right; anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter } }
+                Section { ids: root.layout.right; anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter } }
             }
         }
     }

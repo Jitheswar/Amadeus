@@ -3,8 +3,6 @@
     "title"
   ],
   "center": [
-    "sudo",
-    "awake",
     "clock",
     "weather"
   ],
@@ -12,6 +10,8 @@
     "record",
     "gpu",
     "tray",
+    "sudo",
+    "awake",
     "bluetooth",
     "network",
     "volume",
