@@ -26,3 +26,18 @@ def memory_forget(a, ctx):
         return f"Forgot: {memory.forget(int(a['number']))}"
     except (ValueError, TypeError) as e:
         raise ToolError(str(e))
+
+
+@tool("goal_update", "Only while working on a goal: report this round once before stopping. status is progress (what you did and what "
+      "comes next), blocked (one question for the user) or finished (a summary).",
+      {"status": {"type": "string", "enum": ["progress", "blocked", "finished"]}, "note": {"type": "string"}}, required=("status", "note"))
+def goal_update(a, ctx):
+    import re
+    from .. import goals
+    match = re.fullmatch(r"goal-([a-z0-9]+)-\d+", ctx.session or "")
+    if not match:
+        raise ToolError("there is no goal in this request")
+    try:
+        return "Recorded: " + goals.update(match[1], a["status"], a["note"])
+    except ValueError as e:
+        raise ToolError(str(e))

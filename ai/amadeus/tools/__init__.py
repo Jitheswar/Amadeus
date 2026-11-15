@@ -49,7 +49,7 @@ def load_all():
 # tool_call, so a request does not carry every definition and the list stays byte-stable
 # for prompt caching. Keep this to what most requests need.
 CORE = ("system_guide", "system_discover", "tool_find", "sys_status", "fs_list", "fs_read", "fs_search", "fs_write", "fs_edit",
-        "shell_run", "os_menu", "desktop_settings", "desktop_launch", "memory_save")
+        "shell_run", "os_menu", "desktop_settings", "desktop_launch", "memory_save", "goal_update")
 TOOL_CALL = {"name": "tool_call", "description": "Run a tool that tool_find returned. It passes the same permission policy, approval and audit "
              "as a listed tool; args must follow that tool's schema.",
              "schema": {"type": "object", "properties": {"name": {"type": "string"}, "args": {"type": "object"}}, "required": ["name"]}}

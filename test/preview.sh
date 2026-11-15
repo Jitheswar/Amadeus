@@ -80,6 +80,10 @@ PY
   ama panel ask "Why is the fan loud?"; sleep 2.5
   ama panel ask "Tidy the Downloads folder E2E:slow"
   shot 4-panel 1.5
+  # A goal runs in the background and shows in Tasks, done only after its own check.
+  ama goal "E2E:goal Keep my Downloads folder tidy" >/dev/null; sleep 3
+  ama goal list | grep -q "done .*round 3" || { ama goal list; return 1; }
+  ama panel tasks; shot 21-goals 1.0
   # Modes: a saved one sticks, full access only arms the confirmation.
   quickshell ipc -p /src/ai/shell/panel.qml call panel mode auto; sleep 0.6
   quickshell ipc -p /src/ai/shell/panel.qml call panel mode full

@@ -130,6 +130,13 @@ calls only. Denials, destructive and privileged prompts, screen consent and the
 capabilities that govern the AI's own permissions are decided by the policy alone in
 every mode, and automations and generated apps always run under the plain policy.
 
+A goal is a record on disk and a series of ordinary requests. Each round is a new
+session that receives the goal and its notes, works through the same enforcement point
+under the mode chosen at the start, and reports once through a tool that can only write
+to its own goal. The runner, not the model, decides what follows: more work, a question
+for the user, or a separate checking round before the goal is marked done. Because the
+state is the record, a restarted daemon resumes working goals from their notes.
+
 System events reach the same daemon. systemd reports a failed user or system service
 through an on-failure hook, and an hourly timer reports a nearly full disk. An enabled
 task bound to the event runs; otherwise the daemon offers a notification whose single

@@ -12,6 +12,7 @@ ShellRoot {
     property bool settingsOpen: false
     property bool tasksOpen: false
     property var savedTasks: []
+    property var goals: []
     property string taskMessage: ""
     property var providerOptions: []
     property string defaultProvider: ""
@@ -56,7 +57,20 @@ ShellRoot {
         requests[id] = { kind: method === "tasks" ? "tasks" : "taskConfig" }
         byRequest = requests
     }
-    function refreshTasks() { if (sock.connected) taskRequest("tasks", {}) }
+    function goalRequest(method, params) {
+        const id = send(method, params || {})
+        const requests = Object.assign({}, byRequest)
+        requests[id] = { kind: "goals" }
+        byRequest = requests
+    }
+    // A goal is worked on in the background, round by round, and reports in Tasks.
+    function startGoal() {
+        const q = input.text.trim()
+        if (!sock.connected || !q) return
+        goalRequest("goal_start", { text: q, provider: providerOverride ? selectedProvider : "", mode: mode === "full" ? savedMode : mode })
+        input.text = ""; tasksOpen = true; settingsOpen = false
+    }
+    function refreshTasks() { if (sock.connected) { taskRequest("tasks", {}); goalRequest("goals", {}) } }
     function runSavedTask(job) {
         const t = nextTask++
         current = t; tasksOpen = false; settingsOpen = false; about = null
@@ -148,6 +162,11 @@ ShellRoot {
             }
             return
         }
+        if (r.kind === "goals") {
+            if (m.error) taskMessage = m.error
+            else if (m.result !== undefined) { goals = m.result; taskMessage = "" }
+            return
+        }
         if (r.kind === "tasks" || r.kind === "taskConfig") {
             if (m.error) taskMessage = m.error
             else if (m.result !== undefined) {
@@ -214,7 +233,7 @@ ShellRoot {
         // Full access cannot be chosen from outside: it is confirmed in the panel.
         function mode(name: string): void { root.chooseMode(name) }
         function state(): string { return JSON.stringify({ open: root.open, tasks: root.nextTask, running: root.running, connected: sock.connected,
-            fontSize: Theme.size, provider: root.selectedProvider, mode: root.mode, savedMode: root.savedMode, confirmFull: root.confirmFull, tune: root.tune, defaultProvider: root.defaultProvider, settings: root.settingsOpen, taskSettings: root.tasksOpen, context: root.about }) }
+            fontSize: Theme.size, goals: root.goals.length, provider: root.selectedProvider, mode: root.mode, savedMode: root.savedMode, confirmFull: root.confirmFull, tune: root.tune, defaultProvider: root.defaultProvider, settings: root.settingsOpen, taskSettings: root.tasksOpen, context: root.about }) }
     }
     ListModel { id: log }
 
@@ -285,7 +304,9 @@ ShellRoot {
             Tasks {
                 visible: root.tasksOpen
                 anchors { left: parent.left; right: parent.right; top: agentLine.bottom; bottom: parent.bottom; topMargin: Theme.gap }
-                jobs: root.savedTasks; providers: root.providerOptions; message: root.taskMessage
+                jobs: root.savedTasks; goals: root.goals; providers: root.providerOptions; message: root.taskMessage
+                onGoalStop: id => root.goalRequest("goal_stop", {id: id})
+                onGoalAnswer: (id, text) => root.goalRequest("goal_answer", {id: id, text: text})
                 onRefresh: root.refreshTasks()
                 onManage: args => root.taskRequest("tool", {name: "task_manage", args: args})
                 onRunTask: job => root.runSavedTask(job)
@@ -415,11 +436,12 @@ ShellRoot {
                     spacing: Theme.gap * 0.6
                     Field {
                         id: input
-                        width: parent.width - newBtn.width - Theme.gap * 0.6
+                        width: parent.width - newBtn.width - goalBtn.width - Theme.gap * 1.2
                         placeholder: root.current >= 0 && root.tasks[root.current] && !root.tasks[root.current].running ? "Continue, or New for another task" : "What should the system do?"
                         onAccepted: root.submit(false)
                         Keys.onEscapePressed: root.open = false
                     }
+                    Btn { id: goalBtn; text: "Goal"; onClicked: root.startGoal() }
                     Btn { id: newBtn; text: "New"; onClicked: root.submit(true) }
                 }
             }

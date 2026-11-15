@@ -63,6 +63,12 @@ not style.
     that varies per request goes into the system prompt or the tool list. Memory is
     capped, user-readable, guarded in every mode and presented to a model as background.
 
+15. **A goal is ordinary requests in a loop.** Each round passes the enforcement point
+    under the mode chosen at the start; a goal never gets full access, a persisted
+    approval or root. The runner in `ai/amadeus/goals.py` decides the next state from one
+    report per round, a finish counts only after a separate checking round, and every
+    path ends in done, stopped, failed or a question for the user. Notes are capped.
+
 ## Adding a tool
 
 Register it with the `tool` decorator in `ai/amadeus/tools/__init__.py`, in the module

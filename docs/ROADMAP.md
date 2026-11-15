@@ -17,6 +17,8 @@ discovery output rather than this roadmap.
 - Topic guides an agent pulls up per area, alongside live discovery.
 - Requests that carry a short fixed tool list with the rest found on demand, a cacheable
   prompt, bounded history, token reporting and a small user-editable memory.
+- Goals worked in the background in rounds, checked before they count as done, resumed
+  after a restart and handed back when they need a decision.
 - Notices for failed services, crashed programs, a nearly full disk and overdue updates,
   offered as one-click requests, and
   a per-task grant for unasked reversible changes that only the user can set.
@@ -66,7 +68,7 @@ by the full VM suite. Signature verification remained enabled.
 
 ## Planned work
 
-- Goals that run to completion in the background: plan, work, verify, and resume after a restart.
+- One undo for everything a goal changed, and a visible mark on windows a goal is using.
 - Noticing a boot that needed a rollback, which needs a marker the rollback tool does not yet leave.
 - Snapshot selection from the boot menu.
 - An explicit offline local-model fallback suited to the target machine's memory.

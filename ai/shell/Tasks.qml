@@ -14,6 +14,9 @@ Flickable {
     signal runTask(var job)
     signal stopTask(string session)
     signal grant(string id, bool on)
+    signal goalStop(string id)
+    signal goalAnswer(string id, string text)
+    property var goals: []
     signal close()
     clip: true
     contentHeight: body.height
@@ -30,6 +33,36 @@ Flickable {
         }
         Txt { width: parent.width; dim: true; text: "Scheduled and event-triggered work runs only when enabled. Changes still need your approval. Nothing is captured continuously." }
         Txt { width: parent.width; text: root.formError || root.message; visible: !!text; color: Theme.warn }
+        Txt { text: "Goals"; label: true; visible: root.goals.length > 0 }
+        Repeater {
+            model: root.goals
+            Card {
+                id: goalCard
+                required property var modelData
+                readonly property bool open: modelData.state === "working" || modelData.state === "waiting"
+                width: body.width
+                implicitHeight: goalBody.height + Theme.gap * 2
+                Column {
+                    id: goalBody
+                    anchors { left: parent.left; right: parent.right; top: parent.top }
+                    spacing: Theme.gap * 0.6
+                    Txt { width: parent.width; text: goalCard.modelData.text; font.weight: Font.DemiBold }
+                    Txt { width: parent.width; dim: true
+                          text: ({working: "Working", waiting: "Waiting for you", done: "Done and checked", failed: "Could not continue", stopped: "Stopped"})[goalCard.modelData.state]
+                                + " · round " + goalCard.modelData.rounds + " · " + goalCard.modelData.mode }
+                    Txt { width: parent.width; visible: text !== ""; color: goalCard.modelData.state === "waiting" ? Theme.warn : Theme.fg
+                          text: goalCard.modelData.question || (goalCard.modelData.notes.length ? goalCard.modelData.notes[goalCard.modelData.notes.length - 1] : "") }
+                    Field { id: reply; width: parent.width; visible: goalCard.modelData.state === "waiting"; placeholder: "Answer, or leave blank to continue"
+                            onAccepted: { root.goalAnswer(goalCard.modelData.id, reply.text); reply.text = "" } }
+                    Row { spacing: Theme.gap * 0.5; visible: goalCard.open
+                        Btn { text: "Continue"; primary: true; visible: goalCard.modelData.state === "waiting"
+                              onClicked: { root.goalAnswer(goalCard.modelData.id, reply.text); reply.text = "" } }
+                        Btn { text: "Stop"; onClicked: root.goalStop(goalCard.modelData.id) }
+                    }
+                }
+            }
+        }
+        Txt { text: "Scheduled and triggered"; label: true; visible: root.goals.length > 0 }
         Repeater {
             model: root.jobs
             Card {

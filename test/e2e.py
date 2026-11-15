@@ -50,6 +50,12 @@ class Model(BaseHTTPRequestHandler):
             else:
                 name, args = None, None
             msg = {"role":"assistant", "content":"done visual"} if name is None else {"role":"assistant", "content":None, "tool_calls":[{"id":"visual-"+str(len(results)), "type":"function", "function":{"name":name, "arguments":json.dumps(args)}}]}
+        elif scenario == "goal" and not answered:
+            # A goal runs as separate requests: the first works, the second claims the finish, the third checks it.
+            status, note = (("finished", "checked the result") if "Check it independently" in text else
+                            ("progress", "did the first part") if "(none yet)" in text else ("finished", "did the rest"))
+            msg = {"role": "assistant", "content": None, "tool_calls": [{"id": "g1", "type": "function", "function": {
+                "name": "goal_update", "arguments": json.dumps({"status": status, "note": note})}}]}
         elif answered:
             msg = {"role": "assistant", "content": f"done {scenario}"}
         else:
@@ -230,6 +236,15 @@ def main():
             check("screen input asks approval separately from observation", len([e for e in ev if e["event"] == "approval"]) == 2, ev)
         finally:
             input_app.terminate(); input_app.wait(timeout=5); target.unlink(missing_ok=True)
+
+        started = c.call("goal_start", text="E2E:goal tidy", mode="ask")
+        goal = {}
+        for _ in range(60):
+            goal = next((g for g in c.call("goals") if g["id"] == started[0]["id"]), {})
+            if goal.get("state") != "working": break
+            time.sleep(0.5)
+        check("a goal is worked in rounds and counts as done only after its check",
+              (goal.get("state"), goal.get("rounds"), goal.get("notes")) == ("done", 3, ["did the first part", "did the rest", "checked the result"]), goal)
 
         activity = json.loads((Path(os.environ["XDG_RUNTIME_DIR"])/"amadeus/activity.json").read_text())
         check("native activity returns to idle after completion", activity["running"] == 0, activity)

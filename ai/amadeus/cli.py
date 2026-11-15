@@ -23,6 +23,8 @@ HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
   ama doctor                  verify drivers, GPU, sandbox and providers
   ama discover [--json]       a live map of this system: commands, files, tools, policy
   ama skill                   print the built-in guide that teaches an AI agent to manage this system
+  ama goal TEXT... | list | stop ID | answer ID [TEXT...]
+                              work Amadeus carries on by itself until it is done and checked, or needs you
   ama memory [forget N | clear]  what Amadeus remembers between requests; the notes are a plain file you can edit
   ama guide [TOPIC]           the topic guides an agent reads before working in one area
   ama panel [toggle | show | hide | window | selection | context JSON | settings | tasks | state | ask TEXT]
@@ -326,6 +328,19 @@ def main(argv=None):
         provider_cmd(c, rest)
     elif cmd == "mode" and len(rest) <= 1:
         print("mode: " + (c.call("mode_default", mode=rest[0]) if rest else c.call("providers"))["mode"])
+    elif cmd == "goal" and rest:
+        if rest == ["list"]:
+            found = c.call("goals")
+        elif rest[0] == "stop" and len(rest) == 2:
+            found = c.call("goal_stop", id=rest[1])
+        elif rest[0] == "answer" and len(rest) >= 2:
+            found = c.call("goal_answer", id=rest[1], text=" ".join(rest[2:]))
+        else:
+            found = c.call("goal_start", text=" ".join(rest))
+        for g in found:
+            print(f"{g['id']}  {g['state']:<8} round {g['rounds']}  {g['text'][:70]}")
+            if g["state"] == "waiting": print(f"          asks: {g['question']}")
+            elif g["notes"]: print(f"          {g['notes'][-1][:110]}")
     elif cmd == "memory" and (not rest or rest == ["clear"] or (len(rest) == 2 and rest[0] == "forget" and rest[1].isdigit())):
         notes = c.call("memory", forget=rest[1] if rest[:1] == ["forget"] else None, clear=rest == ["clear"])
         print("\n".join(f"{i:>2}. {n}" for i, n in enumerate(notes, 1)) or "Nothing is remembered.")

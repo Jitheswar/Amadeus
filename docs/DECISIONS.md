@@ -468,3 +468,22 @@ journal: no new always-running process, and nothing happens until something fail
 drop-in applies to every service on the system, which is the cost; its own reporting
 unit is exempt so a failure cannot report itself. A notice is an offer built from
 validated fields, repeated at most every six hours, and it acts only when clicked.
+
+## Goals: rounds and notes, not one long conversation
+
+Work that needs many steps used to live in one request with a step limit, and ended
+with the request. A goal is instead a series of short requests that share only a capped
+list of notes. Chosen over one long-lived conversation because that grows without bound,
+loses everything on a restart and has no natural point to check the result; and over a
+planner that splits the work up front, because a plan made before looking at the system
+is usually wrong.
+
+- **A finish is a claim until checked.** The round after a reported finish is told not to
+  trust the notes and to inspect the system. Cost: at least one extra request per goal.
+- **The runner decides what happens next**, from the one report a round may make. A round
+  that reports nothing counts against the goal; two in a row hand it back to the user.
+- **It checks back** after a fixed number of rounds, on a denied permission, and on a
+  question. Full access cannot be given to a goal because that needs a confirmation per
+  request, which unattended work cannot provide.
+- Evidence: unit tests of every transition and an end-to-end run with a scripted model.
+  How well real models write useful notes and judge their own finish is not yet known.

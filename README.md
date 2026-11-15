@@ -124,6 +124,18 @@ the selected provider, so image reasoning needs a vision-capable model. Input us
 observation and checks the window again after approval. Completed GUI actions have no
 automatic file undo.
 
+For work that takes more than one request, type it and press **Goal** instead of Enter
+(or run `ama goal "..."`). Amadeus then carries it on in the background, a round at a
+time, under the execution mode you had selected. Each round starts fresh from a short
+list of progress notes rather than a growing conversation. When it reports the goal
+finished, one more round checks the result against the real system before the goal
+counts as done. It comes back to you when only you can decide something, when a
+permission was denied, after eight rounds without finishing, or when a round fails
+twice; answer in **Tasks** or with `ama goal answer`. A goal survives a restart, and
+`ama goal stop` ends it. Full access is never available to a goal, and at most three
+run at once. Changes a goal made to files can be undone with `ama undo` one at a time;
+there is no single undo for a whole goal yet.
+
 Amadeus also notices some things by itself. When a service fails, a program crashes, a
 disk passes 90% full, or the system has gone two weeks without a full update, a
 notification offers to look into it; clicking it hands the panel a request that

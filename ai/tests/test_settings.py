@@ -411,3 +411,97 @@ class NoticeTest(unittest.TestCase):
                 d.ask(mock.Mock(), 1, "x", session="t", origin="automation:tidy", options={"mode": "full", "confirm_full_access": True})
         finally:
             target.unlink(missing_ok=True)
+
+
+class GoalTest(unittest.TestCase):
+    """Work carried on over several rounds: bounded notes, a checked finish, and a way back to the user."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        from amadeus import goals
+        from amadeus.daemon import Daemon
+        self.patches = [mock.patch.object(config, "DATA", Path(self.tmp.name) / "data"),
+                        mock.patch("amadeus.goals.daemon_notify"), mock.patch("amadeus.goals.audit.record"), mock.patch("amadeus.daemon.audit.record"),
+                        mock.patch("amadeus.goals.launch", side_effect=lambda d, i: goals.work(d, i))]
+        for p in self.patches: p.start()
+        self.goals, self.d, self.script, self.prompts = goals, Daemon(), [], []
+        test = self
+        class Agent:
+            kind = "agent"
+            def run(self, system, history, session, emit):
+                test.prompts.append(history[-1]["text"])
+                step = test.script.pop(0) if test.script else None
+                if isinstance(step, Exception): raise step
+                if step: test.d.execute("goal_update", {"status": step[0], "note": step[1]}, session=session)
+                return "ok"
+        self.make = mock.patch("amadeus.daemon.providers.make", return_value=Agent())
+        self.make.start()
+
+    def tearDown(self):
+        self.make.stop()
+        for p in self.patches: p.stop()
+        self.tmp.cleanup()
+
+    def only(self):
+        return self.goals.listing()[0]
+
+    def test_a_goal_is_worked_checked_and_only_then_done(self):
+        self.script[:] = [("progress", "found the cause; next: apply the fix"), ("finished", "fixed"), ("finished", "verified the service is active")]
+        self.goals.start(self.d, "make bluetooth work", mode="auto")
+        goal = self.only()
+        self.assertEqual((goal["state"], goal["rounds"], goal["mode"]), ("done", 3, "auto"))
+        self.assertIn("found the cause", self.prompts[1])               # notes carry over, the conversation does not
+        self.assertIn("Check it independently", self.prompts[2])
+        self.assertEqual([k for k in self.d.sessions if k.startswith("goal-")], [])
+        self.assertEqual(goal["notes"][-1], "verified the service is active")
+
+    def test_a_failed_check_sends_the_goal_back_to_work(self):
+        self.script[:] = [("finished", "done"), ("progress", "the timer is still disabled"), ("finished", "enabled"), ("finished", "checked")]
+        self.goals.start(self.d, "back up my notes every night")
+        self.assertEqual((self.only()["state"], self.only()["rounds"]), ("done", 4))
+
+    def test_a_blocked_goal_waits_and_continues_from_the_answer(self):
+        self.script[:] = [("blocked", "May I remove the old kernel packages?")]
+        self.goals.start(self.d, "free some disk space")
+        goal = self.only()
+        self.assertEqual((goal["state"], goal["question"]), ("waiting", "May I remove the old kernel packages?"))
+        self.script[:] = [("finished", "cleared caches only"), ("finished", "verified")]
+        self.goals.answer(self.d, goal["id"], "no, only caches")
+        self.assertEqual(self.only()["state"], "done")
+        self.assertIn("The user answered: no, only caches", self.prompts[1])
+        with self.assertRaises(ValueError):
+            self.goals.answer(self.d, goal["id"], "again")
+
+    def test_a_goal_that_stops_reporting_or_runs_long_checks_back(self):
+        self.script[:] = [None, None]
+        self.goals.start(self.d, "tidy the desktop")
+        self.assertEqual((self.only()["state"], self.only()["rounds"]), ("waiting", 2))
+        self.goals.stop(self.d, self.only()["id"])
+        self.assertEqual(self.only()["state"], "stopped")
+        self.script[:] = [("progress", f"step {i} " + "x" * 600) for i in range(20)]
+        self.d.cfg["ai"]["goal_rounds"] = 5
+        self.goals.start(self.d, "an endless goal")
+        goal = self.only()
+        self.assertEqual((goal["state"], goal["rounds"]), ("waiting", 5))
+        self.assertIn("5 rounds", goal["question"])
+        self.assertTrue(all(len(n) <= self.goals.NOTE_CHARS for n in goal["notes"]))
+        self.script[:] = [RuntimeError("provider down"), RuntimeError("provider down")]
+        self.goals.start(self.d, "needs a provider")
+        self.assertEqual(self.only()["state"], "failed")
+
+    def test_goals_resume_after_a_restart_and_keep_their_limits(self):
+        self.script[:] = [("blocked", "which folder?")]
+        goal = self.goals.start(self.d, "sort my downloads")
+        stale = dict(self.only(), state="working", session="goal-" + goal["id"] + "-1", question="")
+        self.goals.store(stale)
+        self.script[:] = [("finished", "sorted"), ("finished", "checked")]
+        self.goals.resume(self.d)
+        self.assertEqual(self.only()["state"], "done")
+        for mode in ("full", "root"):
+            with self.assertRaises(ValueError):
+                self.goals.start(self.d, "anything at all", mode=mode)
+        with self.assertRaises(ValueError):
+            self.goals.start(self.d, "x")
+        self.assertTrue(self.d.execute("goal_update", {"status": "finished", "note": "x"}, session="panel-1")[1])
+        self.assertTrue(self.d.execute("goal_update", {"status": "finished", "note": "x"}, session="goal-" + goal["id"] + "-9")[1])
+        with self.assertRaises(ValueError):
+            self.goals.load("../../config")

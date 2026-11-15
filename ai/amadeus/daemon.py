@@ -346,6 +346,15 @@ def make_handler(d, app=None):
                 conn.interactive = bool(p.get("interactive"))
                 from . import tasks
                 return tasks.run(d, conn, rid, p["id"])
+            if m in ("goals", "goal_start", "goal_stop", "goal_answer"):
+                from . import goals
+                if m == "goal_start":
+                    goals.start(d, p["text"], p.get("provider") or None, p.get("mode") or preferences.saved_mode(d.cfg))
+                elif m == "goal_stop":
+                    goals.stop(d, p["id"])
+                elif m == "goal_answer":
+                    goals.answer(d, p["id"], p.get("text", ""))
+                return goals.listing()
             if m == "task_auto":
                 from . import tasks
                 job = tasks.grant(p["id"], p.get("on") is True)
@@ -418,6 +427,8 @@ def main():
     os.umask(old)
     srv.daemon_threads = True
     audit.record("daemon_start", version=__import__("amadeus").__version__, provider=d.cfg["ai"]["provider"])
+    from . import goals
+    goals.resume(d)
     try:
         import signal
         signal.signal(signal.SIGTERM, lambda *a: (_ for _ in ()).throw(KeyboardInterrupt()))
