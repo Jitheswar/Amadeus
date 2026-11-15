@@ -80,9 +80,26 @@ o.bind("SUPER + SHIFT + F", "Files (your default application)", "xdg-open ~")
 o.bind("SUPER + ESCAPE", "System: lock, suspend, restart, shut down", "amadeus-power-menu")
 o.bind("SUPER + CTRL + L", "Lock", "swaylock -f")
 
--- Clipboard. Copy and paste work the same in every application, terminals included.
-o.bind("SUPER + C", "Copy", "wtype -M ctrl -k Insert")
-o.bind("SUPER + V", "Paste", "wtype -M shift -k Insert")
+-- Clipboard dispatch adapted from Omarchy (MIT; see the packaged OMARCHY-LICENSE).
+-- A virtual keyboard merges physically held SUPER into the chord. Dispatch explicit
+-- modifier state to the focused surface instead, including layer-shell panels.
+local function clipboard_shortcut(key)
+  return function()
+    local window = hl.get_active_window()
+    local terminal = false
+    for _, tag in ipairs(window and window.tags or {}) do
+      if tag:gsub("%*$", "") == "terminal" then terminal = true end
+    end
+    local mods = terminal and "CTRL SHIFT" or "CTRL"
+    hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "down" }))
+    hl.timer(function()
+      hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "up" }))
+    end, { timeout = 50, type = "oneshot" })
+  end
+end
+o.window("^(Alacritty|com\\.mitchellh\\.ghostty|foot|footclient|kitty|org\\.wezfurlong\\.wezterm|org\\.gnome\\.Ptyxis|org\\.gnome\\.Console|org\\.gnome\\.Terminal|konsole|herdr|TUI\\..*)$", { tag = "+terminal" })
+o.bind("SUPER + C", "Universal copy", clipboard_shortcut("C"))
+o.bind("SUPER + V", "Universal paste", clipboard_shortcut("V"))
 o.bind("SUPER + CTRL + V", "Clipboard history", "amadeus-clipboard")
 
 -- Capture. The screen freezes while you choose: drag an area, click a window, or click empty
