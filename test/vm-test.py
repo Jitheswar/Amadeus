@@ -199,6 +199,9 @@ def boot_disk(stage, what):
     print(f"phase {stage + 1}: {what} ...", flush=True)
     run(BASE, f"{VM}/boot-serial-{stage}.log", 900, feed=("passphrase", PASSWORD))
     log = take(f"selftest-{stage}.log")
+    if stage == 1:
+        ui_log = take("ui-check.log")
+        if ui_log: print(ui_log[-16000:], flush=True)
     if "AMADEUS-SELFTEST-BEGIN" in log:
         print(log[log.index("AMADEUS-SELFTEST-BEGIN"):][-6000:], flush=True)
     else:
