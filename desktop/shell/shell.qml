@@ -126,7 +126,7 @@ ShellRoot {
     readonly property bool usageLoading: readUsage.running
 
     // ---- bar layout: ~/.config/amadeus/bar.json lists widget ids for left, center and right
-    property var layout: ({ left: ["workspaces", "title"], center: ["sudo", "awake", "clock", "weather"],
+    property var layout: ({ left: ["title"], center: ["sudo", "awake", "clock", "weather"],
                             right: ["record", "gpu", "tray", "bluetooth", "network", "volume", "display", "agents", "battery", "power", "amadeus"] })
     FileView {
         path: Quickshell.env("HOME") + "/.config/amadeus/bar.json"

@@ -198,6 +198,21 @@ esac''')
         self.assert_ok(result)
         self.assertIn("Steam  (installed)\tpacman:multilib/steam", result.stdout)
 
+    def test_launcher_hides_listed_helpers_but_not_personal_entries(self):
+        ns = {"__name__": "launcher_validation"}
+        exec(compile((BIN / "amadeus-launcher").read_text().rsplit("\nmain()", 1)[0], "amadeus-launcher", "exec"), ns)
+        user, system = self.tmp / "user-apps", self.tmp / "system-apps"
+        user.mkdir(); system.mkdir()
+        shipped = ROOT / "desktop/shell/launcher.hides"
+        personal = self.tmp / "launcher.hides"
+        personal.write_text("# mine\nnoisy.desktop\n")
+        ns["DIRS"], ns["HIDES"] = [user, system], [shipped, personal]
+        for name in ("uuctl", "lftp", "vim", "noisy", "org.gnome.Nautilus", "btop"):
+            (system / (name + ".desktop")).write_text("[Desktop Entry]\nName=" + name + "\nExec=true\n")
+        self.assertEqual(set(ns["entries"]()), {"org.gnome.Nautilus", "btop"})
+        (user / "vim.desktop").write_text("[Desktop Entry]\nName=My Vim\nExec=true\n")
+        self.assertIn("vim", ns["entries"]())
+
     def test_launcher_applies_user_precedence_before_eligibility(self):
         ns = {"__name__": "launcher_validation"}
         source = (BIN / "amadeus-launcher").read_text().rsplit("\nmain()", 1)[0]
@@ -227,7 +242,7 @@ esac''')
             "HOME": str(self.home), "XDG_CONFIG_HOME": str(self.config), "XDG_DATA_HOME": str(self.data),
             "XDG_STATE_HOME": str(self.state), "XDG_RUNTIME_DIR": str(self.run_dir),
             "PATH": f"{self.bin}:{BIN}:{ROOT / 'ai/bin'}:/usr/bin:/bin", "LANG": "C.UTF-8",
-            "AMADEUS_TEST_CALLS": str(self.calls),
+            "AMADEUS_TEST_CALLS": str(self.calls), "AMADEUS_TRY_MARKER": str(self.tmp / "not-a-live-session"),
         }
         for name in DANGEROUS:
             self.stub(name, rc=1 if name in ("quickshell", "curl") else 0)
@@ -839,7 +854,20 @@ printf '%s' "${{10}}" > {seen}.options
         self.assertEqual(Path(str(seen) + ".in").read_text(), "alpha\nbeta\n")
         options = json.loads(Path(str(seen) + ".options").read_text())
         self.assertEqual(options, {"multi": True, "allowNew": False, "preview": 'printf %s "$1"',
-                                    "preview2": "", "hint": "more", "newLabel": ""})
+                                    "preview2": "", "hint": "more", "newLabel": "", "globalSearch": False})
+
+    def test_only_navigation_menus_ask_for_universal_search(self):
+        seen = self.tmp / "pick"
+        self.stub("quickshell", body=f"""printf '%s' "${{10}}" > {seen}.options
+( sleep 0.05; printf 'ok\\nalpha\\n' > "$9" ) &""")
+        self.assert_ok(self.run_cmd("amadeus-pick", "--global", "Menu", input="alpha\n"))
+        self.assertTrue(json.loads(Path(str(seen) + ".options").read_text())["globalSearch"])
+        # Lists of packages and catalogue entries search only themselves.
+        for line in (BIN / "amadeus-menu").read_text().splitlines():
+            if "--multi" in line:
+                self.assertNotIn("--global", line)
+        for name in ("amadeus-catalog", "amadeus-aur", "amadeus-clipboard", "amadeus-wifi"):
+            self.assertNotIn("pick --global", (BIN / name).read_text())
 
     def test_pick_returns_new_text_and_cancel(self):
         self.stub("quickshell", body="""( sleep 0.05; printf 'new\\ntyped text\\n' > "$9" ) &""")

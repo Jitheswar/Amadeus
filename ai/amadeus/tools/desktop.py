@@ -251,7 +251,7 @@ def desktop_config(a, ctx):
 
 BAR_FILE = Path.home() / ".config/amadeus/bar.json"
 BAR_WIDGETS = ["workspaces", "title", "record", "sudo", "awake", "clock", "weather", "gpu", "tray", "bluetooth", "network", "volume", "display", "agents", "battery", "power", "amadeus"]
-BAR_DEFAULT = {"left": ["workspaces", "title"], "center": ["sudo", "awake", "clock", "weather"],
+BAR_DEFAULT = {"left": ["title"], "center": ["sudo", "awake", "clock", "weather"],
                "right": ["record", "gpu", "tray", "bluetooth", "network", "volume", "display", "agents", "battery", "power", "amadeus"]}
 
 

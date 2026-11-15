@@ -41,6 +41,7 @@ user starts with in `desktop/skel/`.
   A cross-menu search result must cancel the originating picker before launching its
   destination. Keep free-text prompts distinct. Respect desktop-entry visibility and
   personal-entry precedence when filtering helpers out of Apps.
+  Only navigation menus pass `--global`; a list of things to choose searches itself.
 - **Pointer and keyboard share selection.** Ignore synthetic hover from list movement
   under a stationary pointer. Test separate real key events and Qt pointer gating.
 - **Graphical login keeps authentication upstream.** Profile preselection stores names,

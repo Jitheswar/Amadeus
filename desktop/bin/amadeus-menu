@@ -26,7 +26,7 @@ install_menu() {
     term "package lists" "sudo pacman -Sy && echo 'Package lists are ready. Open Install again.'"
     exit 0
   fi
-  local choice=${1:-$(install_choices | pick "Install")}
+  local choice=${1:-$(install_choices | pick --global "Install")}
   case $choice in
     Terminal)    catalog terminal terminal ;;
     Browser)     catalog browser browser ;;
@@ -56,7 +56,7 @@ install_menu() {
 
 remove_menu() {
   local pkgs
-  case ${1:-$(remove_choices | pick "Remove")} in
+  case ${1:-$(remove_choices | pick --global "Remove")} in
     Packages)   # only what was installed on purpose is offered; dependencies go with it
       pkgs=$(pacman -Qqe | pick --multi --preview 'pacman -Qi "$1"' "Remove package") || exit 0
       [[ -n $pkgs ]] && term "remove" "sudo pacman -Rns -- $(quoted "$pkgs")" ;;
@@ -83,7 +83,7 @@ declare -A KINDS=(
 default_choices() { printf '%s\n' Terminal Editor Harness Agent Browser Files Images Video Music Documents Mail; }
 
 defaults_menu() {
-  local kind=${1:-$(default_choices | pick "Default")}
+  local kind=${1:-$(default_choices | pick --global "Default")}
   [[ -n $kind ]] || exit 0
   case $kind in
     Agent) exec ama panel settings ;;
@@ -138,7 +138,7 @@ config_menu() {
 }
 
 trigger_menu() {
-  case ${1:-$(trigger_choices | pick "Trigger")} in
+  case ${1:-$(trigger_choices | pick --global "Trigger")} in
     Capture)
       local recording=""
       [[ -f ${XDG_RUNTIME_DIR:-/tmp}/amadeus-record.pid ]] && kill -0 "$(cat "${XDG_RUNTIME_DIR:-/tmp}/amadeus-record.pid")" 2>/dev/null && recording=1
@@ -174,7 +174,7 @@ gpu_menu() {
 }
 
 setup_menu() {
-  local choice=${1:-$(setup_choices | pick "Setup")}
+  local choice=${1:-$(setup_choices | pick --global "Setup")}
   case $choice in
     GPU)         gpu_menu ;;
     Display)     exec amadeus-display ;;
@@ -186,7 +186,7 @@ setup_menu() {
   esac
 }
 
-case ${1:-$(root_choices | pick "Amadeus")} in
+case ${1:-$(root_choices | pick --global "Amadeus")} in
   Apps|apps)         exec amadeus-launcher ;;
   Trigger|trigger)   trigger_menu "${2:-}" ;;
   Install|install)   install_menu "${2:-}" ;;
@@ -194,7 +194,7 @@ case ${1:-$(root_choices | pick "Amadeus")} in
   Chat|chat)         catalog chat "chat client" ;;
   Remove|remove)     remove_menu "${2:-}" ;;
   Update|update)
-    what=${2:-$(update_choices | pick "Update")} || exit 0
+    what=${2:-$(update_choices | pick --global "Update")} || exit 0
     [[ $what == Everything ]] && term "update" "amadeus-update" || term "update" "amadeus-harness update" ;;
   Setup|setup)       setup_menu "${2:-}" ;;
   Defaults|defaults) defaults_menu "${2:-}" ;;

@@ -85,9 +85,12 @@ class BarTest(unittest.TestCase):
         self.assertEqual(self.qml_layout, self.default)
         self.assertEqual(shipped, self.default)
 
-    def test_every_widget_is_in_the_bar_once(self):
+    def test_default_widgets_exist_once_and_workspaces_are_optional(self):
         placed = [w for section in self.default.values() for w in section]
-        self.assertEqual(sorted(placed), sorted(self.widgets))
+        self.assertTrue(set(placed) <= set(self.widgets))
+        self.assertEqual(len(placed), len(set(placed)))
+        self.assertNotIn("workspaces", placed)
+        self.assertIn("workspaces", self.widgets)
 
 
 class ThemeTest(unittest.TestCase):

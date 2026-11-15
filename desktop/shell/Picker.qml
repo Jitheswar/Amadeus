@@ -16,6 +16,7 @@ Scope {
     property string preview: ""       // shell command; the highlighted line is "$1"
     property string preview2: ""      // alternative details, toggled with Alt+B
     property string hint: ""
+    property bool globalSearch: false
     property bool multi: false
     property bool allowNew: false
     property string newLabel: ""
@@ -43,7 +44,7 @@ Scope {
         let o = {}
         try { o = JSON.parse(options) } catch (e) {}
         pick.prompt = prompt; pick.pipe = pipe
-        pick.multi = !!o.multi; pick.allowNew = !!o.allowNew
+        pick.globalSearch = !!o.globalSearch; pick.multi = !!o.multi; pick.allowNew = !!o.allowNew
         pick.preview = o.preview || ""; pick.preview2 = o.preview2 || ""; pick.hint = o.hint || ""; pick.newLabel = o.newLabel || "Press Enter to use what you typed"
         pick.alt = false; pick.marked = ({}); pick.detail = ""; pick.items = []; pick.shown = []
         pick.index = 0; pick.filterText = ""; pick.searchPinned = false; pointerGate.reset()
@@ -51,14 +52,14 @@ Scope {
         loader.path = infile
         loader.reload()
         globalLoad.running = false
-        globalLoad.running = true
+        globalLoad.running = pick.globalSearch
     }
     function search(text) { input.text = text }
     function refilter(preserve) {
         const selected = preserve ? current : ""
         if (input.text.trim() && !searchPinned) { cardTop = box.y; searchPinned = true }
         filterText = input.text
-        const result = MenuSearch.rows(items, (!allowNew || items.length) ? globalIndex : [], input.text, prompt)
+        const result = MenuSearch.rows(items, globalSearch && (!allowNew || items.length) ? globalIndex : [], input.text, prompt)
         globalResults = result.info
         shown = result.lines
         const prior = selected ? shown.indexOf(selected) : -1

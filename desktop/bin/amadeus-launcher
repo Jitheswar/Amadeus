@@ -6,6 +6,8 @@ import json, os, re, shlex, shutil, subprocess, sys
 from pathlib import Path
 
 DIRS = [Path.home() / ".local/share/applications", Path("/usr/local/share/applications"), Path("/usr/share/applications")]
+# Entries named in these lists stay out of Apps; a personal desktop entry of the same name still shows.
+HIDES = [Path("/usr/share/amadeus-os/launcher.hides"), Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "amadeus/launcher.hides"]
 NVIDIA = {"__NV_PRIME_RENDER_OFFLOAD": "1", "__GLX_VENDOR_LIBRARY_NAME": "nvidia", "__VK_LAYER_NV_optimus": "NVIDIA_only"}
 
 
@@ -43,6 +45,12 @@ def entries(include_settings=False):
         owner = owners.get(str(path))
         if owner and name.lower().split(".")[-1] == owner.lower():
             primary.setdefault(owner, set()).add(name)
+    hidden = set()
+    for file in HIDES:
+        try:
+            hidden.update(line.strip().removesuffix(".desktop") for line in file.read_text().splitlines() if line.strip() and not line.startswith("#"))
+        except OSError:
+            pass
     desktop = set(os.environ.get("XDG_CURRENT_DESKTOP", "Hyprland").split(":"))
     def eligible(name, e):
         if not e.get("Exec") or e.get("NoDisplay") == "true" or e.get("Hidden") == "true" or e.get("Type", "Application") != "Application":
@@ -55,6 +63,8 @@ def entries(include_settings=False):
             return False
         owner = owners.get(str(paths[name]))
         personal = paths[name].is_relative_to(DIRS[0])
+        if not personal and name in hidden:
+            return False
         setting = "Settings" in e.get("Categories", "").split(";")
         if setting and not include_settings:
             return False
@@ -112,7 +122,7 @@ def main():
         return start(apps[sys.argv[2]])
     if "--print" in sys.argv:
         return print("\n".join(lines))
-    p = subprocess.run(["amadeus-pick", "--new", "--new-label", "Press Enter to ask Amadeus", "Apps"], input="\n".join(lines), capture_output=True, text=True)
+    p = subprocess.run(["amadeus-pick", "--global", "--new", "--new-label", "Press Enter to ask Amadeus", "Apps"], input="\n".join(lines), capture_output=True, text=True)
     choice = p.stdout.strip()
     if p.returncode == 0 and "\t" in choice:
         start(apps[choice.split("\t")[1]])

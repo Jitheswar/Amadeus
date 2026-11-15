@@ -1,0 +1,44 @@
+# Desktop entries kept out of Apps: helpers, dependency tools and secondary entries of a larger
+# application. One id per line. Add your own in ~/.config/amadeus/launcher.hides.
+# Adapted from Omarchy (MIT; see OMARCHY-LICENSE).
+avahi-discover
+bssh
+bvnc
+cmake-gui
+cups
+electron34
+electron36
+electron37
+fcitx5-configtool
+fcitx5-wayland-launcher
+foot-server
+footclient
+java-java-openjdk
+jconsole-java-openjdk
+jshell-java-openjdk
+kbd-layout-viewer5
+kcm_fcitx5
+kcm_kaccounts
+kvantummanager
+libreoffice-base
+libreoffice-draw
+libreoffice-math
+libreoffice-startcenter
+libreoffice-xsltfilter
+limine-snapper-restore
+lstopo
+org.fcitx.Fcitx5
+org.fcitx.fcitx5-config-qt
+org.fcitx.fcitx5-migrator
+org.fcitx.fcitx5-qt5-gui-wrapper
+org.fcitx.fcitx5-qt6-gui-wrapper
+qv4l2
+qvidcap
+uuctl
+xgps
+xgpsspeed
+# Command-line tools from the install medium: they are used in a terminal.
+lftp
+mc
+mcedit
+vim
