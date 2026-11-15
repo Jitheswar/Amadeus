@@ -133,18 +133,24 @@ if phase in ("all", "try"):
     log = take_from(trydisk, "try.log")
     take_from(trydisk, "try.png")
     take_from(trydisk, "greeter-try.png")
-    print(log[:1500] or "the try session never reported", flush=True)
+    print(log[:3000] or "the try session never reported", flush=True)
     if "TRY-OK" not in log:
         sys.exit(1)
     if "dependency failures: 0" not in log:
         print("the try boot reported failed dependencies", flush=True)
         sys.exit(1)
     # The terminal, the Install menu and sound are what the try session is judged on first.
-    for good in ("GUI: logout and graphical login passed (try)", "foot config: ok", "sound: active active active ", "aur build tools: 2"):
+    for good in ("GUI: logout and graphical login passed (try)", "foot config: ok", "sound: active active active ", "aur build tools: 2",
+                 "bluetooth unit: enabled", "zram swap: 1", "serial console on the command line: 0", "nvidia power rules: 2",
+                 "default applications missing: 0", "helpers in Apps: 0"):
         if good not in log:
             print(f"the try session reported '{good}' missing", flush=True)
             sys.exit(1)
-    for count in ("package lists:", "catalogue entries:"):
+    profile = next((l.split(":", 1)[1].strip() for l in log.splitlines() if l.startswith("power profile:")), "")
+    if profile not in ("power-saver", "balanced", "performance"):
+        print(f"the try session cannot read the power profile: {profile or 'no line'}", flush=True)
+        sys.exit(1)
+    for count in ("package lists:", "catalogue entries:", "apps listed:"):
         line = next((l for l in log.splitlines() if l.startswith(count)), "")
         if not line or line.split(":", 1)[1].strip() in ("", "0"):
             print(f"the try session has no {count.rstrip(':')}: {line or 'no line'}", flush=True)

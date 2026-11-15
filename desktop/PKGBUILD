@@ -4,15 +4,17 @@ pkgrel=1
 pkgdesc="Amadeus OS desktop: Hyprland defaults, shell (bar, picker, notifications), system tools and user skeleton"
 arch=(any)
 license=(MIT)
-depends=(greetd-regreet cage librsvg hyprland uwsm quickshell foot swaylock swayidle polkit-gnome grim slurp hyprpicker satty gpu-screen-recorder ffmpeg wl-clipboard cliphist wtype fastfetch brightnessctl networkmanager wireplumber upower power-profiles-daemon bluez polkit xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
+depends=(python-gobject greetd-regreet cage librsvg hyprland uwsm quickshell foot swaylock swayidle polkit-gnome grim slurp hyprpicker satty gpu-screen-recorder ffmpeg wl-clipboard cliphist wtype fastfetch brightnessctl networkmanager wireplumber upower power-profiles-daemon bluez polkit xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
 options=(!debug)
 install=amadeus-desktop.install
 
 package() {
   local src="$startdir"
+  install -Dm644 "$src"/hardware/* -t "$pkgdir/usr/share/amadeus-os/hardware/"
   install -Dm644 "$src/hypr/default.lua" -t "$pkgdir/usr/share/amadeus-os/hypr/"
   install -Dm644 "$src"/shell/*.qml "$src"/shell/*.js -t "$pkgdir/usr/share/amadeus-os/shell/"
   install -Dm644 "$src/shell/OMARCHY-LICENSE" "$pkgdir/usr/share/licenses/$pkgname/OMARCHY-LICENSE"
+  install -Dm644 "$src/shell/launcher.hides" -t "$pkgdir/usr/share/amadeus-os/"
   install -d "$pkgdir/usr/bin"
   # Only files: a test run can leave a __pycache__ directory beside the programs.
   find "$src/bin" -maxdepth 1 -type f -exec install -Dm755 {} -t "$pkgdir/usr/bin/" \;

@@ -32,10 +32,18 @@ def have(pkg):
 
 
 def main():
-    print("Base system")
+    results.clear()
+    live = Path(os.environ.get("AMADEUS_TRY_MARKER", "/run/amadeus-try")).exists()
+    print("Base system" + (" (temporary Try session)" if live else ""))
     fs = out("findmnt", "-no", "FSTYPE", "/")
-    check("root filesystem is btrfs", OK if fs == "btrfs" else BAD, fs)
-    check("snapshot config for /", OK if os.path.exists("/etc/snapper/configs/root") else BAD)
+    if live:
+        check("temporary live root", OK if fs == "overlay" else WARN, fs + "; changes disappear at shutdown")
+        check("system snapshots", WARN, "not used in the temporary Try session")
+        usage = shutil.disk_usage("/")
+        check("live writable space", WARN if usage.free < 1024**3 else OK, f"{usage.free // 1024**2} MiB free; large downloads use RAM")
+    else:
+        check("root filesystem is btrfs", OK if fs == "btrfs" else BAD, fs)
+        check("snapshot config for /", OK if os.path.exists("/etc/snapper/configs/root") else BAD)
     check("automatic snapshots around package changes", OK if have("snap-pac") or out("systemctl", "is-active", "limine-snapper-sync") == "active" else WARN)
     check("compressed swap in RAM (zram)", OK if "zram" in rd("/proc/swaps") else WARN)
     check("microcode loaded", OK if "microcode" in rd("/proc/cpuinfo") else WARN)
@@ -58,7 +66,7 @@ def main():
     check("no global variable forces apps onto NVIDIA", OK if not forced else BAD, ", ".join(forced))
     icd = os.listdir("/usr/share/vulkan/icd.d") if os.path.isdir("/usr/share/vulkan/icd.d") else []
     check("Vulkan drivers: Intel + NVIDIA", OK if any("intel" in i for i in icd) and (not nv or any("nvidia" in i for i in icd)) else BAD, ", ".join(sorted(icd)))
-    check("32-bit Vulkan/GL for Steam and Proton", OK if have("lib32-vulkan-intel") and (not nv or have("lib32-nvidia-utils")) else BAD)
+    check("32-bit Vulkan/GL for Steam and Proton", OK if have("lib32-vulkan-intel") and (not nv or have("lib32-nvidia-utils")) else (WARN if live else BAD), "optional gaming libraries are not included on the live medium" if live else "")
     check("Intel video decode (VA-API)", OK if os.path.exists("/usr/lib/dri/iHD_drv_video.so") else BAD, "intel-media-driver")
     if nv:
         check("NVIDIA video decode (VA-API over NVDEC)", OK if have("libva-nvidia-driver") else WARN)
@@ -68,7 +76,12 @@ def main():
         check("NVIDIA responds", OK if smi else BAD, smi)
 
     print("\nPower and thermals")
-    check("power profiles daemon", OK if out("systemctl", "is-active", "power-profiles-daemon") == "active" else WARN, out("powerprofilesctl", "get"))
+    profile = out("powerprofilesctl", "get")
+    service = out("systemctl", "is-active", "power-profiles-daemon")
+    check("power profiles daemon", OK if service == "active" else WARN)
+    check("power profile control", OK if profile else BAD, profile or "powerprofilesctl failed; check python-gobject and the service")
+    bluetooth = out("systemctl", "is-enabled", "bluetooth.service")
+    check("Bluetooth activation", OK if bluetooth == "enabled" else WARN, bluetooth)
     check("thermald", OK if out("systemctl", "is-active", "thermald") == "active" else WARN)
     check("no conflicting power managers", OK if not (have("tlp") or have("auto-cpufreq")) else BAD)
 
@@ -95,10 +108,9 @@ def main():
     print(f"       active provider: {cfg['ai']['provider']}")
 
     print("\nApplications")
-    apps = {"brave-origin": "Brave Origin", 
-            "nautilus": "Files (Nautilus)", "foot": "Terminal (foot)", "herdr": "herdr",
-            "papers": "Documents (Papers)", "imv": "Images (imv)", "libreoffice": "LibreOffice", "localsend": "LocalSend", "mpv": "mpv",
-            "snapshot": "Camera (Snapshot)", "git": "git", "gh": "GitHub CLI"}
+    apps = {"nautilus": "Files (Nautilus)", "foot": "Terminal (foot)",
+            "papers": "Documents (Papers)", "imv": "Images (imv)", "libreoffice": "LibreOffice", "mpv": "mpv",
+            "snapshot": "Camera (Snapshot)", "git": "git", "btop": "btop", "fastfetch": "fastfetch"}
     missing = [label for exe, label in apps.items() if not shutil.which(exe)]
     check(f"{len(apps) - len(missing)}/{len(apps)} essential applications present", OK if not missing else WARN, "missing: " + ", ".join(missing) if missing else "")
 

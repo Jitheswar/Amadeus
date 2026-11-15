@@ -23,6 +23,16 @@ mkdir -p /mnt/try && mount /dev/disk/by-label/AMADEUSTRY /mnt/try
     echo "foot config: failed"
   fi
   echo "sound: $(as systemctl --user is-active pipewire.socket pipewire-pulse.socket wireplumber.service 2>&1 | tr '\n' ' ')"
+  echo "power profile: $(as powerprofilesctl get 2>&1 | tail -1)"
+  echo "bluetooth unit: $(systemctl is-enabled bluetooth.service 2>&1)"
+  echo "zram swap: $(grep -c zram /proc/swaps)"
+  echo "serial console on the command line: $(grep -c 'console=ttyS' /proc/cmdline)"
+  echo "nvidia power rules: $(ls /etc/udev/rules.d/80-nvidia-pm.rules /etc/modprobe.d/nvidia.conf 2>/dev/null | wc -l)"
+  echo "default applications missing: $(grep -hv '^#' /usr/share/amadeus-install/packages.apps 2>/dev/null | xargs -r pacman -Q 2>&1 >/dev/null | wc -l)"
+  echo "helpers in Apps: $(as amadeus-launcher --print 2>/dev/null | grep -cE '^(lftp|uuctl|Vim|Avahi)')"
+  echo "apps listed: $(as amadeus-launcher --print 2>/dev/null | wc -l)"
+  echo "doctor failures: $(as ama doctor 2>&1 | grep -c '^\[FAIL\]')"
+  as ama doctor 2>&1 | grep '^\[FAIL\]'
   echo "network: $(nmcli -t general status 2>&1 | head -1)"
   echo "writes to disks: $(grep -E ' (sd|vd|nvme)[a-z0-9]+ ' /proc/diskstats | awk '$10 > 0 {print $3}' | tr '\n' ' ')"
   echo "dependency failures: $(journalctl -b --no-pager -o cat | grep -c 'Dependency failed for')"

@@ -198,12 +198,8 @@ printf '[connection]\nwifi.powersave = 3\n' >$T/etc/NetworkManager/conf.d/wifi-p
 install -m644 $T/usr/share/amadeus-os/greeter/greetd.toml $T/etc/greetd/config.toml
 
 if [[ $NVIDIA == yes ]]; then
-  # The card powers down fully when idle and wakes only for apps that ask for it.
-  printf 'options nvidia NVreg_DynamicPowerManagement=0x02 NVreg_PreserveVideoMemoryAllocations=1\noptions nvidia_drm modeset=1\n' >$T/etc/modprobe.d/nvidia.conf
-  cat >$T/etc/udev/rules.d/80-nvidia-pm.rules <<'U'
-ACTION=="bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="auto"
-ACTION=="unbind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="on"
-U
+  install -m644 $T/usr/share/amadeus-os/hardware/nvidia.conf $T/etc/modprobe.d/nvidia.conf
+  install -m644 $T/usr/share/amadeus-os/hardware/80-nvidia-pm.rules $T/etc/udev/rules.d/80-nvidia-pm.rules
   # nvidia-powerd is Dynamic Boost: in games it moves power budget from the CPU to the GPU.
   # This laptop's firmware supports it; where it is not supported the service simply exits.
   ch systemctl enable nvidia-suspend nvidia-resume nvidia-hibernate nvidia-powerd >/dev/null 2>&1 || true
