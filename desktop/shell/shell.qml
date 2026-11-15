@@ -58,7 +58,7 @@ ShellRoot {
     }
     IpcHandler {
         target: "shell"
-        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, searchResults: picker.shown.slice(0, 40).map(x => picker.label(x)), audioInputs: root.inputs.map(n => n.description || n.name), audioOutputs: root.outputs.map(n => n.description || n.name), fontSize: root.fontPixels(14), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
+        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, searchResults: picker.shown.slice(0, 40).map(x => picker.label(x)), audioInputs: root.inputs.map(n => n.description || n.name), audioOutputs: root.outputs.map(n => n.description || n.name), fontSize: root.fontPixels(14), automationEvents: root.automationEvents, aiRunning: root.aiActivity.running || 0, pickerIndex: picker.index, pickerCurrent: picker.current, pickerGeometry: picker.geometry(), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
         // For automation and tests: open a drop-down at a horizontal position, or close it with "".
         function popover(name: string, x: int): void { root.popX = x; root.pop = name; if (name === "agents") root.refreshUsage() }
         function settings(name: string): void {
@@ -70,6 +70,30 @@ ShellRoot {
         function recording(on: bool): void { root.recording = on }
     }
 
+    property var automationEvents: []
+    FileView {
+        path: (Quickshell.env("AMADEUS_CONFIG") || Quickshell.env("HOME") + "/.config/amadeus") + "/automation-events.json"
+        watchChanges: true; printErrors: false
+        onFileChanged: reload()
+        onLoaded: { try { const events = JSON.parse(text()); root.automationEvents = Array.isArray(events) ? events : [] } catch (e) { root.automationEvents = [] } }
+        onLoadFailed: root.automationEvents = []
+    }
+    function publish(event, data) {
+        if (!demo && automationEvents.indexOf(event) >= 0) run(["ama", "event", event, JSON.stringify(data)])
+    }
+    readonly property string focusedApp: !demo && Hyprland.activeToplevel ? Hyprland.activeToplevel.appId : ""
+    onFocusedAppChanged: if (focusedApp) publish("app-focused", {app: focusedApp, title: focusedTitle.slice(0, 250)})
+    readonly property string focusedConnection: activeNet ? activeNet.name : ""
+    onFocusedConnectionChanged: if (focusedConnection) publish("network-changed", {connection: focusedConnection})
+
+    property var aiActivity: ({running: 0, tasks: []})
+    FileView {
+        path: (Quickshell.env("AMADEUS_RUN") || Quickshell.env("XDG_RUNTIME_DIR") + "/amadeus") + "/activity.json"
+        watchChanges: true; printErrors: false
+        onFileChanged: reload()
+        onLoaded: { try { root.aiActivity = JSON.parse(text()) } catch (e) { root.aiActivity = ({running: 0, tasks: []}) } }
+        onLoadFailed: root.aiActivity = ({running: 0, tasks: []})
+    }
     property var agentState: ({ default: "", providers: [] })
     property var usageData: ({ providers: [] })
     readonly property var defaultAgent: agentState.providers.find(p => p.name === agentState.default) || ({})
@@ -135,7 +159,7 @@ ShellRoot {
         PowerProfiles.profile = !UPower.onBattery ? (PowerProfiles.hasPerformanceProfile ? PowerProfile.Performance : PowerProfile.Balanced)
                               : (batteryPct < 20 ? PowerProfile.PowerSaver : PowerProfile.Balanced)
     }
-    onLowBatteryChanged: autoProfile()
+    onLowBatteryChanged: { autoProfile(); if (lowBattery) publish("battery-low", {percentage: batteryPct}) }
     Connections { target: UPower; function onOnBatteryChanged() { root.autoProfile() } }
     Timer { interval: 3000; running: true; onTriggered: root.autoProfile() }      // once, after the services have answered
 
@@ -324,7 +348,7 @@ ShellRoot {
         Tool { icon: root.muted ? "volume-off" : (root.vol < 0.4 ? "volume-low" : "volume"); panel: "volume"; opacity: root.muted ? 0.6 : 1 } }
     Component { id: wDisplay; Tool { icon: "display"; panel: "display" } }
     Component { id: wAgents
-        Tool { icon: "sparkles"; reading: root.defaultAgent.label || "AI"; panel: "agents" } }
+        Tool { icon: "sparkles"; reading: root.aiActivity.running ? root.aiActivity.running + " working" : root.defaultAgent.label || "AI"; panel: "agents" } }
     Component { id: wBattery
         Tool { shown: root.hasBattery; icon: !root.demo && !UPower.onBattery ? "bolt" : "battery"; reading: root.batteryPct + "%"; panel: "power"; alert: root.lowBattery } }
     Component { id: wPower; Tool { shown: !root.hasBattery; icon: "power"; panel: "power" } }

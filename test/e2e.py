@@ -16,6 +16,12 @@ SCRIPT = {      # scenario -> the one tool call the "model" makes before it answ
     "deny": ("fs_write", {"path": str(FILES["deny"]), "content": "no"}),
     "slow": ("fs_write", {"path": str(FILES["slow"]), "content": "late"}),
     "launch": ("desktop_launch", {"app": "foot"}),
+    "setting": ("desktop_settings", {"area":"text", "action":"set", "value":16}),
+    "task-save": ("task_manage", {"action":"save", "id":"e2e-daily", "label":"VM test", "prompt":"E2E:read", "calendar":"daily"}),
+    "task-enable": ("task_manage", {"action":"enable", "id":"e2e-daily"}),
+    "task-disable": ("task_manage", {"action":"disable", "id":"e2e-daily"}),
+    "event-save": ("task_manage", {"action":"save", "id":"e2e-focus", "prompt":"E2E:read", "trigger":"event", "event":"app-focused", "match":"e2e-only", "enabled":True}),
+
 }
 
 
@@ -26,13 +32,24 @@ class Model(BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["content-length"])))
         msgs = body["messages"]
-        last_user = max(i for i, m in enumerate(msgs) if m["role"] == "user")
+        last_user = max(i for i, m in enumerate(msgs) if m["role"] == "user" and isinstance(m["content"], str))
         text = msgs[last_user]["content"]
         scenario = text.split("E2E:")[-1].split()[0] if "E2E:" in text else "read"
         answered = any(m["role"] == "tool" for m in msgs[last_user:])
         if scenario == "slow" and not answered:
             time.sleep(4)
-        if answered:
+        if scenario == "visual":
+            results = [m for m in msgs[last_user:] if m["role"] == "tool"]
+            if not results:
+                name, args = "desktop_observe", {}
+            elif len(results) == 1:
+                observation = json.loads(results[0]["content"])["observation"]
+                Model.saw_image = any(isinstance(m.get("content"), list) and any(p.get("type") == "image_url" for p in m["content"]) for m in msgs[last_user:])
+                name, args = "desktop_interact", {"observation":observation, "steps":[{"type":"type", "text":"native-input"}, {"type":"key", "key":"Return"}]}
+            else:
+                name, args = None, None
+            msg = {"role":"assistant", "content":"done visual"} if name is None else {"role":"assistant", "content":None, "tool_calls":[{"id":"visual-"+str(len(results)), "type":"function", "function":{"name":name, "arguments":json.dumps(args)}}]}
+        elif answered:
             msg = {"role": "assistant", "content": f"done {scenario}"}
         else:
             name, args = SCRIPT[scenario]
@@ -152,6 +169,51 @@ def main():
         a, b = (c.send("ask", prompt="E2E:read", session=s, interactive=True) for s in ("e2e-p1", "e2e-p2"))
         ra, rb = c.wait(a)[0], c.wait(b)[0]
         check("two tasks run side by side on one connection", bool(ra and rb) and ra["session"] != rb["session"], (ra, rb))
+
+        # Native controls use the same wrappers as the human UI, including GTK undo.
+        old_text = subprocess.check_output(["amadeus-display", "text"], text=True).strip()
+        old_gtk = subprocess.check_output(["gsettings", "get", "org.gnome.desktop.interface", "text-scaling-factor"], text=True).strip()
+        r, err, ev = c.ask("setting", "e2e-setting", approve="yes")
+        check("AI text changes reach the real desktop controls", subprocess.check_output(["amadeus-display", "text"], text=True).strip() == "16 px" and any(e["event"] == "approval" for e in ev), err or r)
+        c.call("undo", session="e2e-setting")
+        check("AI text undo restores the unified size", subprocess.check_output(["amadeus-display", "text"], text=True).strip() == old_text and subprocess.check_output(["gsettings", "get", "org.gnome.desktop.interface", "text-scaling-factor"], text=True).strip() == old_gtk)
+
+        for scenario, session in (("task-save","e2e-task-save"), ("task-enable","e2e-task-enable")):
+            c.ask(scenario, session, approve="yes")
+        timer = "amadeus-task-e2e-daily.timer"
+        timer_active = subprocess.run(["systemctl", "--user", "is-active", "--quiet", timer]).returncode == 0
+        check("saved tasks enable a real user timer", timer_active and any(j["id"] == "e2e-daily" and j["enabled"] for j in c.call("tasks")))
+        rr, ee, events = c.wait(c.send("task_run", id="e2e-daily", interactive=True), approve="yes")
+        check("saved tasks run through the selected model and normal tools", bool(rr) and rr.get("text") == "done read" and any(e["event"] == "started" and e["data"]["origin"] == "automation:e2e-daily" for e in events), ee or rr)
+        c.ask("task-disable", "e2e-task-disable", approve="yes")
+        check("disabled tasks stop their user timer", subprocess.run(["systemctl", "--user", "is-active", "--quiet", timer]).returncode != 0)
+        for session in ("e2e-task-disable", "e2e-task-enable", "e2e-task-save"): c.call("undo", session=session)
+        check("undo removes saved task and its timer", not any(j["id"] == "e2e-daily" for j in c.call("tasks")) and not (HOME/".config/systemd/user"/timer).exists())
+        c.ask("event-save", "e2e-event-save", approve="yes")
+        empty = c.call("desktop_event", name="app-focused", data={"app":"different"})
+        event = c.call("desktop_event", name="app-focused", data={"app":"e2e-only"})
+        cooled = c.call("desktop_event", name="app-focused", data={"app":"e2e-only"})
+        check("event tasks filter apps and respect cooldown", empty == [] and bool(event) and event[0].get("text") == "done read" and cooled == [], event)
+        c.call("undo", session="e2e-event-save")
+
+        target = HOME / "amadeus-e2e-input.txt"
+        target.unlink(missing_ok=True)
+        input_app = subprocess.Popen(["foot", "--app-id=amadeus-e2e-input", "sh", "-c", 'cat > "$1"', "sh", str(target)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            focused = None
+            for _ in range(30):
+                focused = hyprctl("activewindow") or {}
+                if focused.get("class") == "amadeus-e2e-input": break
+                time.sleep(0.2)
+            r, err, ev = c.ask("visual", "e2e-visual", approve="yes")
+            check("screen observation reaches the model as a native image", getattr(Model, "saw_image", False), err or r)
+            check("approved input operates the observed application", target.exists() and "native-input" in target.read_text(), err or r)
+            check("screen input asks approval separately from observation", len([e for e in ev if e["event"] == "approval"]) == 2, ev)
+        finally:
+            input_app.terminate(); input_app.wait(timeout=5); target.unlink(missing_ok=True)
+
+        activity = json.loads((Path(os.environ["XDG_RUNTIME_DIR"])/"amadeus/activity.json").read_text())
+        check("native activity returns to idle after completion", activity["running"] == 0, activity)
 
         kinds = {(x.get("kind"), x.get("tool")) for x in c.call("audit", n=200)}
         check("the audit log has the request, the action, the denial and the stop",

@@ -15,11 +15,12 @@ def _journal():
 current = threading.local()     # .session is set by the daemon around each tool call
 
 
-def remember(path):
+def remember(path, recovery=None):
     """Save the current version of path before changing it."""
     path = Path(path)
     stamp = f"{time.time_ns()}"
     entry = {"path": str(path), "existed": path.exists(), "ts": time.time(), "session": getattr(current, "session", None)}
+    if recovery: entry["recovery"] = recovery
     if path.is_file():
         shutil.copy2(path, _journal() / f"{stamp}.bak")
     (_journal() / f"{stamp}.json").write_text(json.dumps(entry))
@@ -35,13 +36,18 @@ def _restore(j):
     bak = j.with_suffix(".bak")
     if bak.exists():
         shutil.copy2(bak, e["path"])
-        bak.unlink()
         msg = f"restored {e['path']}"
     elif not e["existed"]:
         Path(e["path"]).unlink(missing_ok=True)
         msg = f"removed {e['path']} (it did not exist before)"
     else:
         msg = f"no saved copy for {e['path']}"
+    if e.get("recovery", {}).get("kind") == "task":
+        from .. import tasks
+        tasks.reconcile(e["recovery"]["id"])
+    elif e.get("recovery", {}).get("kind") == "text":
+        sh(["gsettings", "set", "org.gnome.desktop.interface", "text-scaling-factor", e["recovery"]["factor"]], check=True)
+    bak.unlink(missing_ok=True)
     j.unlink()
     return msg
 

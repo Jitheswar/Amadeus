@@ -37,7 +37,7 @@ FloatingWindow {
             spacing: Theme.gap
             anchors.right: parent.right
             Btn { text: "Deny"; onClicked: win.decide("no") }
-            Btn { text: "Always this session"; visible: !win.serious; onClicked: win.decide("always") }
+            Btn { text: "Always this session"; visible: !win.serious && win.req.rememberable !== false; onClicked: win.decide("always") }
             Btn { text: "Allow once"; primary: true; onClicked: win.decide("yes") }
         }
     }

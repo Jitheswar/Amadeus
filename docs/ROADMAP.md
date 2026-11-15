@@ -15,6 +15,8 @@ discovery output rather than this roadmap.
   and audio-device lists, unified text sizing, capture tools and configurable defaults.
 - A graphical login with account preselection, a profile dropdown when needed, and
   password-free graphical return to the Try session after logout.
+- Native settings and app interaction, context handoff from menus/settings/selection/Files,
+  visible working state and global stop, plus opt-in scheduled and desktop-event tasks.
 - Guided and unattended installation, a temporary Try session, an optional extras choice,
   signed offline packages for the target CPU, and package-index snapshots that refresh
   correctly on the first network sync.
@@ -51,7 +53,7 @@ by the full VM suite. Signature verification remained enabled.
 
 - Snapshot selection from the boot menu.
 - An explicit offline local-model fallback suited to the target machine's memory.
-- Context-aware workspace suggestions based on compositor events.
+- Richer workspace suggestions built on the opt-in desktop-event task system.
 - Side panels attached to existing applications and a visible mark on windows the AI
   is working with.
 

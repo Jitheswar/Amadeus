@@ -152,6 +152,10 @@ t "search opens a setting without returning it to a menu" bash -c '(printf "loca
 t "universal search indexes applications and settings" bash -c 'out=$(as amadeus-search --index); grep -q "app:" <<<"$out" && grep -q "setting:agent" <<<"$out"'
 t "audio menu omits monitor inputs"             bash -c 'state=$(shell shell state) && [[ $state == *audioInputs* && $state != *"Monitor of"* ]]'
 t "usage controls open from the bar"           bash -c 'shell shell popover agents 1700; sleep 1; shell shell state | grep -q "popover.*agents" && shell shell popover "" 0'
+t "saved tasks page opens"                    bash -c 'as ama panel tasks; sleep 0.5; as ama panel state | grep -q "taskSettings.*true" && as ama panel hide'
+t "settings context reaches AI without starting a request" bash -c 'as ama panel context "{\"kind\":\"setting\",\"label\":\"Display\"}"; sleep 0.5; as ama panel state | grep -q "context.*Display" && as ama panel hide'
+t "Files offers Ask Amadeus for selected files" test -x "/home/$U/.local/share/nautilus/scripts/Ask Amadeus"
+t "native AI tools are discoverable"          bash -c 'as ama tool | grep -q desktop_observe && as ama tool | grep -q task_manage'
 t "audit log chain intact"                     as ama audit verify
 echo "--- AI requests end to end (scripted model; everything else is real)"
 while read -r line; do

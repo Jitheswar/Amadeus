@@ -72,6 +72,8 @@ o.bind("SUPER + SHIFT + RETURN", "AI coding harness", "amadeus-terminal -e amade
 o.bind("SUPER + SPACE", "Amadeus menu", "amadeus-menu")
 o.bind("SUPER + Z", "Amadeus panel", "ama panel")
 o.bind("SUPER + A", "Ask Amadeus about this window", "ama panel window")
+o.bind("SUPER + ALT + A", "Ask Amadeus about selected text", "ama panel selection")
+o.bind("SUPER + SHIFT + ESCAPE", "Stop all Amadeus tasks", "ama stop")
 o.bind("SUPER + B", "Browser", "xdg-open https://")
 o.bind("SUPER + E", "Files", "nautilus --new-window")
 o.bind("SUPER + SHIFT + F", "Files (your default application)", "xdg-open ~")

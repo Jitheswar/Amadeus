@@ -2,6 +2,7 @@
 Python and must not depend on anything outside the base OS."""
 import os
 from .. import config
+from ..attachments import split_result
 from . import ProviderError
 from .http import post_json
 
@@ -61,7 +62,12 @@ class Anthropic:
                         {"type": "tool_use", "id": c["id"], "name": c["name"], "input": c["args"]} for c in m.get("calls", [])]
                 out.append({"role": "assistant", "content": content or [{"type": "text", "text": "(no output)"}]})
             else:
-                out.append({"role": "user", "content": [
-                    {"type": "tool_result", "tool_use_id": r["id"], "content": r["content"], "is_error": bool(r.get("is_error"))}
-                    for r in m["results"]]})
+                results = []
+                for r in m["results"]:
+                    text, image = split_result(r.get("name"), r["content"])
+                    content = [{"type": "text", "text": text}]
+                    if image:
+                        content.append({"type": "image", "source": {"type": "base64", "media_type": image["mime"], "data": image["data"]}})
+                    results.append({"type": "tool_result", "tool_use_id": r["id"], "content": content if image else text, "is_error": bool(r.get("is_error"))})
+                out.append({"role": "user", "content": results})
         return out

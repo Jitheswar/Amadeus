@@ -21,6 +21,9 @@ package() {
   install -Dm644 "$src/greeter/greetd.toml" -t "$pkgdir/usr/share/amadeus-os/greeter/"
   install -Dm644 "$src"/greeter/wayland-sessions/*.desktop -t "$pkgdir/usr/share/amadeus-os/greeter/wayland-sessions/"
   install -Dm755 "$src/lib/amadeus-greeter" -t "$pkgdir/usr/lib/amadeus-os/"
+  install -Dm755 "$src/lib/amadeus-file-context" "$pkgdir/usr/share/amadeus-os/nautilus/Ask Amadeus"
+  install -d "$pkgdir/etc/skel/.local/share/nautilus/scripts"
+  ln -s "/usr/share/amadeus-os/nautilus/Ask Amadeus" "$pkgdir/etc/skel/.local/share/nautilus/scripts/Ask Amadeus"
   # Passwordless administrator access is a switch the user turns on from the bar; this is its root side.
   install -Dm755 "$src/lib/sudo-helper" -t "$pkgdir/usr/lib/amadeus-os/"
   install -Dm644 "$src/lib/org.amadeus.sudo.policy" -t "$pkgdir/usr/share/polkit-1/actions/"

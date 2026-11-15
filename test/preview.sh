@@ -82,6 +82,12 @@ PY
   shot 4-panel 1.5
   ama panel settings; quickshell ipc -p /src/ai/shell/panel.qml call panel agent codex-cli
   shot 11-agent-settings 1.0
+  mkdir -p "$HOME/.local/share/amadeus/tasks"
+  printf '%s\n' '{"id":"daily-report","label":"Daily workspace summary","prompt":"Summarise open work and suggest next steps.","trigger":"timer","calendar":"*-*-* 09:00:00","enabled":false,"provider":"","cooldown":300}' >"$HOME/.local/share/amadeus/tasks/daily-report.json"
+  ama panel tasks
+  shot 17-tasks 1.0
+  ama panel context '{"source":"Settings","menu":"Display","query":"make text easier to read"}'
+  shot 18-ai-context 1.0
   printf '%s\n' '{"font_size":20}' >"$HOME/.config/amadeus/theme.json"
   shot 14-large-text 1.0
   ipc shell state >"$OUT/large-text-shell.json"

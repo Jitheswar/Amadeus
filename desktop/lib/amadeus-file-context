@@ -1,0 +1,10 @@
+#!/bin/bash
+# Open Amadeus about files selected in Files, without reading their contents.
+set -euo pipefail
+context=$(python3 - <<'PY'
+import json, os
+paths = os.environ.get("NAUTILUS_SCRIPT_SELECTED_FILE_PATHS", "").splitlines()[:100]
+print(json.dumps({"kind":"files", "label":"Selected files", "paths":paths}))
+PY
+)
+exec ama panel context "$context"

@@ -26,6 +26,17 @@ class Daemon:
         self.pending = {}           # approval id -> {"event", "decision"}
         self.app_servers = {}
         self.lock = threading.Lock()
+        self.publish_activity()
+
+    def publish_activity(self):
+        with self.lock:
+            running = [{"session": key, "provider": value.get("provider", ""), "origin": value.get("origin", "ai"),
+                        "tool": value.get("tool", ""), "stopping": value.get("cancel", threading.Event()).is_set()}
+                       for key, value in self.sessions.items() if value.get("running")]
+        try:
+            config._atomic_config(config.RUN / "activity.json", json.dumps({"running": len(running), "tasks": running}))
+        except OSError:
+            pass
 
     def reload(self):
         self.cfg = config.load()
@@ -50,8 +61,8 @@ class Daemon:
         except Exception as e:
             return f"invalid arguments: {e}", True
         decision, reason = self.policy.decide(cap, risk, args, root_on=root.enabled())
-        if origin.startswith("app:") and decision == "allow" and risk != "read":
-            decision, reason = "ask", "requested by an app"
+        if (origin.startswith("app:") or origin.startswith("automation:")) and decision == "allow" and risk != "read":
+            decision, reason = "ask", "requested by an app or automation"
         if decision == "ask":
             answer = self.ask_user(session, origin, name, args, cap, risk, reason)
             if answer == "always":
@@ -64,6 +75,10 @@ class Daemon:
         if self.sessions.get(session, {}).get("cancel", threading.Event()).is_set():
             return "Not done: the user stopped this task.", True
         t0 = time.time()
+        active = self.sessions.get(session)
+        if active:
+            active["tool"] = name
+            self.publish_activity()
         F.current.session = session
         try:
             result = t["fn"](args, Ctx(self, session, origin))
@@ -74,17 +89,20 @@ class Daemon:
             content, err = str(e), True
         except Exception as e:
             content, err = f"{type(e).__name__}: {e}", True
+        if active:
+            active["tool"] = ""
+            self.publish_activity()
         if risk != "read" or err:
             audit.record("action", tool=name, args=args, cap=cap, risk=risk, ok=not err, ms=int((time.time() - t0) * 1000),
-                         result=content[:300], session=session, origin=origin, approved=reason)
+                         result=("Screen observation captured" if name == "desktop_observe" and not err else content[:300]), session=session, origin=origin, approved=reason)
         return content, err
 
     # ---- approvals ---------------------------------------------------------
     def ask_user(self, session, origin, name, args, cap, risk, reason):
         aid = uuid.uuid4().hex[:12]
         ev = threading.Event()
-        self.pending[aid] = {"event": ev, "decision": "no"}
-        data = {"aid": aid, "tool": name, "args": args, "capability": cap, "risk": risk, "reason": reason, "origin": origin}
+        self.pending[aid] = {"event": ev, "decision": "no", "session": session}
+        data = {"aid": aid, "tool": name, "args": args, "capability": cap, "risk": risk, "reason": reason, "origin": origin, "rememberable": not origin.startswith(("app:", "automation:"))}
         s = self.sessions.get(session, {})
         conn = s.get("conn")
         try:
@@ -109,27 +127,38 @@ class Daemon:
         """Desktop prompt for requests that did not come from an interactive terminal."""
         qml = config.SHARE / "shell" / "approve.qml"
         env = dict(os.environ, AMA_REQ=json.dumps(data), **apps.theme_env())
+        process = None
         try:
-            p = subprocess.run(["quickshell", "-p", str(qml)], env=env, capture_output=True, text=True, timeout=290)
+            process = subprocess.Popen(["quickshell", "-p", str(qml)], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            pending = self.pending.get(aid)
+            if not pending:
+                process.terminate()
+            else:
+                pending["dialog"] = process
+                if pending["event"].is_set(): process.terminate()
+            stdout, stderr = process.communicate(timeout=290)
             import re
-            out = re.findall(r"DECISION (yes|no|always)", p.stdout + p.stderr)
+            out = re.findall(r"DECISION (yes|no|always)", stdout + stderr)
             self.resolve(aid, out[-1] if out else "no")
         except Exception:
+            if process and process.poll() is None:
+                process.kill(); process.communicate()
             self.resolve(aid, "no")
 
     # ---- conversations -----------------------------------------------------
-    def ask(self, conn, rid, prompt, session=None, provider=None):
+    def ask(self, conn, rid, prompt, session=None, provider=None, origin="ai"):
         session = session or uuid.uuid4().hex[:10]
+        pname = provider or self.cfg["ai"]["provider"]
         # Requests have independent threads; reserving a session must be atomic.
         with self.lock:
             s = self.sessions.setdefault(session, {"history": [], "conn": None, "cancel": threading.Event(), "proc": None})
             if s.get("running"):
                 raise RuntimeError("this task is still running")
-            s.update(conn=conn, rid=rid, running=True, proc=None)
+            s.update(conn=conn, rid=rid, running=True, proc=None, origin=origin, provider=pname)
             s["cancel"].clear()
             start = len(s["history"])
             s["history"].append({"role": "user", "text": prompt})
-        pname = provider or self.cfg["ai"]["provider"]
+        self.publish_activity()
 
         def emit(kind, data):
             if kind == "_proc":
@@ -139,9 +168,10 @@ class Daemon:
 
         def execute(name, args):
             emit("tool", {"name": name, "args": args})
-            return self.execute(name, args, session=session)
+            return self.execute(name, args, session=session, origin=origin)
         completed, agent_started = False, False
         try:
+            emit("started", {"session": session, "provider": pname, "origin": origin})
             audit.record("request", session=session, provider=pname, prompt=prompt)
             prov = providers.make(pname, self.cfg)
             if prov.kind == "chat":
@@ -165,6 +195,7 @@ class Daemon:
                     del s["history"][start:]    # never replay half-finished API tool calls
             with self.lock:
                 s["running"] = False
+            self.publish_activity()
 
     def stop(self, session):
         """Stop a running task: no further tool runs for it, and its provider process ends."""
@@ -173,6 +204,14 @@ class Daemon:
             return False
         s["cancel"].set()
         audit.record("stopped", session=session)
+        self.publish_activity()
+        for aid, pending in list(self.pending.items()):
+            if pending.get("session") == session:
+                self.resolve(aid, "no")
+                dialog = pending.get("dialog")
+                if dialog and dialog.poll() is None:
+                    try: dialog.terminate()
+                    except OSError: pass
         if s.get("proc"):
             try:
                 s["proc"].terminate()
@@ -280,8 +319,18 @@ def make_handler(d, app=None):
                 owner = sess.get("conn")
                 if owner and owner.alive:
                     owner.event(sess.get("rid"), "tool", {"name": p["name"], "args": p.get("args") or {}})
-                content, err = d.execute(p["name"], p.get("args") or {}, session=s, origin=p.get("origin", "ai"))
+                content, err = d.execute(p["name"], p.get("args") or {}, session=s, origin=sess.get("origin", p.get("origin", "ai")))
                 return {"content": content, "is_error": err}
+            if m == "tasks":
+                from . import tasks
+                return tasks.listing()
+            if m == "task_run":
+                conn.interactive = bool(p.get("interactive"))
+                from . import tasks
+                return tasks.run(d, conn, rid, p["id"])
+            if m == "desktop_event":
+                from . import tasks
+                return tasks.event(d, conn, rid, p["name"], p.get("data") or {})
             if m == "providers":
                 return config.provider_info()
             if m == "provider_default":
@@ -307,10 +356,13 @@ def make_handler(d, app=None):
                 return audit.verify()
             if m == "undo":
                 msg = F.undo_session(p["session"]) if p.get("session") else F.undo_last()
+                d.reload()
                 audit.record("undo", result=msg, session=p.get("session"))
                 return msg
             if m == "stop":
                 return d.stop(p.get("session"))
+            if m == "stop_all":
+                return sum(d.stop(session) for session in list(d.sessions))
             if m == "app_run":
                 return d.run_app(p["id"])
             if m == "new_session":
@@ -336,6 +388,7 @@ def main():
         pass
     finally:
         config.SOCK.unlink(missing_ok=True)
+        (config.RUN / "activity.json").unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

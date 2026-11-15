@@ -8,7 +8,7 @@ say()    { notify-send -a Amadeus "$@"; }
 root_choices() { printf '%s\n' Apps Trigger Install Gaming Chat Remove Update Setup System About; }
 install_choices() { printf '%s\n' Terminal Browser Editor AI Development Harness 'Web app' Packages AUR; }
 remove_choices() { printf '%s\n' Packages Harness 'Web app'; }
-setup_choices() { printf '%s\n' Display GPU 'Text size' Defaults Config; }
+setup_choices() { printf '%s\n' Display GPU 'Text size' Defaults Config Tasks; }
 update_choices() { printf '%s\n' Everything 'Harnesses and tools only'; }
 trigger_choices() { printf '%s\n' Capture; }
 
@@ -182,6 +182,7 @@ setup_menu() {
                  say "$(amadeus-display text "$s")" ;;
     Defaults)    defaults_menu ;;
     Config)      config_menu ;;
+    Tasks)       exec ama panel tasks ;;
   esac
 }
 
@@ -204,6 +205,8 @@ case ${1:-$(root_choices | pick "Amadeus")} in
         printf '%s:%s\t%s\t%s\n' "$group" "$name" "$name" "$(case $group in root) echo Amadeus ;; *) echo "Amadeus › ${group^}" ;; esac)"
       done < <("${group}_choices")
     done ;;
+  --default-types)
+    for kind in "${!KINDS[@]}"; do printf '%s\t%s\n' "${kind,,}" "${KINDS[$kind]}"; done ;;
   --settings-index)
     while read -r kind; do printf 'default:%s\t%s\t%s\n' "$kind" "$kind" "${KINDS[$kind]:-$kind}"; done < <(default_choices)
     while IFS=$'\t' read -r label path; do printf 'config:%s\t%s\t%s\n' "$label" "$label" "$path"; done < <(config_choices) ;;

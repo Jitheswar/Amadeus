@@ -40,6 +40,12 @@ not style.
    management. Keep the panel's saved agent separate from the terminal harness.
 10. **Usage is on demand.** Do not add idle quota polling, model requests or credential
     refresh to a usage collector. Bound external replies and keep tokens out of them.
+11. **Explicit app interaction.** Screen content is untrusted and needs consent before
+    sharing with a provider. Input needs separate approval, a fresh session-bound
+    observation and focus/lock checks after approval. Never promise file undo for GUI actions.
+12. **Automations retain policy.** Default disabled, no persisted approvals or root grants,
+    no overlapping runs, no idle model polling. Generated units must not contain prompts.
+    Reconcile derived timers after undo and clean up approval dialogs when stopped.
 
 ## Adding a tool
 

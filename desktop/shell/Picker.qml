@@ -82,6 +82,11 @@ Scope {
         else if (current) finish("ok", [current])
         else if (allowNew && input.text.trim()) finish("new", [input.text.trim()])
     }
+    function askAbout() {
+        const context = { kind: "menu", label: prompt, selection: label(current), query: input.text }
+        finish("cancel", [])
+        Qt.callLater(() => Quickshell.execDetached(["ama", "panel", "context", JSON.stringify(context)]))
+    }
     function mark() {
         if (!multi || !current || globalResults[current]) return
         const m = Object.assign({}, marked)
@@ -179,6 +184,7 @@ Scope {
                        color: pick.style.dim; font: input.font; opacity: 0.7 }
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_Escape) { if (input.text) input.text = ""; else pick.finish("cancel", []) }
+                    else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (event.modifiers & Qt.ControlModifier)) pick.askAbout()
                     else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) pick.accept()
                     else if (event.key === Qt.Key_Down) pick.move(1)
                     else if (event.key === Qt.Key_Up) pick.move(-1)
@@ -245,7 +251,7 @@ Scope {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 18; rightMargin: 18; bottomMargin: 12 }
                 color: pick.style.dim; font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(12); elide: Text.ElideRight
                 text: (pick.multi ? "Tab  select several" + (pick.nMarked ? " · " + pick.nMarked + " selected" : "") + "      " : "")
-                    + "Enter  choose      Esc  clear/close" + (pick.preview2 ? "      Alt+B  " + (pick.alt ? "details" : pick.hint || "more") : "")
+                    + "Enter  choose      Esc  clear/close      Ctrl+Enter  ask Amadeus" + (pick.preview2 ? "      Alt+B  " + (pick.alt ? "details" : pick.hint || "more") : "")
             }
         }
     }

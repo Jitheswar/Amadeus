@@ -144,7 +144,7 @@ def sys_packages(a, ctx):
 PKG_RE = re.compile(r"[a-zA-Z0-9_@+][a-zA-Z0-9@._+-]*")
 
 
-@tool("pkg_manage", "Install, remove or upgrade packages with pacman. A btrfs snapshot is taken before and after, so the change can be rolled back. Needs root mode.",
+@tool("pkg_manage", "Install, remove or upgrade packages with pacman. Attempts pre/post btrfs snapshots; inspect the returned IDs before relying on recovery. Needs root mode.",
       {"action": {"type": "string", "enum": ["install", "remove", "upgrade"]}, "packages": {"type": "array", "items": {"type": "string"}}},
       required=("action",), cap="pkg.manage", risk="privileged")
 def pkg_manage(a, ctx):

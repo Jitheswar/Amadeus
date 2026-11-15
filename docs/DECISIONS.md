@@ -371,3 +371,24 @@ screen, not during the desktop session. ReGreet uses the D-Bus-activated Account
 to enumerate profiles; its actual idle memory needs measurement. This adds a graphical
 compositor and GTK greeter in exchange for accessible native controls and maintained
 authentication, avoiding a custom password-handling UI.
+
+## Native agentic desktop
+
+Native controls use existing desktop commands and the live menu index, so AI and human
+settings share validation. Focused-app observation combines a bounded screenshot and
+AT-SPI controls when available. Images travel as native provider/MCP image blocks, not
+plain text or remote image URLs, and are omitted from action-audit results. Observation
+requires permission; each input batch asks again, expires with its observation, and
+checks focus after approval and before each step. There is no continuous capture.
+
+Saved automations use user systemd timers or existing desktop events. They are opt-in,
+have an explicit agent choice, avoid overlapping runs and apply event cooldowns. Every
+automated write asks even if the user's ordinary session has a grant. Root mode and
+approvals are never persisted in tasks. Units contain only a task ID, not its prompt;
+private job files are the source for timer reconciliation after undo.
+
+The existing daemon publishes activity when request state changes. The shell watches
+that file and enabled event names. No new resident scheduler, idle model request, quota
+poller or screen recorder is introduced. Stop cancels further tool execution, provider
+processes and pending approvals; an OS command already running may finish within its
+timeout. Native GUI actions retain the application's own recovery semantics.

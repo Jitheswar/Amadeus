@@ -87,7 +87,26 @@ placement. Personal bar changes live in `~/.config/amadeus/bar.json`.
 
 **Super+Z** opens the right-side panel. **Super+A** opens it with the focused window as
 context. Each request is a task: tasks can run in parallel, show their steps, be stopped,
-and undo journalled file changes. Stopping a task does not undo completed actions.
+and undo journalled file changes. Stopping a task does not undo completed actions or
+instantly interrupt an OS command already in progress. **Super+Shift+Escape** stops all
+Amadeus tasks and dismisses their pending approvals. The bar shows a working count while
+requests are active.
+
+The same AI panel is reachable from desktop settings, **Ctrl+Enter** in a menu,
+**Super+Alt+A** for selected text, and **Scripts → Ask Amadeus** in Files for selected
+paths. These shortcuts prepare context for your request; they do not submit it automatically.
+Native setting tools share the desktop's own commands. Screen observation and app input
+are explicit permission requests; observation sends the focused application's image to
+the selected provider, so image reasoning needs a vision-capable model. Input uses a recent
+observation and checks the window again after approval. Completed GUI actions have no
+automatic file undo.
+
+Open **Tasks** in the panel or **Setup → Tasks** to create scheduled or desktop-event work.
+New tasks are disabled until enabled. Each can use the default agent or a specific provider.
+They run only while the user session and daemon are available; missed timer runs are not
+replayed. Automated changes still ask for approval. There is no continuous screen capture
+or background model polling. Disabling stops future triggers; use Stop for an active run.
+Task creation and configuration can be undone, which also reconciles their user timers.
 
 Open **Settings** in the panel to select a subscription, API provider or local model.
 **Setup → Defaults → Agent** saves the panel's default. A temporary panel selection

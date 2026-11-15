@@ -8,16 +8,19 @@ HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
   ama chat                    interactive session
   ama status                  daemon, provider, root mode, machine state
   ama provider [--json | use NAME | key NAME]
+  ama task list | run ID       inspect or run an enabled task; manage tasks in the panel
+  ama event NAME JSON          deliver an opted-in desktop event
   ama usage [--force]          subscription limits and local request counts as JSON
   ama root on [--full] [--ttl MIN] | off | status
   ama app list | run ID | history ID | rollback ID [N] | remove ID
   ama audit [N] | audit verify
+  ama stop [SESSION]          stop one task, or all currently running tasks
   ama undo                    restore the last file the AI changed (the panel can undo a whole task)
   ama tool NAME [JSON]        call one tool directly (same policy as the AI)
   ama doctor                  verify drivers, GPU, sandbox and providers
   ama discover [--json]       a live map of this system: commands, files, tools, policy
   ama skill                   print the built-in guide that teaches an AI agent to manage this system
-  ama panel [toggle | show | hide | window | state | ask TEXT]
+  ama panel [toggle | show | hide | window | selection | context JSON | settings | tasks | state | ask TEXT]
                               the docked panel; `window` makes the next request about the focused window
   ama reload | daemon | mcp
 """
@@ -115,7 +118,8 @@ def mcp():
                 res = {"tools": [{"name": t["name"], "description": t["description"], "inputSchema": t["schema"]} for t in c.call("tools")]}
             elif m == "tools/call":
                 r = c.call("tool", name=p["name"], args=p.get("arguments") or {}, session=session, origin="mcp")
-                res = {"content": [{"type": "text", "text": r["content"]}], "isError": r["is_error"]}
+                from .attachments import mcp_content
+                res = {"content": mcp_content(p["name"], r["content"]), "isError": r["is_error"]}
             elif m == "ping":
                 res = {}
             else:
@@ -177,9 +181,17 @@ def panel_cmd(args):
             extra = [json.dumps(w)]
         else:
             action = "show"
+    if action == "selection":
+        data = subprocess.run(["wl-paste", "--primary", "--no-newline", "--type", "text/plain"], capture_output=True, text=True, timeout=3)
+        extra = [json.dumps({"kind": "selection", "label": "Selected text", "selection": data.stdout[:20000]})]
+        action = "context"
+    elif action == "context":
+        value = json.loads(" ".join(args[1:]))
+        if not isinstance(value, dict): sys.exit("context must be a JSON object")
+        extra = [json.dumps(value)]
     if action == "ask":
         extra = [" ".join(args[1:])]
-    if action not in ("toggle", "show", "hide", "window", "state", "settings", "ask"):
+    if action not in ("toggle", "show", "hide", "window", "context", "state", "settings", "tasks", "ask"):
         sys.exit(HELP)
 
     def call(fn, *a):
@@ -256,6 +268,17 @@ def main(argv=None):
     if cmd == "doctor":
         from .doctor import main as doc
         return doc()
+    if cmd == "stop":
+        c = Client()
+        return print(json.dumps(c.call("stop", session=rest[0]) if rest else c.call("stop_all")))
+    if cmd == "task":
+        c = Client()
+        if not rest or rest == ["list"]: return print(json.dumps(c.call("tasks"), indent=2))
+        if len(rest) == 2 and rest[0] == "run": return print(json.dumps(c.call("task_run", id=rest[1])))
+        sys.exit(HELP)
+    if cmd == "event":
+        if len(rest) != 2: sys.exit(HELP)
+        return Client().call("desktop_event", name=rest[0], data=json.loads(rest[1]))
     if cmd == "panel":
         return panel_cmd(rest)
     if cmd == "provider" and rest == ["--json"]:

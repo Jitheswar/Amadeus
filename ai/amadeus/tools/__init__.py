@@ -22,15 +22,17 @@ def risk_of(t, args):
     return t["risk"](args) if callable(t["risk"]) else t["risk"]
 
 
-def sh(argv, timeout=30, input=None, env=None, cwd=None, check=False):
+def sh(argv, timeout=30, input=None, env=None, cwd=None, check=False, binary=False):
     try:
-        p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, input=input, env=env, cwd=cwd)
+        p = subprocess.run(argv, capture_output=True, text=not binary, timeout=timeout, input=input, env=env, cwd=cwd)
     except FileNotFoundError:
         raise ToolError(f"{argv[0]} is not installed")
     except subprocess.TimeoutExpired:
         raise ToolError(f"{argv[0]} timed out after {timeout}s")
     if check and p.returncode:
-        raise ToolError((p.stderr or p.stdout).strip()[:2000] or f"{argv[0]} failed ({p.returncode})")
+        message = (p.stderr or p.stdout)
+        if isinstance(message, bytes): message = message.decode(errors="replace")
+        raise ToolError(message.strip()[:2000] or f"{argv[0]} failed ({p.returncode})")
     return p
 
 
@@ -39,7 +41,7 @@ def clip(s, n=12000):
 
 
 def load_all():
-    from . import system, files, shell, desktop, network, apps  # noqa: F401
+    from . import system, files, shell, desktop, network, apps, controls, interaction, automations  # noqa: F401
     return REGISTRY
 
 

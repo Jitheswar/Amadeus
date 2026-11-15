@@ -183,6 +183,8 @@ Scope {
             width: 350; implicitHeight: Math.min(560, usageBody.implicitHeight); height: implicitHeight
             clip: true; contentHeight: usageBody.implicitHeight; boundsBehavior: Flickable.StopAtBounds
             Column {
+            Choice { visible: pop.shell.aiActivity.running > 0; text: "Stop all tasks (" + pop.shell.aiActivity.running + ")"; onPicked: pop.shell.run(["ama", "stop"]) }
+            Choice { text: "Saved tasks"; onPicked: { pop.shell.run(["ama", "panel", "tasks"]); pop.shell.pop = "" } }
                 id: usageBody; width: parent.width; spacing: 8
                 Title { x: 10; text: "AI USAGE" }
                 Body { x: 10; width: parent.width - 20; wrapMode: Text.Wrap; textFormat: Text.PlainText
@@ -273,7 +275,7 @@ Scope {
         anchors { top: true; left: true; right: true }
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        implicitHeight: 520
+        implicitHeight: Math.min(Quickshell.screens[0].height, card.y + card.height + 12)
         color: "transparent"
         MouseArea { anchors.fill: parent; onClicked: pop.shell.pop = "" }
         Rectangle {
@@ -281,7 +283,7 @@ Scope {
             x: Math.max(10, Math.min(parent.width - width - 10, pop.shell.popX - width / 2))
             y: 50 - (1 - pop.t) * 8
             width: content.item ? content.item.width + 24 : 0
-            height: content.item ? content.item.height + 24 : 0
+            height: content.item ? content.item.height + 66 : 0
             radius: pop.shell.radius + 2
             color: pop.shell.surface
             border.color: pop.shell.line; border.width: 1
@@ -292,6 +294,14 @@ Scope {
             Behavior on height { enabled: pop.t > 0.5; NumberAnimation { duration: pop.shell.fast; easing.type: Easing.OutCubic } }
             MouseArea { anchors.fill: parent }
             Loader { id: content; x: 12; y: 12; sourceComponent: pop.panels[pop.showing] || null }
+            Choice {
+                x: 12; y: content.y + content.height + 8; width: parent.width - 24; height: 32
+                text: "Ask Amadeus"
+                onPicked: {
+                    pop.shell.run(["ama", "panel", "context", JSON.stringify({kind: "setting", label: pop.showing})])
+                    pop.shell.pop = ""
+                }
+            }
         }
     }
 }

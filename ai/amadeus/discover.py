@@ -40,7 +40,7 @@ def _os_release():
 
 def build():
     from . import tools
-    from .tools import system, files, shell, desktop, network, apps  # noqa: F401  (registers the tools)
+    tools.load_all()
     owned = {p: [f for f in _run(["pacman", "-Qlq", p]).splitlines() if not f.endswith("/")] for p in PACKAGES}
     files_all = [f for fs in owned.values() for f in fs]
     cfg = config.load()
@@ -51,16 +51,16 @@ def build():
         "system": {"name": osr.get("PRETTY_NAME", "").strip('"'), "kernel": os.uname().release, "amadeus": __version__,
                    "packages": {p: (_run(["pacman", "-Q", p]).split() or [None, None])[1] for p in PACKAGES}},
         "commands": {os.path.basename(f): _purpose(f) for f in sorted(files_all) if f.startswith("/usr/bin/")},
-        "defaults_shipped_with_the_system": sorted(f for f in files_all if f.startswith(("/usr/share/amadeus-os/", "/etc/skel/")))[:60],
+        "defaults_shipped_with_the_system": sorted(f for f in files_all if f.startswith(("/usr/share/amadeus-os/", "/etc/skel/"))),
         "your_configuration": {str(f): ("present" if f.exists() else "not created yet") for f in user_files},
-        "state": {"audit_log_and_undo": str(config.STATE), "generated_apps": str(config.APPS), "daemon_socket": str(config.SOCK)},
+        "state": {"audit_log_and_undo": str(config.STATE), "generated_apps": str(config.APPS), "daemon_socket": str(config.SOCK), "tasks": str(config.DATA / "tasks"), "activity": str(config.RUN / "activity.json")},
         "ai": {"provider": cfg["ai"]["provider"], "providers": sorted(cfg["providers"])},
         "policy": {k: v for k, v in cfg.get("policy", {}).items() if isinstance(v, str)},
         "tools": [{"name": t["name"], "capability": "depends on arguments" if callable(t["cap"]) else t["cap"], "risk": "depends on arguments" if callable(t["risk"]) else t["risk"],
                    "does": t["description"]} for t in tools.REGISTRY.values()],
         "explore_further": {
             "every file a package installed": "pacman -Qlq amadeus amadeus-desktop",
-            "what a command does": "<command> --help, or read it: these are short scripts",
+            "what a command does": "Read its header first; use its documented help form",
             "packages installed on purpose": "pacman -Qqe",
             "the desktop right now": "hyprctl -j clients | workspaces | monitors | activewindow",
             "every shortcut, with its description": "hyprctl -j binds",

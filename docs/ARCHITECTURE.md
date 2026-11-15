@@ -99,6 +99,31 @@ automatic login and a graphical password-free return after logout. Palette-gener
 assets ship under the system data directory; separate administrator overrides preserve
 the package's defaults.
 
+## Native assistance and automation
+
+Menus, bar settings, text selection and Files prepare typed context in the existing
+panel. Context from applications, files and accessibility is untrusted data. Native tools
+share the human interface's setting wrappers and live action routes. Provider choices
+and the saved default remain independent from terminal harness preferences.
+
+Screen observation is explicit and bounded. It captures the focused window and available
+AT-SPI control names, roles and actions without reading password values. Images become
+native provider image content or MCP image blocks. Interaction requires its own approval
+and a recent, session-bound observation; focus and lock checks occur before input.
+Application support and a vision-capable provider determine what the agent can interpret.
+
+Private saved jobs select a provider and a systemd calendar or desktop event. Generated
+user units refer only to the job ID. Enabled event names are watched by the shell, which
+publishes compositor, network and battery transitions rather than polling. Runs have
+separate sessions, overlap prevention, event cooldowns and visible status. Scheduled
+writes still pass through Daemon.execute and ask anew. No permission or root-mode grant
+is stored in a job. File undo of job configuration reconciles the derived timers.
+
+The daemon writes an activity summary on state changes, and the shell watches it for the
+working count. Stop resolves pending approvals to denial, closes approval dialogs and
+terminates a registered provider process. An OS command already executing can finish;
+completed window actions cannot be reversed by file undo.
+
 ## Generated applications
 
 An app has QML sources, a manifest, private data and source-version history under the
