@@ -57,12 +57,19 @@ Amadeus API keys use its private secrets directory.
 ## Using the desktop
 
 Open the Amadeus menu with **Super+Space**. Start typing an installed app or setting
-name from a list to search across menus. Matching, app ranking and pointer handoff
+name in a navigation menu to search across menus. Lists of things to choose, such as
+packages to install or remove, search only their own entries. Matching, app ranking and pointer handoff
 follow Omarchy’s menu implementation, with result paths shown under their names.
 Arrow keys keep the selection while the pointer is stationary. A global result closes
 the current menu before opening its destination. Free-text entry prompts continue to accept the text they ask
 for. Apps respects desktop-entry visibility and hides dependency-owned helpers and
-secondary launchers; settings remain available through search.
+secondary launchers; settings remain available through search. The shipped
+[hide list](desktop/shell/launcher.hides) names further helper entries; add your own in
+`~/.config/amadeus/launcher.hides`. A personal desktop entry is always shown.
+
+**Super+C** and **Super+V** copy and paste in every application, terminals and the
+Amadeus panel included. Text in the panel can be selected with the pointer, and each
+answer has a **Copy** button.
 
 Use **Setup → Defaults** for application choices. The terminal, editor and terminal
 harness use wrappers, so changing a default applies to shortcuts and menus that call
@@ -113,6 +120,27 @@ Open **Settings** in the panel to select a subscription, API provider or local m
 applies to the next request; **Use default** clears it. The terminal harness default is
 independent. Install a missing CLI through **Install → Harness**, then use the provider's
 sign-in flow. Provider definitions live in the [configuration module](ai/amadeus/config.py).
+
+The same Settings view sets a provider's **model** and **reasoning effort**. **Save**
+keeps them for that provider; **Use for next request** applies them once. The effort
+levels offered are the ones that provider type accepts; a blank choice leaves the
+provider's own default. `ama provider tune` does the same from a terminal.
+
+Separately, the row above the request field chooses an **execution mode**, which
+decides how much a request may do without asking. It does not depend on the provider:
+
+- **Ask** follows your policy file: changes wait for approval.
+- **Sandbox** reads and runs isolated commands; anything that would change the computer
+  is refused.
+- **Auto** runs reversible changes to your files and desktop unasked; everything else
+  still follows your policy.
+- **Full access** lets one request change anything in your account unasked. It needs a
+  confirmation each time, applies to the next request only and is never saved.
+
+No mode skips a policy denial, the prompt for deleting data, root mode and its prompt,
+consent for screen observation and input, or changes to what the AI itself is allowed
+to do. Scheduled tasks and generated apps never use a mode. Ask, Sandbox and Auto are
+remembered; `ama mode` shows or sets the saved one.
 
 API setup accepts a model, server address and private key. Saved keys are not displayed
 in the provider listing. A CLI being installed or configuration fields being present

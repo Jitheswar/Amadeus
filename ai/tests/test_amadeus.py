@@ -529,6 +529,34 @@ class DaemonTest(unittest.TestCase):
         self.assertEqual(d.sessions["locked"]["history"], [])
 
 
+    def test_a_request_mode_reaches_its_tool_calls_and_ends_with_it(self):
+        d = Daemon()
+        asked, seen = [], {}
+        d.ask_user = lambda *a: (asked.append(a[2]) or "no")
+        target = Path.home() / ".amadeus-test-mode"
+        class Agent:
+            kind = "agent"
+            def run(self, system, history, session, emit):
+                seen["mode"] = d.sessions[session]["mode"]
+                seen["result"] = d.execute("fs_write", {"path": str(target), "content": "x"}, session=session)
+                return "done"
+        def made(name, cfg):
+            seen["effort"] = cfg["providers"][name].get("effort")
+            return Agent()
+        with mock.patch("amadeus.daemon.providers.make", side_effect=made):
+            with self.assertRaisesRegex(ValueError, "explicit confirmation"):
+                d.ask(mock.Mock(), 1, "write", session="modes", options={"mode": "full"})
+            self.assertNotIn("modes", d.sessions)
+            d.ask(mock.Mock(), 1, "write", session="modes", options={"mode": "sandbox", "effort": "high"})
+            self.assertEqual((seen["mode"], seen["effort"], seen["result"][1], asked), ("sandbox", "high", True, []))
+            d.ask(mock.Mock(), 1, "write", session="modes", options={"mode": "full", "confirm_full_access": True})
+            self.assertEqual((seen["mode"], seen["result"][1], asked), ("full", False, []))
+            d.ask(mock.Mock(), 1, "write", session="modes")
+            self.assertEqual((seen["mode"], seen["result"][1], asked), ("ask", True, ["fs_write"]))
+        self.assertNotIn("mode", d.sessions["modes"])
+        self.assertNotIn("effort", d.cfg["providers"][d.cfg["ai"]["provider"]])
+        target.unlink(missing_ok=True)
+
     def test_unexpected_cli_failure_preserves_its_request(self):
         d = Daemon()
         provider = mock.Mock(kind="agent")
@@ -556,7 +584,7 @@ class DaemonTest(unittest.TestCase):
         with mock.patch("amadeus.daemon.audit.record", side_effect=OSError("disk full")) as record:
             with self.assertRaises(OSError):
                 d.ask(mock.Mock(), 1, "hello", session="s-audit")
-        record.assert_called_once_with("request", session="s-audit", provider=d.cfg["ai"]["provider"], prompt="hello")
+        record.assert_called_once_with("request", session="s-audit", provider=d.cfg["ai"]["provider"], prompt="hello", model="", effort="", mode="ask")
         self.assertFalse(d.sessions["s-audit"]["running"])
         self.assertEqual(d.sessions["s-audit"]["history"], [])
 

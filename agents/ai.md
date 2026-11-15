@@ -47,6 +47,12 @@ not style.
     no overlapping runs, no idle model polling. Generated units must not contain prompts.
     Reconcile derived timers after undo and clean up approval dialogs when stopped.
 
+13. **Modes adjust, never replace, the policy.** An execution mode is per request and is
+    applied in `ai/amadeus/preferences.py`, called from the enforcement point. It may
+    only relax a user-level `modify` decision. Full access needs a fresh confirmation
+    per request and is never stored. A new capability that controls what the AI may do
+    or see joins the guarded set there. Model tuning never affects a decision.
+
 ## Adding a tool
 
 Register it with the `tool` decorator in `ai/amadeus/tools/__init__.py`, in the module

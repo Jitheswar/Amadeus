@@ -107,6 +107,15 @@ panel. Context from applications, files and accessibility is untrusted data. Nat
 share the human interface's setting wrappers and live action routes. Provider choices
 and the saved default remain independent from terminal harness preferences.
 
+A request carries two independent choices. Tuning (model and reasoning effort) is
+validated against what the provider type accepts and merged into that one request's
+copy of the configuration; the saved configuration changes only on an explicit save.
+An execution mode is held on the session for the length of the request and read at the
+enforcement point, where it adjusts the policy's answer for user-level, reversible-risk
+calls only. Denials, destructive and privileged prompts, screen consent and the
+capabilities that govern the AI's own permissions are decided by the policy alone in
+every mode, and automations and generated apps always run under the plain policy.
+
 Screen observation is explicit and bounded. It captures the focused window and available
 AT-SPI control names, roles and actions without reading password values. Images become
 native provider image content or MCP image blocks. Interaction requires its own approval

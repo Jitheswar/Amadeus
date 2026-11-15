@@ -9,7 +9,8 @@ discovery output rather than this roadmap.
 - A user-session AI daemon with policy checks, approval, audit and file undo; a separate
   transient root helper; and sandboxed, versioned generated applications.
 - Subscription, API and local-model selection, saved panel-agent defaults, temporary
-  overrides, and on-demand usage controls. Terminal harness installation and defaults
+  overrides, per-provider model and effort, provider-independent execution modes, and
+  on-demand usage controls. Terminal harness installation and defaults
   remain independent user choices.
 - A Hyprland desktop with a shared shell, cross-menu app/settings search, filtered app
   and audio-device lists, unified text sizing, capture tools and configurable defaults.

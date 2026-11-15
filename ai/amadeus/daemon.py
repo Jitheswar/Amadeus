@@ -7,7 +7,7 @@
 Everything the AI does goes through `Daemon.execute`, which is the single place
 where policy, approval and audit are enforced."""
 import json, os, socket, socketserver, subprocess, sys, threading, time, uuid, shutil
-from . import config, audit, policy as P, providers, tools as T, agent, root, apps
+from . import config, audit, policy as P, preferences, providers, tools as T, agent, root, apps
 from .tools import files as F
 from .tools import ToolError
 
@@ -60,7 +60,8 @@ class Daemon:
             risk = T.risk_of(t, args)
         except Exception as e:
             return f"invalid arguments: {e}", True
-        decision, reason = self.policy.decide(cap, risk, args, root_on=root.enabled())
+        mode = self.sessions.get(session, {}).get("mode", "ask")
+        decision, reason = preferences.decision(self.policy, mode, cap, risk, args, root.enabled())
         if (origin.startswith("app:") or origin.startswith("automation:")) and decision == "allow" and risk != "read":
             decision, reason = "ask", "requested by an app or automation"
         if decision == "ask":
@@ -146,15 +147,17 @@ class Daemon:
             self.resolve(aid, "no")
 
     # ---- conversations -----------------------------------------------------
-    def ask(self, conn, rid, prompt, session=None, provider=None, origin="ai"):
+    def ask(self, conn, rid, prompt, session=None, provider=None, origin="ai", options=None):
         session = session or uuid.uuid4().hex[:10]
         pname = provider or self.cfg["ai"]["provider"]
+        # Only the user's own requests follow the saved mode; automations keep the plain policy.
+        cfg, chosen = preferences.request_config(self.cfg, pname, options, preferences.saved_mode(self.cfg) if origin == "ai" else "ask")
         # Requests have independent threads; reserving a session must be atomic.
         with self.lock:
             s = self.sessions.setdefault(session, {"history": [], "conn": None, "cancel": threading.Event(), "proc": None})
             if s.get("running"):
                 raise RuntimeError("this task is still running")
-            s.update(conn=conn, rid=rid, running=True, proc=None, origin=origin, provider=pname)
+            s.update(conn=conn, rid=rid, running=True, proc=None, origin=origin, provider=pname, mode=chosen["mode"])
             s["cancel"].clear()
             start = len(s["history"])
             s["history"].append({"role": "user", "text": prompt})
@@ -171,9 +174,9 @@ class Daemon:
             return self.execute(name, args, session=session, origin=origin)
         completed, agent_started = False, False
         try:
-            emit("started", {"session": session, "provider": pname, "origin": origin})
-            audit.record("request", session=session, provider=pname, prompt=prompt)
-            prov = providers.make(pname, self.cfg)
+            emit("started", {"session": session, "provider": pname, "origin": origin, **chosen})
+            audit.record("request", session=session, provider=pname, prompt=prompt, **chosen)
+            prov = providers.make(pname, cfg)
             if prov.kind == "chat":
                 text = agent.run_chat(prov, s["history"], execute, emit, int(self.cfg["ai"].get("max_steps", 40)), stopped=s["cancel"].is_set)
             else:
@@ -195,6 +198,7 @@ class Daemon:
                     del s["history"][start:]    # never replay half-finished API tool calls
             with self.lock:
                 s["running"] = False
+                s.pop("mode", None)     # a mode covers one request, not later calls naming its session
             self.publish_activity()
 
     def stop(self, session):
@@ -310,7 +314,7 @@ def make_handler(d, app=None):
         def call(self, conn, rid, m, p):
             if m == "ask":
                 conn.interactive = bool(p.get("interactive"))
-                return d.ask(conn, rid, p["prompt"], p.get("session"), p.get("provider"))
+                return d.ask(conn, rid, p["prompt"], p.get("session"), p.get("provider"), options=p.get("options"))
             if m == "approve":
                 return d.resolve(p["aid"], p["decision"])
             if m == "tool":      # MCP bridge and `ama tool`: same policy path as the built-in loop
@@ -339,6 +343,14 @@ def make_handler(d, app=None):
                 return config.provider_info()
             if m == "provider_save":
                 config.save_provider(p["name"], p["settings"], p.get("api_key", ""))
+                d.reload()
+                return config.provider_info()
+            if m == "provider_tune":
+                preferences.save(p["name"], p.get("model", ""), p.get("effort", ""))
+                d.reload()
+                return config.provider_info()
+            if m == "mode_default":
+                preferences.save_mode(p["mode"])
                 d.reload()
                 return config.provider_info()
             if m == "usage":

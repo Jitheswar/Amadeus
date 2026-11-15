@@ -12,7 +12,13 @@ Item {
     property bool editing: false
     property string apiType: "openai"
     readonly property var chosen: options.find(p => p.name === selected) || ({})
-    onChosenChanged: if (chosen.kind) kind = chosen.kind
+    property var tune: null
+    property string effort: ""
+    onChosenChanged: { if (chosen.kind) kind = chosen.kind; reset() }
+    onTuneChanged: reset()
+    function reset() { tuneModel.text = (tune || chosen).model || ""; effort = (tune || chosen).effort || "" }
+    signal saveTune(string name, string model, string effort)
+    signal tuneOnce(string model, string effort)
     signal choose(string name)
     signal makeDefault(string name)
     signal saveApi(string name, var fields, string key)
@@ -75,6 +81,24 @@ Item {
                 Btn { text: "Set as default"; enabled: !!settings.chosen.name; onClicked: settings.makeDefault(settings.selected) }
                 Btn { text: "Use default"; enabled: settings.selected !== settings.defaultName; onClicked: settings.choose("") }
                 Btn { text: "Refresh"; onClicked: settings.refresh() }
+            }
+            Column {
+                visible: !!settings.chosen.name; width: parent.width; spacing: Theme.gap * 0.6
+                Txt { text: "Model" }
+                Field { id: tuneModel; width: parent.width; placeholder: settings.chosen.kind === "Subscription" ? "Blank uses the agent's own default" : "Model name from your provider" }
+                Txt { text: "Reasoning effort"; visible: (settings.chosen.effort_levels || []).length > 0 }
+                Flow {
+                    visible: (settings.chosen.effort_levels || []).length > 0
+                    width: parent.width; spacing: Theme.gap * 0.5
+                    Repeater { model: [""].concat(settings.chosen.effort_levels || [])
+                        Btn { required property string modelData; text: modelData || "Default"; primary: settings.effort === modelData
+                              onClicked: settings.effort = modelData }
+                    }
+                }
+                Row { spacing: Theme.gap * 0.5
+                    Btn { text: "Use for next request"; onClicked: settings.tuneOnce(tuneModel.text.trim(), settings.effort) }
+                    Btn { text: "Save"; primary: true; onClicked: settings.saveTune(settings.selected, tuneModel.text.trim(), settings.effort) }
+                }
             }
             Row {
                 visible: settings.chosen.kind === "Subscription"; spacing: Theme.gap * 0.5

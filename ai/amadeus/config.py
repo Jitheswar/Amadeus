@@ -18,6 +18,7 @@ DEFAULT = """\
 
 [ai]
 provider = "claude-cli"      # any key under [providers]
+mode = "ask"                 # ask | sandbox | auto; full access is confirmed per request, never saved
 max_steps = 40               # tool-call budget per request
 
 # --- Providers. Switch with `ama provider use <name>`. ---------------------
@@ -129,6 +130,7 @@ def secret(pcfg, name):
 def provider_info():
     """Display-safe provider choices. Credentials never leave this module."""
     from .providers.cli import find_cli
+    from .preferences import EFFORTS, saved_mode
     from urllib.parse import urlparse
     cfg = load()
     labels = {"claude-cli": "Claude Code", "codex-cli": "Codex", "antigravity-cli": "Antigravity",
@@ -142,9 +144,10 @@ def provider_info():
         if kind == "API":
             ready = ready and bool(os.environ.get(p.get("key_env", "")) or (CONFIG / "secrets" / name).is_file() or p.get("key_cmd"))
         result.append({"name": name, "label": labels.get(name, name), "kind": kind, "type": p.get("type", ""),
-                       "model": p.get("model", ""), "base_url": p.get("base_url", ""), "ready": ready,
+                       "model": p.get("model", ""), "effort": p.get("effort", ""),
+                       "effort_levels": EFFORTS.get(p.get("type"), []), "base_url": p.get("base_url", ""), "ready": ready,
                        "default": name == cfg["ai"]["provider"], "command": command})
-    return {"default": cfg["ai"]["provider"], "providers": result}
+    return {"default": cfg["ai"]["provider"], "mode": saved_mode(cfg), "providers": result}
 
 
 def _atomic_config(path, text):

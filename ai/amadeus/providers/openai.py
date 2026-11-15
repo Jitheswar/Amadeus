@@ -25,6 +25,12 @@ class OpenAICompat:
             "messages": [{"role": "system", "content": system}] + self._messages(history),
             "tools": [{"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["schema"]}} for t in tools],
         }
+        if self.cfg.get("effort"):
+            from urllib.parse import urlparse
+            if urlparse(self.base).hostname == "openrouter.ai":
+                body["reasoning"] = {"effort": self.cfg["effort"]}
+            else:
+                body["reasoning_effort"] = self.cfg["effort"]
         r = post_json(self.base + "/chat/completions", body, headers)
         try:
             msg = r["choices"][0]["message"]

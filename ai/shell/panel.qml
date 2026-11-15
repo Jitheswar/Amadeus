@@ -18,6 +18,17 @@ ShellRoot {
     property string selectedProvider: ""
     property bool providerOverride: false
     property string settingsMessage: ""
+    // Execution mode: how much of the policy a request may skip. Full access is confirmed
+    // for one request and then falls back to the saved mode.
+    readonly property var modes: [
+        { key: "ask", label: "Ask", hint: "Changes wait for your approval, as your policy says." },
+        { key: "sandbox", label: "Sandbox", hint: "Reads and isolated commands only. Nothing on this computer is changed." },
+        { key: "auto", label: "Auto", hint: "Reversible changes to your files and desktop run unasked. The rest still asks." },
+        { key: "full", label: "Full access", hint: "This request may change anything in your account unasked." }]
+    property string savedMode: "ask"
+    property string mode: "ask"
+    property bool confirmFull: false
+    property var tune: null             // { model, effort } for the next request only
     readonly property var selectedInfo: providerOptions.find(p => p.name === selectedProvider) || ({})
     property int seq: 0
     property int nextTask: 0
@@ -58,8 +69,15 @@ ShellRoot {
     }
     function refreshProviders() { if (sock.connected) providerRequest("providers", {}) }
     function chooseProvider(name) {
+        tune = null
         if (!name) { selectedProvider = defaultProvider; providerOverride = false; return }
         if (providerOptions.some(p => p.name === name)) { selectedProvider = name; providerOverride = name !== defaultProvider }
+    }
+    function chooseMode(name) {
+        confirmFull = name === "full" && mode !== "full"
+        if (name === "full" || !modes.some(m => m.key === name)) return
+        mode = name
+        if (name !== savedMode) providerRequest("mode_default", { mode: name })
     }
     function setTask(t, patch) {
         const all = Object.assign({}, tasks)
@@ -89,10 +107,13 @@ ShellRoot {
             about = null
         }
         input.text = ""
-        setTask(t, { running: true, stopped: false, provider: selectedProvider, providerLabel: selectedInfo.label || selectedProvider })
-        const rid = send("ask", { prompt: prompt, session: tasks[t].session, interactive: true, provider: selectedProvider })
+        const options = Object.assign({ mode: mode }, tune || {}, mode === "full" ? { confirm_full_access: true } : {})
+        setTask(t, { running: true, stopped: false, provider: selectedProvider, mode: mode,
+                     providerLabel: (selectedInfo.label || selectedProvider) + " · " + modes.find(m => m.key === mode).label })
+        const rid = send("ask", { prompt: prompt, session: tasks[t].session, interactive: true, provider: selectedProvider, options: options })
         const m = Object.assign({}, byRequest); m[rid] = { task: t, kind: "ask" }; byRequest = m
         if (providerOverride) { selectedProvider = defaultProvider; providerOverride = false }
+        tune = null; mode = savedMode; confirmFull = false
     }
     function closeApprovals(t) {
         for (let i = 0; i < log.count; i++) if (log.get(i).task === t && log.get(i).pending) {
@@ -119,6 +140,8 @@ ShellRoot {
             else if (m.result) {
                 providerOptions = m.result.providers || []
                 defaultProvider = m.result.default || ""
+                if (mode === savedMode) mode = m.result.mode || "ask"
+                savedMode = m.result.mode || "ask"
                 if (!providerOverride || !providerOptions.some(p => p.name === selectedProvider)) selectedProvider = defaultProvider
                 if (selectedProvider === defaultProvider) providerOverride = false
                 settingsMessage = ""
@@ -185,8 +208,10 @@ ShellRoot {
         function agent(name: string): void {
             root.chooseProvider(name)
         }
+        // Full access cannot be chosen from outside: it is confirmed in the panel.
+        function mode(name: string): void { root.chooseMode(name) }
         function state(): string { return JSON.stringify({ open: root.open, tasks: root.nextTask, running: root.running, connected: sock.connected,
-            fontSize: Theme.size, provider: root.selectedProvider, defaultProvider: root.defaultProvider, settings: root.settingsOpen, taskSettings: root.tasksOpen, context: root.about }) }
+            fontSize: Theme.size, provider: root.selectedProvider, mode: root.mode, savedMode: root.savedMode, confirmFull: root.confirmFull, tune: root.tune, defaultProvider: root.defaultProvider, settings: root.settingsOpen, taskSettings: root.tasksOpen, context: root.about }) }
     }
     ListModel { id: log }
 
@@ -236,7 +261,7 @@ ShellRoot {
                 anchors { left: parent.left; right: parent.right; top: head.bottom; topMargin: Theme.gap }
                 spacing: Theme.gap * 0.6
                 Txt { width: parent.width - manage.width - jobsButton.width - Theme.gap * 1.2; anchors.verticalCenter: parent.verticalCenter
-                      text: (root.selectedInfo.label || "Choose an agent") + (root.selectedInfo.kind ? " · " + root.selectedInfo.kind : "")
+                      text: [root.selectedInfo.label || "Choose an agent", root.selectedInfo.kind, (root.tune || root.selectedInfo).model, (root.tune || root.selectedInfo).effort].filter(Boolean).join(" · ")
                       elide: Text.ElideRight; wrapMode: Text.NoWrap }
                 Btn { id: jobsButton; text: "Tasks"; onClicked: { root.tasksOpen = !root.tasksOpen; root.settingsOpen = false; root.refreshTasks() } }
                 Btn { id: manage; text: "Settings"; onClicked: { root.tasksOpen = false; root.settingsOpen = !root.settingsOpen; root.refreshProviders() } }
@@ -247,6 +272,9 @@ ShellRoot {
                 options: root.providerOptions; selected: root.selectedProvider; defaultName: root.defaultProvider; message: root.settingsMessage
                 onChoose: name => root.chooseProvider(name)
                 onMakeDefault: name => root.providerRequest("provider_default", { name: name })
+                tune: root.tune
+                onSaveTune: (name, model, effort) => { root.tune = null; root.providerRequest("provider_tune", { name: name, model: model, effort: effort }) }
+                onTuneOnce: (model, effort) => { root.tune = { model: model, effort: effort }; root.settingsOpen = false }
                 onSaveApi: (name, fields, key) => root.providerRequest("provider_save", { name: name, settings: fields, api_key: key })
                 onRefresh: root.refreshProviders()
                 onClose: root.settingsOpen = false
@@ -311,18 +339,25 @@ ShellRoot {
                             Btn { text: "Undo all (" + (row.t.changed || 0) + ")"; visible: !row.t.running && (row.t.changed || 0) > 0; onClicked: root.undo(row.task) }
                         }
                     }
-                    Txt {
+                    TextEdit {
+                        id: messageText
+                        readOnly: true; selectByMouse: true; persistentSelection: true
+                        Keys.onPressed: event => {
+                            if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_C) { messageText.copy(); event.accepted = true }
+                            else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_A) { messageText.selectAll(); event.accepted = true }
+                        }
+                        selectionColor: Theme.accent; selectedTextColor: Theme.bg
+                        wrapMode: TextEdit.Wrap
+                        font.family: row.kind === "tool" || row.kind === "approval" ? Theme.mono : Theme.font
                         visible: row.kind !== "task"
                         x: Theme.gap * 0.8
                         width: parent.width - x * 2
-                        lineHeight: 1.25
                         text: (row.kind === "user" ? "› " : row.kind === "tool" ? "· " : row.kind === "about" ? "About: " : "") + row.body
-                        mono: row.kind === "tool" || row.kind === "approval"
-                        dim: row.kind === "tool" || row.kind === "note" || row.kind === "about"
-                        textFormat: row.kind === "ai" ? Text.MarkdownText : Text.PlainText
-                        color: row.kind === "user" ? Theme.accent : row.kind === "error" ? Theme.bad : row.kind === "approval" ? Theme.warn : (dim ? Theme.dim : Theme.fg)
+                        textFormat: row.kind === "ai" ? TextEdit.MarkdownText : TextEdit.PlainText
+                        color: row.kind === "user" ? Theme.accent : row.kind === "error" ? Theme.bad : row.kind === "approval" ? Theme.warn : (["tool", "note", "about"].includes(row.kind) ? Theme.dim : Theme.fg)
                         font.pixelSize: row.kind === "tool" ? Theme.size * 0.85 : Theme.size
                     }
+                    Btn { text: "Copy"; visible: row.kind === "ai"; onClicked: { messageText.selectAll(); messageText.copy(); messageText.deselect() } }
                     Row {
                         visible: row.kind === "approval" && row.pending
                         spacing: Theme.gap * 0.6
@@ -349,6 +384,25 @@ ShellRoot {
                           text: root.about ? (root.about.kind ? "About: " + root.about.label + (root.about.selection ? " · " + root.about.selection : "") : "About this window: " + root.about.app + " · " + root.about.title) : "" }
                     Txt { id: clear; text: "✕"; dim: true; anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: Theme.gap * 0.6 }
                           MouseArea { anchors.fill: parent; anchors.margins: -6; onClicked: root.about = null } }
+                }
+                Row {
+                    spacing: Theme.gap * 0.5
+                    Repeater { model: root.modes
+                        Btn { required property var modelData; text: modelData.label
+                              primary: root.mode === modelData.key; onClicked: root.chooseMode(modelData.key) }
+                    }
+                }
+                Txt { width: parent.width; dim: true; font.pixelSize: Theme.size * 0.85
+                      color: root.mode === "full" ? Theme.warn : Theme.dim
+                      text: root.modes.find(m => m.key === root.mode).hint + (root.mode === "full" ? " Deleting, root, screen and AI-permission actions still ask. Applies to the next request only." : "") }
+                Column {
+                    visible: root.confirmFull; width: parent.width; spacing: Theme.gap * 0.6
+                    Txt { width: parent.width; color: Theme.warn
+                          text: "Give the next request full access to your account? It can change files, settings and network connections without asking. Deleting data, root actions, reading the screen and changing AI permissions still ask." }
+                    Row { spacing: Theme.gap * 0.5
+                        Btn { text: "Cancel"; onClicked: root.confirmFull = false }
+                        Btn { text: "Allow for the next request"; primary: true; onClicked: { root.mode = "full"; root.confirmFull = false } }
+                    }
                 }
                 Row {
                     width: parent.width

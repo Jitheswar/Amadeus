@@ -7,7 +7,9 @@ HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
   ama <request...>            do something ("free up disk space", "put a clock widget after the workspaces")
   ama chat                    interactive session
   ama status                  daemon, provider, root mode, machine state
-  ama provider [--json | use NAME | key NAME]
+  ama provider [--json | use NAME | key NAME | tune NAME [model=M] [effort=LEVEL]]
+  ama mode [ask | sandbox | auto]
+                              how much a request may do unasked; full access is confirmed per request in the panel
   ama task list | run ID       inspect or run an enabled task; manage tasks in the panel
   ama event NAME JSON          deliver an opted-in desktop event
   ama usage [--force]          subscription limits and local request counts as JSON
@@ -235,6 +237,11 @@ def provider_cmd(c, args):
         config.set_default_provider(args[1])
         c.call("reload")
         return print(f"provider: {args[1]}")
+    if args[0] == "tune" and len(args) >= 2 and args[1] in cfg["providers"] and all(x.startswith(("model=", "effort=")) for x in args[2:]):
+        values = {"model": cfg["providers"][args[1]].get("model", ""), "effort": cfg["providers"][args[1]].get("effort", "")}
+        values.update(x.split("=", 1) for x in args[2:])
+        c.call("provider_tune", name=args[1], **values)
+        return print(f"{args[1]}: model {values['model'] or 'default'}, effort {values['effort'] or 'default'}")
     if args[0] == "key" and len(args) == 2:
         import getpass
         key = getpass.getpass(f"API key for {args[1]} (stored in ~/.config/amadeus/secrets, mode 600): ").strip()
@@ -297,6 +304,8 @@ def main(argv=None):
             print(f"{C['r']}failed units: {', '.join(s['failed_units'])}{C['0']}")
     elif cmd == "provider":
         provider_cmd(c, rest)
+    elif cmd == "mode" and len(rest) <= 1:
+        print("mode: " + (c.call("mode_default", mode=rest[0]) if rest else c.call("providers"))["mode"])
     elif cmd == "reload":
         print(c.call("reload"))
     elif cmd == "undo":

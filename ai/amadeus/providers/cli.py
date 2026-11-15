@@ -62,6 +62,8 @@ class ClaudeCLI:
                "--no-session-persistence", "--setting-sources", ""]
         if self.model:
             cmd += ["--model", self.model]
+        if self.cfg.get("effort"):
+            cmd += ["--effort", self.cfg["effort"]]
         err = tempfile.TemporaryFile("w+b", dir=config.RUN)
         try:
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err, text=True,
@@ -113,6 +115,8 @@ class CodexCLI:
                "--output-last-message", out.name]
         if self.model:
             cmd += ["--model", self.model]
+        if self.cfg.get("effort"):
+            cmd += ["-c", "model_reasoning_effort=" + json.dumps(self.cfg["effort"])]
         cmd.append(system + "\n\n" + _transcript(history))
         try:
             p = subprocess.run(cmd, capture_output=True, text=True, env=_env(session), cwd=config.WORKSPACE, stdin=subprocess.DEVNULL)
@@ -151,6 +155,8 @@ class AntigravityCLI:
             command = [exe, "-p", prompt, "--output-format", "json", "--disable-slash-commands", "--settings", json.dumps(permissions)]
             if self.cfg.get("model"):
                 command += ["--model", self.cfg["model"]]
+            if self.cfg.get("effort"):
+                command += ["--effort", self.cfg["effort"]]
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                        env=_env(session), cwd=root, stdin=subprocess.DEVNULL)
             emit("_proc", process)

@@ -65,7 +65,7 @@ printf '%s\\n' '{{"type":"result","result":"done","is_error":false}}'
         emitted = []
         history = [{"role": "user", "text": "earlier question"}, {"role": "assistant", "text": "earlier answer"},
                    {"role": "user", "text": "current request"}]
-        provider = ClaudeCLI("claude-cli", {"command": str(fake), "model": "a-model"})
+        provider = ClaudeCLI("claude-cli", {"command": str(fake), "model": "a-model", "effort": "high"})
         result = provider.run("system rules", history, "session-42", lambda kind, data: emitted.append((kind, data)))
 
         self.assertEqual(result, "done")
@@ -83,6 +83,7 @@ printf '%s\\n' '{{"type":"result","result":"done","is_error":false}}'
         self.assertEqual(argv[argv.index("--allowedTools") + 1], "mcp__amadeus")
         self.assertEqual(argv[argv.index("--tools") + 1], "")
         self.assertEqual(argv[argv.index("--model") + 1], "a-model")
+        self.assertEqual(argv[argv.index("--effort") + 1], "high")
         self.assertEqual(argv[argv.index("--system-prompt") + 1], "system rules")
         self.assertEqual(json.loads(mcp.read_text()), {"mcpServers": {"amadeus": {
             "command": sys.executable, "args": ["-m", "amadeus.cli", "mcp"],
@@ -116,7 +117,7 @@ printf 'codex answer\\n' > "$out"
 """)
         os.environ["CODEX_ARGS"] = str(args)
         emitted = []
-        provider = CodexCLI("codex-cli", {"command": str(fake)})
+        provider = CodexCLI("codex-cli", {"command": str(fake), "effort": "low"})
         result = provider.run("system rules", [{"role": "user", "text": "do it"}], "session-7",
                               lambda kind, data: emitted.append((kind, data)))
         self.assertEqual(result, "codex answer")
@@ -127,7 +128,9 @@ printf 'codex answer\\n' > "$out"
         self.assertIn("--skip-git-repo-check", argv)
         self.assertIn("read-only", argv)
         settings = [argv[i + 1] for i, value in enumerate(argv[:-1]) if value == "-c"]
-        server = tomllib.loads("\n".join(settings))["mcp_servers"]["amadeus"]
+        parsed = tomllib.loads("\n".join(settings))
+        self.assertEqual(parsed["model_reasoning_effort"], "low")
+        server = parsed["mcp_servers"]["amadeus"]
         self.assertEqual(server, {"command": sys.executable, "args": ["-m", "amadeus.cli", "mcp"],
                                  "env": {"AMADEUS_SESSION": "session-7", "PYTHONPATH": str(config.SHARE)}})
         self.assertTrue(any("system rules" in a and "do it" in a for a in argv))

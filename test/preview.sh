@@ -62,7 +62,7 @@ run() {
     amadeus-pick --multi --preview 'printf "Repository      : extra\nName            : %s\nVersion         : 2.47.1-1\nDescription     : The fast distributed version control system\nArchitecture    : x86_64\nURL             : https://git-scm.com/\nLicenses        : GPL-2.0-only\nDepends On      : curl  expat  perl  openssl  pcre2  zlib-ng\nDownload Size   : 7.4 MiB\nInstalled Size  : 29.1 MiB\nPackager        : Arch Linux\nBuild Date      : Tue 03 Nov 2026\n" "$1"' Install >/dev/null 2>&1 &
   shot 3-install 1.5; quickshell ipc -p /usr/share/amadeus-os/shell call pick cancel
 
-  printf 'Only this menu option\n' | amadeus-pick Chat >/dev/null 2>&1 &
+  printf 'Only this menu option\n' | amadeus-pick --global Chat >/dev/null 2>&1 &
   sleep 0.8; ipc pick query sound; shot 13-universal-search 1.2; ipc pick cancel
 
   # The panel, answered by the scripted model from the end-to-end test.
@@ -80,6 +80,14 @@ PY
   ama panel ask "Why is the fan loud?"; sleep 2.5
   ama panel ask "Tidy the Downloads folder E2E:slow"
   shot 4-panel 1.5
+  # Modes: a saved one sticks, full access only arms the confirmation.
+  quickshell ipc -p /src/ai/shell/panel.qml call panel mode auto; sleep 0.6
+  quickshell ipc -p /src/ai/shell/panel.qml call panel mode full
+  shot 19-execution-mode 1.0
+  ama panel state >"$OUT/mode-panel.json"
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert (d["mode"], d["savedMode"], d["confirmFull"]) == ("auto", "auto", True), d' "$OUT/mode-panel.json" || return 1
+  [[ $(ama mode) == "mode: auto" ]] || return 1
+  quickshell ipc -p /src/ai/shell/panel.qml call panel mode ask
   ama panel settings; quickshell ipc -p /src/ai/shell/panel.qml call panel agent codex-cli
   shot 11-agent-settings 1.0
   mkdir -p "$HOME/.local/share/amadeus/tasks"

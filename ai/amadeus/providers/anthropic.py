@@ -29,7 +29,7 @@ class Anthropic:
             "messages": self._messages(history),
             "tools": [{"name": t["name"], "description": t["description"], "input_schema": t["schema"]} for t in tools],
             "thinking": {"type": "adaptive"},
-            "output_config": {"effort": self.cfg.get("effort", "medium")},
+            "output_config": {"effort": self.cfg.get("effort") or "medium"},
         }
         # On a policy decline, let the API re-run the turn on a fallback model.
         if self.base == OFFICIAL and self.cfg.get("fallbacks", True):

@@ -67,3 +67,87 @@ class ProviderSettingsTest(unittest.TestCase):
         self.assertNotIn("--dangerously-skip-permissions", data["args"])
         self.assertTrue(any(e[0] == "_proc" for e in emitted))
 
+
+
+class PreferencesTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.patch = mock.patch.object(config, "CONFIG", Path(self.tmp.name) / "config")
+        self.patch.start()
+        config.ensure_dirs()
+        from amadeus import preferences
+        from amadeus.policy import Policy
+        self.p, self.policy = preferences, Policy(config.load())
+
+    def tearDown(self):
+        self.patch.stop()
+        self.tmp.cleanup()
+
+    def decide(self, mode, cap, risk, args=None, root_on=False):
+        return self.p.decision(self.policy, mode, cap, risk, args or {}, root_on)[0]
+
+    def test_model_and_effort_are_saved_validated_and_displayed(self):
+        self.p.save("claude-cli", "opus", "high")
+        info = {p["name"]: p for p in config.provider_info()["providers"]}
+        self.assertEqual((info["claude-cli"]["model"], info["claude-cli"]["effort"]), ("opus", "high"))
+        self.assertIn("xhigh", info["claude-cli"]["effort_levels"])
+        self.assertEqual(config.load()["providers"]["claude-cli"]["type"], "claude-cli")
+        for name, model, effort in (("claude-cli", "opus", "ludicrous"), ("claude-cli", "a\nb", ""), ("openrouter", "", "low"), ("missing", "x", "")):
+            with self.assertRaises(ValueError):
+                self.p.save(name, model, effort)
+
+    def test_a_request_overrides_without_changing_what_is_saved(self):
+        cfg = config.load()
+        result, chosen = self.p.request_config(cfg, "codex-cli", {"model": "other", "effort": "low", "mode": "auto"})
+        self.assertEqual(result["providers"]["codex-cli"]["model"], "other")
+        self.assertEqual(chosen, {"model": "other", "effort": "low", "mode": "auto"})
+        self.assertNotIn("model", cfg["providers"]["codex-cli"])
+        self.assertEqual(self.p.request_config(cfg, "codex-cli", None, "sandbox")[1]["mode"], "sandbox")
+        with self.assertRaises(ValueError):
+            self.p.request_config(cfg, "codex-cli", {"policy": "allow"})
+
+    def test_full_access_needs_confirmation_each_time_and_is_never_saved(self):
+        cfg = config.load()
+        for options in ({"mode": "full"}, {"mode": "full", "confirm_full_access": "yes"}):
+            with self.assertRaises(ValueError):
+                self.p.request_config(cfg, "claude-cli", options)
+        self.assertEqual(self.p.request_config(cfg, "claude-cli", {"mode": "full", "confirm_full_access": True})[1]["mode"], "full")
+        with self.assertRaises(ValueError):
+            self.p.save_mode("full")
+        self.p.save_mode("auto")
+        self.assertEqual(config.provider_info()["mode"], "auto")
+        self.assertEqual(self.p.saved_mode({"ai": {"mode": "full"}}), "ask")
+
+    def test_ask_mode_is_the_configured_policy(self):
+        self.assertEqual(self.decide("ask", "fs.write", "modify", {"path": "~/notes.txt"}), "ask")
+        self.assertEqual(self.decide("ask", "desktop.control", "modify"), "allow")
+        self.policy.grant_session("fs.write", "modify")
+        self.assertEqual(self.decide("ask", "fs.write", "modify", {"path": "~/notes.txt"}), "allow")
+
+    def test_sandbox_mode_reads_but_never_changes_the_host(self):
+        self.assertEqual(self.decide("sandbox", "fs.read", "read", {"path": "~/notes.txt"}), "allow")
+        self.assertEqual(self.decide("sandbox", "shell.sandbox", "read", {"command": "ls"}), "allow")
+        for cap, risk, args in (("fs.write", "modify", {"path": "~/notes.txt"}), ("desktop.control", "modify", {}),
+                                ("shell.host", "destructive", {"host": True}), ("pkg.manage", "privileged", {})):
+            self.assertEqual(self.decide("sandbox", cap, risk, args, root_on=True), "deny", cap)
+        self.assertEqual(self.decide("sandbox", "fs.read", "read", {"path": "~/.ssh/id_ed25519"}), "deny")
+
+    def test_auto_mode_allows_only_reversible_user_changes(self):
+        self.assertEqual(self.decide("auto", "fs.write", "modify", {"path": "~/notes.txt"}), "allow")
+        self.assertEqual(self.decide("auto", "desktop.config", "modify"), "allow")
+        for cap in ("net.manage", "sys.manage", "ai.configure", "tasks.manage", "app.grant", "screen.interact"):
+            self.assertEqual(self.decide("auto", cap, "modify"), "ask", cap)
+
+    def test_no_mode_skips_the_core_prompts(self):
+        own = str(config.CONFIG / "config.toml")
+        for mode in ("auto", "full"):
+            self.assertEqual(self.decide(mode, "fs.write", "destructive", {"path": "~/notes.txt"}), "ask")
+            self.assertEqual(self.decide(mode, "pkg.manage", "privileged", root_on=True), "ask")
+            self.assertEqual(self.decide(mode, "pkg.manage", "privileged"), "deny")
+            self.assertEqual(self.decide(mode, "screen.observe", "modify"), "ask")
+            self.assertEqual(self.decide(mode, "screen.interact", "modify"), "ask")
+            self.assertEqual(self.decide(mode, "fs.write", "modify", {"path": own}), "ask")
+            self.assertEqual(self.decide(mode, "fs.write", "modify", {"path": "~/.ssh/config"}), "deny")
+        self.assertEqual(self.decide("full", "net.manage", "modify"), "allow")
+        self.policy.rules["net.manage"] = "deny"
+        self.assertEqual(self.decide("full", "net.manage", "modify"), "deny")
