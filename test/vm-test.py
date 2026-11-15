@@ -178,7 +178,7 @@ EXTRA_CMDLINE="console=tty0 console=ttyS0,115200"
 POST_HOOK=/run/amadeus-auto/posthook.sh
 """
     open(f"{VM}/answers.conf", "w").write(answers)
-    for src in (f"{VM}/answers.conf", f"{SRC}/posthook.sh", f"{SRC}/selftest.sh", f"{SRC}/e2e.py", f"{SRC}/ui-check.py"):
+    for src in (f"{VM}/answers.conf", f"{SRC}/posthook.sh", f"{SRC}/selftest.sh", f"{SRC}/e2e.py", f"{SRC}/ui-check.py", f"{SRC}/foot-probe.sh"):
         subprocess.run(["mcopy", "-i", auto, src, "::"], check=True)
     # The install runs with no way out to the internet: everything must come from the ISO.
     cmd = [x.replace("user,id=n0", "user,id=n0,restrict=on") for x in BASE] + ["-cdrom", iso]
