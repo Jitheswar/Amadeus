@@ -485,6 +485,26 @@ esac""")
         theme = self.config / "amadeus/current/theme"
         for name in ("kitty.conf", "alacritty.toml", "ghostty.conf", "btop.theme", "gtk.css", "hyprland.lua", "foot.ini", "swaylock"):
             self.assertNotIn("{{", (theme / name).read_text(), name)
+        # An open terminal is told the new colours in place: escape sequences on its own
+        # terminal device, and nothing sent to other programs.
+        proc, pts = self.tmp / "proc", self.tmp / "pts"
+        for pid, comm in (("100", "foot"), ("200", "bash"), ("300", "nvim")):
+            (proc / pid / "task" / pid).mkdir(parents=True)
+            (proc / pid / "comm").write_text(comm + "\n")
+            (proc / pid / "task" / pid / "children").write_text("200\n" if pid == "100" else "")
+            (proc / pid / "fd").mkdir()
+        pts.mkdir()
+        (pts / "1").write_text(""); (pts / "2").write_text("")
+        os.symlink(pts / "1", proc / "200/fd/1")
+        os.symlink(pts / "2", proc / "300/fd/1")
+        live = dict(env, AMADEUS_PROC=str(proc), AMADEUS_PTS=str(pts) + "/")
+        self.assert_ok(self.run_cmd("amadeus-theme", "set", "amadeus-light", env=live))
+        sent = (pts / "1").read_text()
+        self.assertIn("\033]11;#f6f1e8\007", sent)
+        self.assertIn("\033]4;1;#b3261e\007", sent)
+        self.assertEqual(sent.count("\033]"), 21)
+        self.assertEqual(sent.replace("\007", "").count("\033]"), sent.count("\007"))
+        self.assertEqual((pts / "2").read_text(), "")
         # An application that is not installed yet starts out themed; a file the user owns is kept.
         self.assertIn(str(theme / "kitty.conf"), (self.config / "kitty/kitty.conf").read_text())
         (self.config / "ghostty/config").write_text("font-size = 13\n")

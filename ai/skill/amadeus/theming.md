@@ -29,7 +29,9 @@ exact locations; `amadeus-theme list` and `amadeus-theme current` show the state
 
 ## Pitfalls
 
-- Open terminals keep their colours until a new window is opened. Say so.
+- Open terminals are recoloured in place. A program that set its own colours inside a
+  terminal (an editor's colour scheme, for example) keeps them: that is the program's
+  setting, not the terminal's.
 - A configuration file the user already owns is not overwritten. If an application
   ignores the theme, check whether its configuration includes the rendered file.
 - Never write colours into shipped files, the shell source or the compositor defaults.

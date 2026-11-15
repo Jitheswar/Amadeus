@@ -71,8 +71,8 @@ secondary launchers; settings remain available through search. The shipped
 file: the shell, the panel, terminals, GTK applications, btop, window borders and the
 lock screen. A theme is a single `colors.toml`; put your own in
 `~/.config/amadeus/themes/NAME/`. Applications installed later start out themed, and a
-configuration file you already own is left alone. Open terminals keep their colours
-until a new window is opened.
+configuration file you already own is left alone. Open terminal windows are recoloured
+in place, without interrupting what runs in them.
 
 **Setup → Login screen** (or `amadeus-login`) chooses which theme styles the login
 screen, independently of the desktop. It asks for your password because the login screen

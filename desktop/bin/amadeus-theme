@@ -8,13 +8,15 @@ an application installed later is already themed. With no argument, pick from a 
 
 Your own themes go in ~/.config/amadeus/themes/NAME/colors.toml, and your own
 templates (or replacements for shipped ones) in ~/.config/amadeus/themed.
-Terminals that are already open keep their colours until a new window is opened."""
+Open terminals are recoloured in place; whatever runs in them is not interrupted."""
 import json, os, re, shutil, subprocess, sys, tempfile, tomllib
 from pathlib import Path
 
 SHARE = Path(os.environ.get("AMADEUS_THEME_SHARE", "/usr/share/amadeus-os"))
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
 CURRENT = CONFIG / "amadeus/current"
+PROC = Path(os.environ.get("AMADEUS_PROC", "/proc"))
+PTS = os.environ.get("AMADEUS_PTS", "/dev/pts/")
 HEX = re.compile(r"#[0-9a-fA-F]{6}")
 # The shell's and the panel's names for the palette, and where each comes from.
 SHELL = {"bg": "background", "surface": "surface", "raised": "raised", "line": "line", "fg": "foreground", "dim": "dark_foreground",
@@ -112,6 +114,30 @@ def first(path, text):
         write(path, text)
 
 
+def recolour_terminals(c):
+    """foot reads its configuration only at start, so open windows are told the new
+    colours the way a program would: colour escape sequences written to each
+    terminal. Only colours change; the running program sees nothing."""
+    palette = [c[k] for k in ("surface", "red", "green", "yellow", "blue", "magenta", "cyan", "light_foreground", "muted", "bright_red",
+                              "bright_green", "bright_yellow", "bright_blue", "bright_magenta", "bright_cyan", "bright_foreground")]
+    codes = [(10, c["foreground"]), (11, c["background"]), (12, c["foreground"]), (17, c["accent"]), (19, c["background"])]
+    osc = "".join(f"\033]{code};{value}\007" for code, value in codes) + "".join(f"\033]4;{i};{value}\007" for i, value in enumerate(palette))
+    done = set()
+    for proc in PROC.glob("[0-9]*"):
+        try:
+            if (proc / "comm").read_text().strip() not in ("foot", "footclient"):
+                continue
+            children = (proc / "task" / proc.name / "children").read_text().split()
+            for child in children:
+                tty = os.readlink(PROC / child / "fd/1")
+                if tty.startswith(PTS) and tty not in done:
+                    done.add(tty)
+                    with open(tty, "w") as terminal:
+                        terminal.write(osc)
+        except OSError:
+            continue
+
+
 def apply(name):
     c, mode = colors(name)
     staging = CURRENT / "theme.new"
@@ -152,7 +178,8 @@ def apply(name):
         quiet("hyprctl", "reload")
     for signal, program in (("USR1", "kitty"), ("USR2", "ghostty"), ("USR2", "btop")):
         quiet("pkill", "-" + signal, "-x", program)
-    print(f"Theme: {name}. Open terminals keep their colours until a new window is opened.")
+    recolour_terminals(c)
+    print(f"Theme: {name}.")
 
 
 def current():
