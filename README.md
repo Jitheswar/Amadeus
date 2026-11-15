@@ -10,7 +10,7 @@ includes the packages needed to reach a usable system.
 The target is a Core i5-13450HX laptop with Intel UHD graphics, an RTX 3050 6 GB,
 16 GB RAM and a 1 TB NVMe drive.
 
-> **Pre-release:** the current runtime passed 136 installed-system VM checks, including
+> **Pre-release:** the current runtime passed 148 installed-system VM checks, including
 > both rollback paths, plus the live-session checks. Real hardware and live provider
 > authentication have not been verified. See [Verification](#verification).
 
@@ -260,8 +260,8 @@ source rollback do not replace a backup of personal data.
 
 ## Verification
 
-Runtime [8c87514](https://github.com/Jitheswar/Amadeus/commit/8c875149191eb9db66f795060191f15d8106de55)
-passed **136 installed-system checks**: 121 on first boot,
+Runtime [8c999b7](https://github.com/Jitheswar/Amadeus/commit/8c999b7)
+passed **148 installed-system checks**: 133 on first boot,
 8 after rollback from the running system, and 7 after rollback from the ISO.
 The Try-session checks, fast checks, QML checks and inspected headless previews also passed.
 Installation had no internet access. AI requests used a scripted local model.
@@ -271,8 +271,20 @@ graphical logout/login in both sessions, and keyboard navigation with a stationa
 Native AI checks covered setting changes and exact text-size undo, timer enable/disable,
 disabled jobs, event cooldowns, a model run from a real app-focus event, NetworkManager
 profile updates, screen-image delivery, approved keyboard input and return to idle.
-Checks for the Files entry, optional-app/keyring defaults, search, usage controls and
-package-index refresh also passed.
+This run added checks for list-only search, the Apps hide list, saved model and effort,
+saved execution mode with full access refused outside the panel, a theme change reaching
+the shell, lock screen and an open terminal, the login-screen theme publish and reset,
+topic guides, and the automatic display step. The Try session was checked for the
+power-profile command, Bluetooth activation, compressed swap, default applications and
+the absence of a serial console argument.
+
+Open-terminal recolouring was confirmed by asking a real terminal for its background
+after a theme change. The copy and paste shortcuts were checked for their binding and
+configuration, not by physical key presses. The virtual display reports no usable
+physical size, so the automatic scale choice itself is covered by unit tests only. The
+chosen login-screen theme was rendered and published in the VM but not looked at.
+Execution modes are enforced in unit tests and their saved state in the VM; no live
+provider ran under them.
 
 Real hardware, live subscription/API authentication, manual guided-installer interaction,
 full system updates and the explicit GPU modes still need validation. Multi-profile login

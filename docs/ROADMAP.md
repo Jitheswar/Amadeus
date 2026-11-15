@@ -12,6 +12,9 @@ discovery output rather than this roadmap.
   overrides, per-provider model and effort, provider-independent execution modes, and
   on-demand usage controls. Terminal harness installation and defaults
   remain independent user choices.
+- One theme file rendered for every application, a selectable login-screen theme, live
+  recolouring of open terminals, and display scale and text size chosen from the panel.
+- Topic guides an agent pulls up per area, alongside live discovery.
 - A Hyprland desktop with a shared shell, cross-menu app/settings search, filtered app
   and audio-device lists, unified text sizing, capture tools and configurable defaults.
 - A graphical login with account preselection, a profile dropdown when needed, and
@@ -29,7 +32,7 @@ discovery output rather than this roadmap.
 
 ## Verified baseline
 
-The runtime identified in the README passed 136 installed-system VM checks: 121 on first
+The runtime identified in the README passed 148 installed-system VM checks: 133 on first
 boot, 8 after rollback from the running system, and 7 after rollback from the ISO.
 The Try-session checks, fast checks and QML checks also passed; rendered previews were
 inspected. The VM installation had no internet access. AI requests used a scripted model.
@@ -44,6 +47,8 @@ by the full VM suite. Signature verification remained enabled.
 
 ## Next validation
 
+0. On the target machine, try the copy and paste shortcuts by hand, the automatic display
+   choice, theme changes across real applications, and the themed login screen.
 1. Install on the target machine and measure NVIDIA runtime power-down, PRIME offload,
    Dynamic Boost, Wi-Fi, Bluetooth, battery use and suspend/resume.
 2. Exercise live subscription sign-in and API endpoints, including cancellation, approvals
