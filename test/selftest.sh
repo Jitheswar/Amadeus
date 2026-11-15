@@ -144,6 +144,7 @@ t "bar layout readable through Amadeus"        bash -c "as ama tool desktop_bar 
 t "privileged tools refused (root mode off)"   bash -c "as ama tool pkg_manage '{\"action\":\"install\",\"packages\":[\"htop\"]}' | grep -q 'root mode'"
 t "root helper is root-owned"                  bash -c '[[ $(stat -c %U /usr/lib/amadeus/amadeus-priv) == root ]]'
 t "system describes itself (ama discover)"     bash -c "as ama discover --json | python3 -c 'import json,sys; m=json.load(sys.stdin); assert m[\"commands\"][\"amadeus-rollback\"] and len(m[\"tools\"]) > 30 and m[\"system\"][\"packages\"][\"amadeus\"]'"
+t "topic guides can be pulled up on demand"     bash -c 'as ama guide | grep -q "^theming" && as ama guide theming | grep -q amadeus-theme && as ama tool system_guide "{\"topic\": \"recovery\"}" | grep -q rollback && test -f /home/$U/.claude/skills/amadeus/desktop.md'
 t "agent skill installed for Claude Code"      test -f /home/$U/.claude/skills/amadeus/SKILL.md
 t "Amadeus panel opens and reaches the daemon" bash -c 'as ama panel show; sleep 2; s=$(as ama panel state); echo "$s"; echo "$s" | grep -q "\"open\": true.*\"connected\": true"'
 t "panel takes a window as context"            bash -c 'as ama panel window; as ama panel hide; sleep 1; as ama panel state | grep -q "\"open\": false"'

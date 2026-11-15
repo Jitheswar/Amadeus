@@ -62,9 +62,12 @@ policy in `ai/amadeus/config.py` (ask, unless it only reads). Add a test.
 
 ## The agent skill
 
-`ai/skill/` must never describe the system. It teaches how to discover it, and
-`ai/amadeus/discover.py` builds the map by inspecting the machine. If you are tempted to
-write a fact about the system into the skill, make the map report it instead.
+`ai/skill/` holds one entry file and a short guide per area, which an agent pulls up on
+demand (`ama guide`, the `system_guide` tool) instead of searching the system. A guide
+states who owns what, the method, and the pitfalls. It never inventories the system:
+`ai/amadeus/discover.py` builds that map by inspecting the machine, so if you are tempted
+to write a list into a guide, make the map report it instead. A new area gets a guide and
+a line in the entry file; a test fails when a guide names a command or tool that is gone.
 
 ## Checking your change
 

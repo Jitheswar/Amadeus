@@ -22,6 +22,7 @@ HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
   ama doctor                  verify drivers, GPU, sandbox and providers
   ama discover [--json]       a live map of this system: commands, files, tools, policy
   ama skill                   print the built-in guide that teaches an AI agent to manage this system
+  ama guide [TOPIC]           the topic guides an agent reads before working in one area
   ama panel [toggle | show | hide | window | selection | context JSON | settings | tasks | state | ask TEXT]
                               the docked panel; `window` makes the next request about the focused window
   ama reload | daemon | mcp
@@ -270,6 +271,12 @@ def main(argv=None):
     if cmd == "discover":
         from .discover import main as disc
         return disc(rest)
+    if cmd == "guide" and len(rest) <= 1:
+        from . import discover
+        try:
+            return print(discover.guide(rest[0]) if rest else "\n".join(f"{name:<10} {about}" for name, about in discover.guides().items()))
+        except ValueError as e:
+            sys.exit(str(e))
     if cmd == "skill":
         return print((config.SHARE / "skill" / "amadeus" / "SKILL.md").read_text())
     if cmd == "doctor":

@@ -5,10 +5,26 @@ description: Configure and manage an Amadeus OS system. Use when asked to change
 
 # Managing an Amadeus OS system
 
-This skill does not describe the system. It tells you how to find out what the system
-is, because the system changes with every update and anything written here would go
+This skill does not list what the system contains. It tells you how to find out,
+because the system changes with every update and an inventory written here would go
 stale. **Look first, every time. Do not rely on what you remember about Amadeus, Hyprland,
 or Arch from training or from an earlier session.**
+
+## Topic guides
+
+Each area has a short guide with its rules, method and pitfalls. Read the matching one
+before you start instead of searching the system for how things are done. `ama guide`
+lists them and `ama guide TOPIC` prints one; over MCP the `system_guide` tool does the same.
+
+- [`desktop.md`](desktop.md): compositor, shortcuts, windows, bar, menu
+- [`theming.md`](theming.md): themes and colours for every application
+- [`software.md`](software.md): installing, removing and updating
+- [`ai.md`](ai.md): providers, models, execution modes, permissions, tasks
+- [`recovery.md`](recovery.md): undo, snapshots, rollback
+- [`hardware.md`](hardware.md): GPU, power, displays, audio, network, Bluetooth
+- [`apps.md`](apps.md): building small apps on request
+
+A guide tells you how to work in its area. What exists right now still comes from the map.
 
 ## 1. Get the map
 

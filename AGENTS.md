@@ -28,7 +28,7 @@ component chosen there without adding the evidence to that file in the same chan
 | Audience | Lives in | Rule |
 |---|---|---|
 | Users | `README.md`, and each command's own `--help` and header comment | The manual for a command is the command. |
-| AI agents on an installed system | `ai/skill/` and `ama discover` | Teaches discovery. Never describes the system. |
+| AI agents on an installed system | `ai/skill/` and `ama discover` | One short guide per area: rules, method, pitfalls. What exists comes from discovery, never from a list in a guide. |
 | Contributors | this file and `agents/` | Rules and procedures. No inventories. |
 | Design record | `docs/` | Decisions with evidence, architecture, roadmap. |
 

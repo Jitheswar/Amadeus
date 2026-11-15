@@ -38,6 +38,21 @@ def _os_release():
         return {}
 
 
+def guides():
+    """Topic guides shipped beside the skill: name -> the line that says what it covers."""
+    found = {}
+    for f in sorted((config.SHARE / "skill" / "amadeus").glob("*.md")):
+        if f.name != "SKILL.md":
+            found[f.stem] = f.read_text().splitlines()[0].lstrip("# ").strip()
+    return found
+
+
+def guide(topic):
+    if topic not in guides():
+        raise ValueError(f"no guide called {topic}; guides: {', '.join(guides())}")
+    return (config.SHARE / "skill" / "amadeus" / (topic + ".md")).read_text()
+
+
 def build():
     from . import tools
     tools.load_all()
@@ -56,6 +71,7 @@ def build():
         "state": {"audit_log_and_undo": str(config.STATE), "generated_apps": str(config.APPS), "daemon_socket": str(config.SOCK), "tasks": str(config.DATA / "tasks"), "activity": str(config.RUN / "activity.json")},
         "ai": {"provider": cfg["ai"]["provider"], "providers": sorted(cfg["providers"])},
         "policy": {k: v for k, v in cfg.get("policy", {}).items() if isinstance(v, str)},
+        "guides": guides(),
         "tools": [{"name": t["name"], "capability": "depends on arguments" if callable(t["cap"]) else t["cap"], "risk": "depends on arguments" if callable(t["risk"]) else t["risk"],
                    "does": t["description"]} for t in tools.REGISTRY.values()],
         "explore_further": {

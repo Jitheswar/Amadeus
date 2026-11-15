@@ -151,3 +151,41 @@ class PreferencesTest(unittest.TestCase):
         self.assertEqual(self.decide("full", "net.manage", "modify"), "allow")
         self.policy.rules["net.manage"] = "deny"
         self.assertEqual(self.decide("full", "net.manage", "modify"), "deny")
+
+
+class GuideTest(unittest.TestCase):
+    """Topic guides are pulled on demand; what they name must exist."""
+    def setUp(self):
+        from amadeus import discover, tools
+        tools.load_all()
+        self.discover, self.tools = discover, tools
+        self.root = Path(__file__).resolve().parent.parent.parent
+
+    def test_every_guide_is_indexed_and_readable(self):
+        guides = self.discover.guides()
+        skill = (config.SHARE / "skill/amadeus/SKILL.md").read_text()
+        self.assertGreaterEqual(len(guides), 5)
+        for name, about in guides.items():
+            self.assertIn(f"({name}.md)", skill)
+            self.assertTrue(about)
+            self.assertLess(len(self.discover.guide(name).splitlines()), 80, f"{name} is too long to pull up on demand")
+            self.assertIn(name, self.tools.REGISTRY["system_guide"]["description"])
+        self.assertEqual(self.tools.REGISTRY["system_guide"]["fn"]({}, None), guides)
+        self.assertEqual(self.tools.REGISTRY["system_guide"]["fn"]({"topic": "theming"}, None), self.discover.guide("theming"))
+        with self.assertRaises(self.tools.ToolError):
+            self.tools.REGISTRY["system_guide"]["fn"]({"topic": "../../config"}, None)
+
+    def test_guides_name_only_commands_and_tools_that_exist(self):
+        import re
+        from amadeus import cli
+        commands = {p.name for p in (self.root / "desktop/bin").iterdir()}
+        for name in self.discover.guides():
+            text = self.discover.guide(name)
+            for token in set(re.findall(r"`([a-z_-]+(?: [a-z]+)?)[^`]*`", text)):
+                first = token.split()[0]
+                if first.startswith("amadeus-"):
+                    self.assertIn(first, commands, f"{name}.md names {first}")
+                elif "_" in first and first.islower():
+                    self.assertIn(first, self.tools.REGISTRY, f"{name}.md names tool {first}")
+                elif first == "ama" and " " in token:
+                    self.assertIn("ama " + token.split()[1], cli.HELP, f"{name}.md names `{token}`")

@@ -20,6 +20,10 @@ user starts with in `desktop/skel/`.
 - **The bar's layout is data.** A new widget is a component plus an id in the widget
   table in the bar, and the same id in the AI layer's list of bar widgets in
   `ai/amadeus/tools/desktop.py`. Both or neither.
+- **Colours are rendered, not repeated.** A theme is one `colors.toml` under
+  `desktop/themes/`; `desktop/bin/amadeus-theme` renders `desktop/themed/` templates for
+  each application. Theme a new application by adding a template, never by writing
+  colours into its configuration. The default theme must reproduce the shipped files.
 - **One theme.** Colours, fonts, corner radius and animation timings come from
   `desktop/theme/theme.json`. Shell and panel code reads them; it never contains a
   colour or a duration of its own. Files that cannot read the theme (compositor, lock

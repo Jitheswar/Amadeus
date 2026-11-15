@@ -67,6 +67,13 @@ secondary launchers; settings remain available through search. The shipped
 [hide list](desktop/shell/launcher.hides) names further helper entries; add your own in
 `~/.config/amadeus/launcher.hides`. A personal desktop entry is always shown.
 
+**Setup → Theme** (or `amadeus-theme`) changes the look of the whole system from one
+file: the shell, the panel, terminals, GTK applications, btop, window borders and the
+lock screen. A theme is a single `colors.toml`; put your own in
+`~/.config/amadeus/themes/NAME/`. Applications installed later start out themed, and a
+configuration file you already own is left alone. Open terminals keep their colours
+until a new window is opened.
+
 **Super+C** and **Super+V** copy and paste in every application, terminals and the
 Amadeus panel included. Text in the panel can be selected with the pointer, and each
 answer has a **Copy** button.
@@ -221,6 +228,10 @@ driver and broader boot-image coverage; CPU-build compatibility still applies.
 The medium seeds missing package indexes for offline browsing. Their first online sync
 fetches current metadata instead of treating the copy time as freshness. Signature
 verification remains enabled.
+
+Agents working on the system, Amadeus or a coding harness, start from a short entry
+guide and pull up one topic guide per area on demand: `ama guide` lists them. The guides
+give rules and method; `ama discover` reports what is actually installed.
 
 ## Updates and recovery
 

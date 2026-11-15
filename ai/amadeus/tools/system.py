@@ -71,6 +71,17 @@ def system_discover(a, ctx):
     return discover.build()
 
 
+@tool("system_guide", "The rules, method and pitfalls for one area of this system: desktop, theming, software, ai, recovery, hardware, apps. "
+      "Read the matching guide before working in that area instead of searching for how it is done. Without a topic, lists the guides.",
+      {"topic": {"type": "string"}})
+def system_guide(a, ctx):
+    from .. import discover
+    try:
+        return discover.guide(a["topic"]) if a.get("topic") else discover.guides()
+    except ValueError as e:
+        raise ToolError(str(e))
+
+
 @tool("sys_status", "Snapshot of the machine: load, memory, disk, temperatures, battery, GPU power state, power profile, failed services, whether root mode is on.")
 def sys_status(a, ctx):
     return status()
