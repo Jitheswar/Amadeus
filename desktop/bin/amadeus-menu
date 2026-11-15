@@ -22,7 +22,7 @@ install_menu() {
   local pkgs name url
   # Everything below reads pacman's package lists. Without them the menu would only ever
   # say "Nothing matches", so fetch them first and say what happened.
-  if ! pacman -Slq >/dev/null 2>&1; then
+  if ! pacman -Slq core >/dev/null 2>&1; then
     term "package lists" "sudo pacman -Sy && echo 'Package lists are ready. Open Install again.'"
     exit 0
   fi

@@ -9,25 +9,38 @@
 set -euo pipefail
 DIR=${AMADEUS_CATALOG:-/usr/share/amadeus-os/catalog}
 [[ -d $DIR ]] || { echo "No install catalogue is installed at $DIR." >&2; exit 1; }
-aur_names=""
-have_aur() { [[ -n $aur_names ]] || aur_names=$(amadeus-aur list 2>/dev/null || true); grep -qxF "$1" <<<"$aur_names"; }
+# Each source is asked once for everything it has: one query per entry made a category
+# take seconds to open.
+declare -A in_repo=() in_system=() in_mise=() in_tools=() in_aur=()
+load() {
+  local repo name _ wanted
+  # The sources list far more than a category asks about: keep only the names it mentions.
+  wanted=$(grep -v '^#' "$1" | grep -oE '(pacman|aur|mise):[^[:space:]]+' | cut -d: -f2- | tr '+' '\n' | sed 's|.*/||' | sort -u)
+  [[ -n $wanted ]] || return 0
+  while read -r repo name _; do in_repo[$name]=1; in_repo[$repo/$name]=1; done < <(pacman -Sl 2>/dev/null | grep -wFf <(echo "$wanted") || true)
+  while read -r name; do in_system[$name]=1; done < <(pacman -Qq 2>/dev/null | grep -xFf <(echo "$wanted") || true)
+  while read -r name _; do in_mise[$name]=1; done < <(mise registry 2>/dev/null | grep -wFf <(echo "$wanted") || true)
+  while read -r name _; do in_tools[$name]=1; done < <(mise ls --global 2>/dev/null | grep -wFf <(echo "$wanted") || true)
+  while read -r name; do in_aur[$name]=1; done < <(amadeus-aur list 2>/dev/null | grep -xFf <(echo "$wanted") || true)
+}
+all_in_repo() { local n; for n in ${1//+/ }; do [[ -n ${in_repo[$n]:-} ]] || return 1; done; }
 
 # The first source in a list that exists right now.
 resolve() {
-  local s n
+  local s
   for s in $1; do
     case $s in
-      pacman:*) n=${s#pacman:}; pacman -Si ${n//+/ } >/dev/null 2>&1 && { echo "$s"; return; } ;;
-      aur:*)    have_aur "${s#aur:}" && { echo "$s"; return; } ;;
-      mise:*)   mise registry "${s#mise:}" >/dev/null 2>&1 && { echo "$s"; return; } ;;
+      pacman:*) all_in_repo "${s#pacman:}" && { echo "$s"; return; } ;;
+      aur:*)    [[ -n ${in_aur[${s#aur:}]:-} ]] && { echo "$s"; return; } ;;
+      mise:*)   [[ -n ${in_mise[${s#mise:}]:-} ]] && { echo "$s"; return; } ;;
     esac
   done
   return 1
 }
 installed() {
   case $1 in
-    pacman:*|aur:*) local n=${1#*:}; n=${n%%+*}; pacman -Q "${n#*/}" >/dev/null 2>&1 ;;
-    mise:*) [[ -n $(mise ls --global "${1#mise:}" 2>/dev/null) ]] ;;
+    pacman:*|aur:*) local n=${1#*:}; n=${n%%+*}; [[ -n ${in_system[${n#*/}]:-} ]] ;;
+    mise:*) [[ -n ${in_tools[${1#mise:}]:-} ]] ;;
   esac
 }
 
@@ -56,6 +69,7 @@ case ${1:-} in
     exit 0 ;;
   *)
     [[ -f $DIR/$1.list ]] || { echo "No category called $1. Categories: $("$0" | paste -sd' ')"; exit 1; }
+    load "$DIR/$1.list"
     grep -v '^#' "$DIR/$1.list" | while IFS=$'\t' read -r title sources; do
       src=$(resolve "$sources") || continue
       # Say when the choice comes from a user recipe; the label is what the picker shows.

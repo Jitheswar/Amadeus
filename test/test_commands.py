@@ -193,7 +193,7 @@ esac''')
         catalog = self.tmp / "qualified-catalog"
         catalog.mkdir()
         (catalog / "gaming.list").write_text("Steam\tpacman:multilib/steam\n")
-        self.stub("pacman", body='case "$1 $2" in "-Si multilib/steam"|"-Q steam") exit 0 ;; *) exit 1 ;; esac')
+        self.stub("pacman", body='case "$1" in -Sl) echo "multilib steam 1.0-1" ;; -Qq) echo steam ;; esac')
         result = self.run_cmd("amadeus-catalog", "gaming", env={"AMADEUS_CATALOG": str(catalog)})
         self.assert_ok(result)
         self.assertIn("Steam  (installed)\tpacman:multilib/steam", result.stdout)
@@ -471,22 +471,15 @@ esac""")
             "Foot\tpacman:foot\n"
             "Kitty\tpacman:missing aur:kitty-git\n"
             "Tool\tmise:opencode\n")
-        self.stub("pacman", body="""case "$1 $2" in
-  "-Si foot") exit 0 ;;
-  "-Si missing") exit 1 ;;
-  "-Q foot") exit 0 ;;
-  "-Q kitty-git"|"-Q opencode") exit 1 ;;
-  *) exit 0 ;;
+        self.stub("pacman", body="""case "$1" in
+  -Sl) echo "extra foot 1.0-1 [installed]" ;;
+  -Qq) echo foot ;;
 esac""")
         self.stub("amadeus-aur", body="""case "$1" in
   list) echo kitty-git ;;
-  install) exit 0 ;;
-  *) exit 0 ;;
 esac""")
         self.stub("mise", body="""case "$1" in
-  registry) exit 0 ;;
-  ls) exit 1 ;;
-  *) exit 0 ;;
+  registry) echo "opencode  aqua:sst/opencode" ;;
 esac""")
         self.stub("amadeus-harness")
         env = {"AMADEUS_CATALOG": str(cat)}
