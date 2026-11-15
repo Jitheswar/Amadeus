@@ -20,6 +20,7 @@ SCRIPT = {      # scenario -> the one tool call the "model" makes before it answ
     "task-save": ("task_manage", {"action":"save", "id":"e2e-daily", "label":"VM test", "prompt":"E2E:read", "calendar":"daily"}),
     "task-enable": ("task_manage", {"action":"enable", "id":"e2e-daily"}),
     "task-disable": ("task_manage", {"action":"disable", "id":"e2e-daily"}),
+    "focus-save": ("task_manage", {"action":"save", "id":"e2e-shell-focus", "prompt":"E2E:read", "trigger":"event", "event":"app-focused", "match":"amadeus-e2e-focus", "enabled":True}),
     "event-save": ("task_manage", {"action":"save", "id":"e2e-focus", "prompt":"E2E:read", "trigger":"event", "event":"app-focused", "match":"e2e-only", "enabled":True}),
 
 }
@@ -195,6 +196,24 @@ def main():
         cooled = c.call("desktop_event", name="app-focused", data={"app":"e2e-only"})
         check("event tasks filter apps and respect cooldown", empty == [] and bool(event) and event[0].get("text") == "done read" and cooled == [], event)
         c.call("undo", session="e2e-event-save")
+
+        c.ask("focus-save", "e2e-focus-save", approve="yes")
+        def shell_state():
+            return json.loads(subprocess.check_output(["quickshell", "ipc", "-p", "/usr/share/amadeus-os/shell", "call", "shell", "state"], text=True))
+        for _ in range(40):
+            if "app-focused" in shell_state()["automationEvents"]: break
+            time.sleep(0.1)
+        focus_app = subprocess.Popen(["foot", "--app-id=amadeus-e2e-focus", "sleep", "40"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            actual = None
+            for _ in range(100):
+                actual = next((j for j in c.call("tasks") if j["id"] == "e2e-shell-focus"), {})
+                if actual.get("last", {}).get("state") == "complete": break
+                time.sleep(0.2)
+            check("a real app-focus event runs an enabled task", actual.get("last", {}).get("summary") == "done read" and shell_state()["focusedApp"] == "amadeus-e2e-focus", actual)
+        finally:
+            c.call("undo", session="e2e-focus-save")
+            focus_app.terminate(); focus_app.wait(timeout=5)
 
         target = HOME / "amadeus-e2e-input.txt"
         target.unlink(missing_ok=True)

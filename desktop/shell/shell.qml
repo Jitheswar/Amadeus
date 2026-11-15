@@ -58,7 +58,7 @@ ShellRoot {
     }
     IpcHandler {
         target: "shell"
-        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, searchResults: picker.shown.slice(0, 40).map(x => picker.label(x)), audioInputs: root.inputs.map(n => n.description || n.name), audioOutputs: root.outputs.map(n => n.description || n.name), fontSize: root.fontPixels(14), automationEvents: root.automationEvents, aiRunning: root.aiActivity.running || 0, pickerIndex: picker.index, pickerCurrent: picker.current, pickerGeometry: picker.geometry(), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
+        function state(): string { return JSON.stringify({ picker: picker.open, pickerItems: picker.items.length, searchResults: picker.shown.slice(0, 40).map(x => picker.label(x)), audioInputs: root.inputs.map(n => n.description || n.name), audioOutputs: root.outputs.map(n => n.description || n.name), fontSize: root.fontPixels(14), automationEvents: root.automationEvents, focusedApp: root.focusedApp, networkConnections: root.networkConnections, aiRunning: root.aiActivity.running || 0, pickerIndex: picker.index, pickerCurrent: picker.current, pickerGeometry: picker.geometry(), notifications: notifications.count, popover: root.pop, awake: root.awake }) }
         // For automation and tests: open a drop-down at a horizontal position, or close it with "".
         function popover(name: string, x: int): void { root.popX = x; root.pop = name; if (name === "agents") root.refreshUsage() }
         function settings(name: string): void {
@@ -81,10 +81,19 @@ ShellRoot {
     function publish(event, data) {
         if (!demo && automationEvents.indexOf(event) >= 0) run(["ama", "event", event, JSON.stringify(data)])
     }
-    readonly property string focusedApp: !demo && Hyprland.activeToplevel ? Hyprland.activeToplevel.appId : ""
+    readonly property var focusedToplevel: !demo ? Hyprland.activeToplevel : null
+    readonly property string focusedApp: focusedToplevel ? (focusedToplevel.wayland ? focusedToplevel.wayland.appId : String((focusedToplevel.lastIpcObject || {}).class || "")) : ""
     onFocusedAppChanged: if (focusedApp) publish("app-focused", {app: focusedApp, title: focusedTitle.slice(0, 250)})
-    readonly property string focusedConnection: activeNet ? activeNet.name : ""
-    onFocusedConnectionChanged: if (focusedConnection) publish("network-changed", {connection: focusedConnection})
+    property var networkConnections: demo ? ["Home"] : []
+    function updateConnections(text) {
+        const next = text.trim().split("\n").filter(line => line && !line.endsWith(":loopback")).map(line => line.slice(0, line.lastIndexOf(":")).replace(/\\([:\\])/g, "$1")).sort()
+        const changed = next.filter(name => networkConnections.indexOf(name) < 0).concat(networkConnections.filter(name => next.indexOf(name) < 0))
+        networkConnections = next
+        for (const name of changed) publish("network-changed", {connection: name.slice(0, 100), connected: next.indexOf(name) >= 0, connections: next.slice(0, 8).map(n => n.slice(0, 100))})
+    }
+    Process { id: readConnections; command: ["nmcli", "-t", "--escape", "yes", "-f", "NAME,TYPE", "connection", "show", "--active"]
+        stdout: StdioCollector { onStreamFinished: root.updateConnections(text) }
+    }
 
     property var aiActivity: ({running: 0, tasks: []})
     FileView {
@@ -222,8 +231,8 @@ ShellRoot {
               onExited: if (!root.demo) root.nets = scan.found.slice().sort((a, b) => (b.active - a.active) || (b.signal - a.signal)) }
     // NetworkManager says when something changed; only then is the list read again.
     Process { command: ["nmcli", "monitor"]; running: !root.demo; stdout: SplitParser { onRead: line => rescan.restart() } }
-    Timer { id: rescan; interval: 800; onTriggered: scan.running = true }
-    Component.onCompleted: { readAgents.running = true; if (!demo) { scan.running = true; readBright.running = true; readText.running = true; readScale.running = true } }
+    Timer { id: rescan; interval: 800; onTriggered: { scan.running = true; readConnections.running = true } }
+    Component.onCompleted: { readAgents.running = true; if (!demo) { scan.running = true; readConnections.running = true; readBright.running = true; readText.running = true; readScale.running = true } }
 
     property string sudoRaw: ""
     readonly property bool sudoOn: sudoRaw !== ""

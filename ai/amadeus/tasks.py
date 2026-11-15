@@ -185,7 +185,7 @@ def run(daemon, conn, rid, ident, event=None):
 
 
 def event(daemon, conn, rid, name, data):
-    if name not in EVENTS or not isinstance(data, dict) or len(json.dumps(data)) > 2000: raise ToolError("invalid desktop event")
+    if name not in EVENTS or not isinstance(data, dict) or len(json.dumps(data, ensure_ascii=False)) > 2000: raise ToolError("invalid desktop event")
     result = []
     for job in listing():
         if not job.get("enabled") or job.get("event") != name: continue

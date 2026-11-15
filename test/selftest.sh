@@ -156,6 +156,26 @@ t "saved tasks page opens"                    bash -c 'as ama panel tasks; sleep
 t "settings context reaches AI without starting a request" bash -c 'as ama panel context "{\"kind\":\"setting\",\"label\":\"Display\"}"; sleep 0.5; as ama panel state | grep -q "context.*Display" && as ama panel hide'
 t "Files offers Ask Amadeus for selected files" test -x "/home/$U/.local/share/nautilus/scripts/Ask Amadeus"
 t "native AI tools are discoverable"          bash -c 'as ama tool | grep -q desktop_observe && as ama tool | grep -q task_manage'
+network_event_test() {
+  local name=amadeus-e2e-network
+  nmcli connection add type dummy con-name "$name" ifname amadeus-dummy connection.autoconnect no ipv4.method disabled ipv6.method disabled >/dev/null || return 1
+  if ! nmcli -w 10 connection up "$name" >/dev/null; then nmcli connection delete "$name" >/dev/null; return 1; fi
+  sleep 3
+  local seen gone
+  seen=$(shell shell state)
+  nmcli connection delete "$name" >/dev/null || return 1
+  sleep 3
+  gone=$(shell shell state)
+  python3 - "$seen" "$gone" <<'PYNET'
+import json,sys
+before,after = [json.loads(s)["networkConnections"] for s in sys.argv[1:]]
+assert "amadeus-e2e-network" in before, before
+assert "amadeus-e2e-network" not in after, after
+assert before and after, "the wired profile was not observed"
+PYNET
+}
+export -f network_event_test
+t "network events follow wired and virtual profiles" network_event_test
 t "audit log chain intact"                     as ama audit verify
 echo "--- AI requests end to end (scripted model; everything else is real)"
 e2e_status=missing

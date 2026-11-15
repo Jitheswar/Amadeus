@@ -187,3 +187,8 @@ class NativeOS(unittest.TestCase):
             files.undo_session("text-undo")
         self.assertIn(["gsettings", "set", "org.gnome.desktop.interface", "text-scaling-factor", "1.2727"], self.calls)
         self.assertFalse((self.root/"user-config/amadeus/theme.json").exists())
+
+    def test_event_limit_counts_characters_without_rejecting_unicode(self):
+        conn = SimpleNamespace(interactive=False)
+        self.assertEqual(tasks.event(self.daemon, conn, "r", "app-focused", {"app":"漢" * 500}), [])
+        with self.assertRaises(tools.ToolError): tasks.event(self.daemon, conn, "r", "app-focused", {"app":"x" * 2100})
