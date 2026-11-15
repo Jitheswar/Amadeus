@@ -104,7 +104,7 @@ def main():
     apps = entries(include_settings="--json" in sys.argv or "--launch" in sys.argv)
     lines = sorted((f"{e.get('Name', i)}\t{i}" for i, e in apps.items()), key=str.lower)
     if "--json" in sys.argv:
-        return print(json.dumps([{"id": i, "label": e.get("Name", i), "kind": "Setting" if "Settings" in e.get("Categories", "").split(";") else "Application", "keywords": e.get("Keywords", "") + " " + e.get("GenericName", "")}
+        return print(json.dumps([{"id": i, "label": e.get("Name", i), "kind": "Setting" if "Settings" in e.get("Categories", "").split(";") else "Application", "description": e.get("Comment", ""), "mimeTypes": [m for m in e.get("MimeType", "").split(";") if m], "keywords": e.get("Keywords", "") + " " + e.get("GenericName", "")}
                                  for i, e in apps.items()]))
     if len(sys.argv) == 3 and sys.argv[1] == "--launch":
         if sys.argv[2] not in apps:

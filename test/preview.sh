@@ -29,6 +29,7 @@ S
 shot() { sleep "${2:-1.2}"; grim "$OUT/$1.png" && echo "saved $1.png"; }
 run() {
   export WAYLAND_DISPLAY=wayland-1
+  export SWAYSOCK=$(python3 -c 'import glob; print(glob.glob("/tmp/xdg/sway-ipc.*.sock")[0])')
   for _ in $(seq 50); do [[ -S $XDG_RUNTIME_DIR/wayland-1 ]] && break; sleep 0.1; done
   quickshell -p /usr/share/amadeus-os/shell >/tmp/shell.log 2>&1 &
   sleep 2.5
@@ -48,7 +49,14 @@ run() {
   ipc shell popover "" 0; sleep 0.4
 
   amadeus-menu >/dev/null 2>&1 &
-  shot 2-menu; quickshell ipc -p /usr/share/amadeus-os/shell call pick cancel
+  shot 2-menu
+  ipc shell state >"$OUT/menu-before.json"
+  # Headless sway has no pointer device. Synthetic hover/scroll is covered in tst_menu.qml;
+  # this checks that separate real key events each advance the actual picker once.
+  wtype -s 150 -k Down -s 150 -k Down; sleep 0.4
+  ipc shell state >"$OUT/menu-keyboard.json"
+  python3 -c 'import json,sys; a,b=[json.load(open(p)) for p in sys.argv[1:]]; assert b["pickerIndex"] == a["pickerIndex"]+2, (a,b)' "$OUT/menu-before.json" "$OUT/menu-keyboard.json" || return 1
+  quickshell ipc -p /usr/share/amadeus-os/shell call pick cancel
 
   printf '%s\n' firefox foot fuzzel fzf gamemode gamescope gimp git git-lfs github-cli gnome-keyring go grim gst-plugins-good gtk4 handbrake htop imv inkscape |
     amadeus-pick --multi --preview 'printf "Repository      : extra\nName            : %s\nVersion         : 2.47.1-1\nDescription     : The fast distributed version control system\nArchitecture    : x86_64\nURL             : https://git-scm.com/\nLicenses        : GPL-2.0-only\nDepends On      : curl  expat  perl  openssl  pcre2  zlib-ng\nDownload Size   : 7.4 MiB\nInstalled Size  : 29.1 MiB\nPackager        : Arch Linux\nBuild Date      : Tue 03 Nov 2026\n" "$1"' Install >/dev/null 2>&1 &

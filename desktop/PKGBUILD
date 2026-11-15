@@ -11,7 +11,8 @@ install=amadeus-desktop.install
 package() {
   local src="$startdir"
   install -Dm644 "$src/hypr/default.lua" -t "$pkgdir/usr/share/amadeus-os/hypr/"
-  install -Dm644 "$src"/shell/*.qml -t "$pkgdir/usr/share/amadeus-os/shell/"
+  install -Dm644 "$src"/shell/*.qml "$src"/shell/*.js -t "$pkgdir/usr/share/amadeus-os/shell/"
+  install -Dm644 "$src/shell/OMARCHY-LICENSE" "$pkgdir/usr/share/licenses/$pkgname/OMARCHY-LICENSE"
   install -d "$pkgdir/usr/bin"
   # Only files: a test run can leave a __pycache__ directory beside the programs.
   find "$src/bin" -maxdepth 1 -type f -exec install -Dm755 {} -t "$pkgdir/usr/bin/" \;

@@ -308,6 +308,12 @@ cannot reload its configuration takes the size in a new window.
 
 ## Search across menus
 
+Matching and ranking are adapted from the installed Omarchy menu's MIT-licensed source,
+with attribution shipped in the desktop package. Names and aliases accept partial words;
+descriptions require complete words to reduce irrelevant results. Menu entries show their
+parent path. Omarchy's pointer-movement gate prevents a stationary mouse or scrolling
+row from undoing arrow-key selection; real pointer movement restores hover selection.
+
 The picker indexes installed applications and Amadeus settings once per opening,
 then searches that index locally. A global selection cancels its original menu
 before launching its action, so a settings or application ID cannot be mistaken

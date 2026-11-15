@@ -5,6 +5,12 @@ pick()   { amadeus-pick "$@"; }
 term()   { amadeus-terminal --title "Amadeus: $1" -e bash -c "$2; echo; read -rsn1 -p 'Press any key to close.'"; }
 quoted() { local out; out=$(xargs -d '\n' printf '%q ' <<<"$1"); printf '%s' "$out"; }
 say()    { notify-send -a Amadeus "$@"; }
+root_choices() { printf '%s\n' Apps Trigger Install Gaming Chat Remove Update Setup System About; }
+install_choices() { printf '%s\n' Terminal Browser Editor AI Development Harness 'Web app' Packages AUR; }
+remove_choices() { printf '%s\n' Packages Harness 'Web app'; }
+setup_choices() { printf '%s\n' Display GPU 'Text size' Defaults Config; }
+update_choices() { printf '%s\n' Everything 'Harnesses and tools only'; }
+trigger_choices() { printf '%s\n' Capture; }
 
 # One category of the install catalogue: pick, then install in a terminal.
 catalog() {
@@ -20,7 +26,7 @@ install_menu() {
     term "package lists" "sudo pacman -Sy && echo 'Package lists are ready. Open Install again.'"
     exit 0
   fi
-  local choice=${1:-$(printf '%s\n' Terminal Browser Editor AI Development Harness 'Web app' Packages AUR | pick "Install")}
+  local choice=${1:-$(install_choices | pick "Install")}
   case $choice in
     Terminal)    catalog terminal terminal ;;
     Browser)     catalog browser browser ;;
@@ -50,7 +56,7 @@ install_menu() {
 
 remove_menu() {
   local pkgs
-  case $(printf '%s\n' Packages Harness 'Web app' | pick "Remove") in
+  case ${1:-$(remove_choices | pick "Remove")} in
     Packages)   # only what was installed on purpose is offered; dependencies go with it
       pkgs=$(pacman -Qqe | pick --multi --preview 'pacman -Qi "$1"' "Remove package") || exit 0
       [[ -n $pkgs ]] && term "remove" "sudo pacman -Rns -- $(quoted "$pkgs")" ;;
@@ -132,7 +138,7 @@ config_menu() {
 }
 
 trigger_menu() {
-  case $(printf '%s\n' Capture | pick "Trigger") in
+  case ${1:-$(trigger_choices | pick "Trigger")} in
     Capture)
       local recording=""
       [[ -f ${XDG_RUNTIME_DIR:-/tmp}/amadeus-record.pid ]] && kill -0 "$(cat "${XDG_RUNTIME_DIR:-/tmp}/amadeus-record.pid")" 2>/dev/null && recording=1
@@ -168,7 +174,7 @@ gpu_menu() {
 }
 
 setup_menu() {
-  local choice=${1:-$(printf '%s\n' Display GPU 'Text size' Defaults Config | pick "Setup")}
+  local choice=${1:-$(setup_choices | pick "Setup")}
   case $choice in
     GPU)         gpu_menu ;;
     Display)     exec amadeus-display ;;
@@ -179,22 +185,28 @@ setup_menu() {
   esac
 }
 
-case ${1:-$(printf '%s\n' Apps Trigger Install Gaming Chat Remove Update Setup System About | pick "Amadeus")} in
+case ${1:-$(root_choices | pick "Amadeus")} in
   Apps|apps)         exec amadeus-launcher ;;
-  Trigger|trigger)   trigger_menu ;;
+  Trigger|trigger)   trigger_menu "${2:-}" ;;
   Install|install)   install_menu "${2:-}" ;;
   Gaming|gaming)     catalog gaming game ;;
   Chat|chat)         catalog chat "chat client" ;;
-  Remove|remove)     remove_menu ;;
+  Remove|remove)     remove_menu "${2:-}" ;;
   Update|update)
-    what=$(printf 'Everything\nHarnesses and tools only' | pick "Update") || exit 0
+    what=${2:-$(update_choices | pick "Update")} || exit 0
     [[ $what == Everything ]] && term "update" "amadeus-update" || term "update" "amadeus-harness update" ;;
   Setup|setup)       setup_menu "${2:-}" ;;
   Defaults|defaults) defaults_menu "${2:-}" ;;
   Config|config)     config_menu "${2:-}" ;;
+  --menu-index)
+    for group in root install remove setup update trigger; do
+      while read -r name; do
+        printf '%s:%s\t%s\t%s\n' "$group" "$name" "$name" "$(case $group in root) echo Amadeus ;; *) echo "Amadeus › ${group^}" ;; esac)"
+      done < <("${group}_choices")
+    done ;;
   --settings-index)
-    while read -r kind; do printf 'default:%s\tDefault %s\n' "$kind" "$kind"; done < <(default_choices)
-    while IFS=$'\t' read -r label path; do printf 'config:%s\t%s\n' "$label" "$label"; done < <(config_choices) ;;
+    while read -r kind; do printf 'default:%s\t%s\t%s\n' "$kind" "$kind" "${KINDS[$kind]:-$kind}"; done < <(default_choices)
+    while IFS=$'\t' read -r label path; do printf 'config:%s\t%s\t%s\n' "$label" "$label" "$path"; done < <(config_choices) ;;
   System|system)     exec amadeus-power-menu ;;
   About|about)       amadeus-terminal --title "About" -e bash -c "fastfetch; read -rsn1" ;;
 esac

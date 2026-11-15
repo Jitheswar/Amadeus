@@ -35,7 +35,33 @@ SETTINGS = {
 
 def menu_settings():
     p = subprocess.run(["amadeus-menu", "--settings-index"], capture_output=True, text=True, timeout=5)
-    return dict(line.split("\t", 1) for line in p.stdout.splitlines() if "\t" in line) if p.returncode == 0 else {}
+    return dict(line.split("\t")[:2] for line in p.stdout.splitlines() if "\t" in line) if p.returncode == 0 else {}
+
+
+def menu_routes():
+    routes = {}
+    p = subprocess.run(["amadeus-menu", "--menu-index"], capture_output=True, text=True, timeout=5)
+    if p.returncode == 0:
+        for line in p.stdout.splitlines():
+            fields = line.split("\t")
+            if len(fields) != 3 or ":" not in fields[0]:
+                continue
+            key, label, path = fields
+            group, choice = key.split(":", 1)
+            if group not in {"root", "install", "remove", "setup", "update", "trigger"}:
+                continue
+            command = ["amadeus-menu", choice] if group == "root" else ["amadeus-menu", group, choice]
+            routes[key] = {"label": label, "path": path, "command": command}
+    detail = subprocess.run(["amadeus-menu", "--settings-index"], capture_output=True, text=True, timeout=5)
+    words = {parts[0]: parts[2] for line in detail.stdout.splitlines() if len(parts := line.split("\t")) >= 3}
+    for line in detail.stdout.splitlines():
+        fields = line.split("\t")
+        if len(fields) < 2: continue
+        key, label = fields[:2]
+        category, choice = key.split(":", 1)
+        routes[key] = {"label": label, "path": "Amadeus › Setup › " + ("Defaults" if category == "default" else "Config"),
+                       "command": ["amadeus-menu", "defaults" if category == "default" else "config", choice], "keywords": words.get(key, "")}
+    return routes
 
 
 def index():
@@ -43,11 +69,24 @@ def index():
     p = subprocess.run(["amadeus-launcher", "--json"], capture_output=True, text=True, timeout=10)
     if p.returncode == 0:
         for app in json.loads(p.stdout):
-            result.append(dict(app, id="app:" + app["id"], kind=app.get("kind", "Application"), keywords=app.get("keywords", "") + " " + app["id"]))
-    for key, (label, words, _) in SETTINGS.items():
-        result.append({"id": "setting:" + key, "label": label, "keywords": words, "kind": "Setting"})
-    for key, label in menu_settings().items():
-        result.append({"id": "menu:" + key, "label": label, "keywords": "settings configuration defaults", "kind": "Setting"})
+            result.append(dict(app, id="app:" + app["id"], kind=app.get("kind", "Application"), path="Apps", description=app.get("description", ""), keywords=app.get("keywords", "") + " " + app["id"]))
+    commands = {}
+    def identity(argv): return tuple(str(x).casefold() for x in argv)
+    for key, (label, words, command) in SETTINGS.items():
+        location = "Bar" if not command or key == "agent" else ("Amadeus" if len(command) == 2 else "Amadeus › Setup")
+        entry = {"id": "setting:" + key, "label": label, "keywords": words, "kind": "Setting", "path": location}
+        result.append(entry)
+        if command: commands[identity(command)] = entry
+    for key, route in menu_routes().items():
+        command = identity(route["command"])
+        if command in commands:
+            entry = commands[command]
+            entry["keywords"] += " " + entry["label"]
+            entry.update(label=route["label"], path=route["path"])
+            continue
+        entry = {"id": "menu:" + key, "label": route["label"], "keywords": route.get("keywords", "") + " " + key.split(":", 1)[1],
+                 "path": route["path"], "kind": "Menu"}
+        result.append(entry); commands[command] = entry
     for item in result:
         item["label"] = " ".join(str(item["label"]).split())[:160]
         item["keywords"] = str(item.get("keywords", ""))[:500]
@@ -62,9 +101,8 @@ def main():
         key = sys.argv[2]
         if key.startswith("app:"):
             command = ["amadeus-launcher", "--launch", key[4:]]
-        elif key.startswith("menu:") and key[5:] in menu_settings():
-            category, label = key[5:].split(":", 1)
-            command = ["amadeus-menu", "defaults" if category == "default" else "config", label]
+        elif key.startswith("menu:") and key[5:] in (routes := menu_routes()):
+            command = routes[key[5:]]["command"]
         elif key.startswith("setting:") and key[8:] in SETTINGS:
             name = key[8:]
             command = SETTINGS[name][2]

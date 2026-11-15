@@ -30,6 +30,18 @@ def request(action):
         console.write("\nAMADEUS-UI " + action + "\n"); console.flush()
 
 try:
+    if mode == "installed":
+        as_user("sh", "-c", "amadeus-menu >/tmp/amadeus-menu-input-test.log 2>&1 &")
+        def shell_state():
+            return json.loads(as_user("quickshell", "ipc", "-p", "/usr/share/amadeus-os/shell", "call", "shell", "state"))
+        wait_for(lambda: shell_state()["picker"], "menu did not open")
+        request("menu-hover"); time.sleep(1)
+        before = shell_state()
+        request("menu-down"); time.sleep(1)
+        after = shell_state()
+        assert after["pickerIndex"] == min(before["pickerIndex"]+2, before["pickerItems"]-1), (before, after)
+        as_user("quickshell", "ipc", "-p", "/usr/share/amadeus-os/shell", "call", "pick", "cancel")
+        print("GUI: keyboard keeps selection with mouse over menu", flush=True)
     as_user("uwsm", "stop")
     wait_for(lambda: not present("Hyprland") and present("regreet") and present("cage"), "graphical greeter did not replace the desktop")
     time.sleep(3)

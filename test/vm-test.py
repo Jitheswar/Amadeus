@@ -46,6 +46,12 @@ def qmp_input(action):
             time.sleep(0.12)
         def text(value):
             for char in value: key("minus" if char == "-" else char)
+        if action == "menu-hover":
+            for x, y in ((8000,8000), (16384,16384), (16460,16384)):
+                command("input-send-event", {"events":[{"type":"abs", "data":{"axis":"x", "value":x}}, {"type":"abs", "data":{"axis":"y", "value":y}}]})
+                time.sleep(0.2)
+        elif action == "menu-down":
+            key("down"); key("down")
         if action in ("login-try", "login-installed", "wrong-login", "wrong-login-auto"):
             if action != "wrong-login-auto": key("ret")
             time.sleep(0.7)

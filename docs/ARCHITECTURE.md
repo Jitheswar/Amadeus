@@ -70,7 +70,10 @@ filters locally. Apps applies desktop visibility, user-entry precedence and pack
 filtering. Settings are searchable even when they are omitted from the ordinary Apps
 list. A global result cancels the originating picker before its action is resolved and
 launched, so another menu cannot interpret the result as a package or display mode.
-Free-text prompts are kept distinct from list navigation.
+Free-text prompts are kept distinct from list navigation. The picker uses Omarchy-derived
+matching/ranking and pointer gating. Stable screen coordinates distinguish deliberate
+mouse movement from rows moving beneath the pointer. Result breadcrumbs identify the
+menu destination, and Ctrl+Enter prepares that context in the AI panel.
 
 Configuration application depends on the surface. Hyprland loads personal overrides over
 shipped defaults and validates managed changes before reloading. The shell watches its

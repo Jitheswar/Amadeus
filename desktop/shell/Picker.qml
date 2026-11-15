@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import "MenuSearch.js" as MenuSearch
 
 // One searchable list for the whole system: applications, menus, packages.
 // A caller (amadeus-pick) hands over a file of lines and a pipe for the answer.
@@ -26,17 +27,16 @@ Scope {
     property var marked: ({})
     property int index: 0
     property string detail: ""
-    // The pointer is not followed until it actually moves, so a menu opened under the
-    // cursor starts on its first line instead of the line that happens to be beneath it.
-    property bool pointerReady: false
-    property int repeatStep: 1
+    property string filterText: ""
+    property bool searchPinned: false
+    property real cardTop: 0
     readonly property string current: shown.length ? shown[index] : ""
     // 0 when closed, 1 when open; everything on screen follows it, so opening and closing are one motion.
     property real t: open ? 1 : 0
-    onOpenChanged: if (!open) stopHold()
     Behavior on t { NumberAnimation { duration: pick.open ? pick.style.normal : pick.style.fast; easing.type: Easing.OutCubic } }
     readonly property int nMarked: Object.keys(marked).length
 
+    function geometry() { return { x: box.x, y: box.y + view.y, width: view.width, height: view.height, contentY: view.contentY } }
     function label(line) { const t = line.indexOf("\t"); return t < 0 ? line : line.slice(0, t) }
     function start(prompt, infile, pipe, options) {
         if (open) finish("cancel", [])
@@ -46,7 +46,7 @@ Scope {
         pick.multi = !!o.multi; pick.allowNew = !!o.allowNew
         pick.preview = o.preview || ""; pick.preview2 = o.preview2 || ""; pick.hint = o.hint || ""; pick.newLabel = o.newLabel || "Press Enter to use what you typed"
         pick.alt = false; pick.marked = ({}); pick.detail = ""; pick.items = []; pick.shown = []
-        pick.index = 0; pick.pointerReady = false; repeat.stop()
+        pick.index = 0; pick.filterText = ""; pick.searchPinned = false; pointerGate.reset()
         input.text = ""
         loader.path = infile
         loader.reload()
@@ -54,41 +54,22 @@ Scope {
         globalLoad.running = true
     }
     function search(text) { input.text = text }
-    function refilter() {
-        const words = input.text.toLowerCase().split(/\s+/).filter(w => w)
-        if (!words.length) shown = items.slice(0, 300)
-        else {
-            const first = [], rest = []
-            for (const it of items) {
-                const l = label(it).toLowerCase()
-                let ok = true
-                for (const w of words) if (l.indexOf(w) < 0) { ok = false; break }
-                if (ok) (l.startsWith(words[0]) ? first : rest).push(it)
-            }
-            first.sort((a, b) => a.length - b.length)
-            shown = first.concat(rest).slice(0, 300)
-        }
-        const extras = {}, globals = []
-        if (words.length && (!allowNew || items.length)) {
-            const localLabels = new Set(shown.map(label))
-            for (const item of globalIndex) {
-                const haystack = (item.label + " " + item.keywords).toLowerCase()
-                if (words.every(w => haystack.indexOf(w) >= 0) && !localLabels.has(item.label)) {
-                    const line = item.label + "\t@global:" + item.id
-                    extras[line] = item
-                    globals.push(line)
-                }
-            }
-        }
-        globalResults = extras
-        shown = shown.concat(globals.slice(0, 40))
-        index = 0
-        view.positionViewAtBeginning()
+    function refilter(preserve) {
+        const selected = preserve ? current : ""
+        if (input.text.trim() && !searchPinned) { cardTop = box.y; searchPinned = true }
+        filterText = input.text
+        const result = MenuSearch.rows(items, (!allowNew || items.length) ? globalIndex : [], input.text, prompt)
+        globalResults = result.info
+        shown = result.lines
+        const prior = selected ? shown.indexOf(selected) : -1
+        index = prior >= 0 ? prior : 0
+        pointerGate.reset()
+        if (!preserve) view.positionViewAtBeginning()
         describe.restart()
     }
     function finish(status, lines) {
         if (pipe) Quickshell.execDetached(["sh", "-c", 'printf "%s\\n" "$@" > "$0"', pipe, status].concat(lines))
-        pipe = ""; open = false; fetch.running = false; repeat.stop()
+        pipe = ""; open = false; fetch.running = false; pointerGate.reset()
     }
     function accept() {
         if (globalResults[current]) {
@@ -108,18 +89,19 @@ Scope {
         marked = m
         if (index < shown.length - 1) index++
     }
-    function move(by) { if (shown.length) { index = Math.max(0, Math.min(shown.length - 1, index + by)); describe.restart() } }
-    // Walk the list immediately, then keep walking while the key is held. The compositor's
-    // own repeat waits a moment before the first repeat, which reads as a menu that ignored the press.
-    function hold(step) { repeatStep = step; move(step); repeat.restart() }
-    function stopHold() { repeat.stop() }
-    function select(i) { if (index !== i) { index = i; describe.restart() } }
-    Timer {
-        id: repeat
-        interval: pick.style.fast
-        repeat: true
-        onTriggered: pick.move(pick.repeatStep)
+    function move(by) {
+        pointerGate.reset()
+        if (shown.length) {
+            index = Math.max(0, Math.min(shown.length - 1, index + by))
+            view.positionViewAtIndex(index, ListView.Contain)
+            describe.restart()
+        }
     }
+    function select(i) { if (index !== i) { index = i; describe.restart() } }
+    function selectFromPointer(i, item, mouse) {
+        if (pointerGate.moved(item, mouse)) select(i)
+    }
+    PointerMoveGate { id: pointerGate; referenceItem: screenArea }
 
     FileView {
         id: loader
@@ -131,7 +113,7 @@ Scope {
         interval: 120
         onTriggered: {
             if (pick.globalResults[pick.current]) {
-                pick.detail = pick.globalResults[pick.current].kind + " · " + pick.globalResults[pick.current].label
+                pick.detail = pick.globalResults[pick.current].path + " · " + pick.globalResults[pick.current].label
                 return
             }
             const cmd = pick.alt && pick.preview2 ? pick.preview2 : pick.preview
@@ -146,7 +128,7 @@ Scope {
         command: ["amadeus-search", "--index"]
         stdout: StdioCollector { onStreamFinished: {
             try { pick.globalIndex = JSON.parse(text) } catch (e) { pick.globalIndex = [] }
-            if (pick.open) pick.refilter()
+            if (pick.open) pick.refilter(true)
         } }
     }
     Process { id: fetch; stdout: StdioCollector { onStreamFinished: pick.detail = text } }
@@ -159,16 +141,16 @@ Scope {
         WlrLayershell.keyboardFocus: pick.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         color: Qt.rgba(0, 0, 0, 0.5 * pick.t)
         onVisibleChanged: if (visible) input.forceActiveFocus()
-        MouseArea { anchors.fill: parent; onClicked: pick.finish("cancel", []) }
+        MouseArea { id: screenArea; anchors.fill: parent; onClicked: pick.finish("cancel", []) }
 
         Rectangle {
             id: box
             readonly property bool wide: pick.preview !== ""
-            anchors.centerIn: parent
-            anchors.verticalCenterOffset: (1 - pick.t) * 10
+            x: (parent.width - width) / 2
+            y: (pick.searchPinned ? Math.max(24, Math.min(pick.cardTop, parent.height - height - 24)) : (parent.height - height) / 2) + (1 - pick.t) * 10
             width: Math.min(parent.width - 80, wide ? 1080 : 600)
             // A short menu is a short box; long lists and anything with details get the full height.
-            height: Math.min(parent.height - 120, wide ? 580 : 112 + Math.max(1, Math.min(pick.shown.length, 13)) * 34)
+            height: Math.min(parent.height - 120, wide ? 580 : 112 + Math.max(1, Math.min(pick.shown.length, 13)) * (pick.filterText.trim() ? 52 : 34))
             Behavior on height { NumberAnimation { duration: pick.style.fast; easing.type: Easing.OutCubic } }
             radius: pick.style.radius + 4
             color: pick.style.surface
@@ -192,14 +174,14 @@ Scope {
                 anchors { left: chip.right; right: parent.right; verticalCenter: chip.verticalCenter; leftMargin: 14; rightMargin: 18 }
                 color: pick.style.fg; selectionColor: pick.style.accent; selectedTextColor: pick.style.bg
                 font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(16); clip: true
-                onTextChanged: if (pick.open) pick.refilter()
+                onTextChanged: if (pick.open) pick.refilter(false)
                 Text { anchors.fill: parent; verticalAlignment: Text.AlignVCenter; visible: !input.text; text: pick.items.length ? "Search" : "Type here"
                        color: pick.style.dim; font: input.font; opacity: 0.7 }
                 Keys.onPressed: event => {
-                    if (event.key === Qt.Key_Escape) pick.finish("cancel", [])
+                    if (event.key === Qt.Key_Escape) { if (input.text) input.text = ""; else pick.finish("cancel", []) }
                     else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) pick.accept()
-                    else if (event.key === Qt.Key_Down) { if (!event.isAutoRepeat) pick.hold(1) }
-                    else if (event.key === Qt.Key_Up) { if (!event.isAutoRepeat) pick.hold(-1) }
+                    else if (event.key === Qt.Key_Down) pick.move(1)
+                    else if (event.key === Qt.Key_Up) pick.move(-1)
                     else if (event.key === Qt.Key_PageDown) { if (!event.isAutoRepeat) pick.move(10) }
                     else if (event.key === Qt.Key_PageUp) { if (!event.isAutoRepeat) pick.move(-10) }
                     else if (event.key === Qt.Key_Tab) pick.mark()
@@ -207,13 +189,7 @@ Scope {
                     else return
                     event.accepted = true
                 }
-                Keys.onReleased: event => {
-                    if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
-                        if (!event.isAutoRepeat) pick.stopHold()
-                        event.accepted = true
-                    }
-                }
-                onActiveFocusChanged: if (!activeFocus) pick.stopHold()
+
             }
             Rectangle { id: rule; height: 1; color: pick.style.line; anchors { left: parent.left; right: parent.right; top: chip.bottom; topMargin: 14 } }
 
@@ -236,26 +212,20 @@ Scope {
                     required property int index
                     required property string modelData
                     readonly property bool on: !!pick.marked[modelData]
-                    width: view.width; height: 34
-                    Text { anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: tick.left; leftMargin: 16; rightMargin: 8 }
-                           text: pick.label(line.modelData) + (pick.globalResults[line.modelData] ? "  ·  " + pick.globalResults[line.modelData].kind : ""); textFormat: Text.PlainText; elide: Text.ElideRight
+                    width: view.width; height: pick.filterText.trim() ? 52 : 34
+                    Text { anchors { verticalCenter: parent.verticalCenter; verticalCenterOffset: pick.filterText.trim() ? -8 : 0; left: parent.left; right: tick.left; leftMargin: 16; rightMargin: 8 }
+                           text: pick.label(line.modelData); textFormat: Text.PlainText; elide: Text.ElideRight
                            color: line.on ? pick.style.accent : pick.style.fg; font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(14) }
+                    Text { anchors { left: parent.left; leftMargin: 16; right: parent.right; rightMargin: 16; bottom: parent.bottom; bottomMargin: 6 }
+                           visible: !!input.text.trim(); text: pick.globalResults[line.modelData] ? pick.globalResults[line.modelData].path : pick.prompt
+                           textFormat: Text.PlainText; elide: Text.ElideRight; color: pick.style.dim; font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(11) }
                     Rectangle { id: tick; visible: line.on; width: 8; height: 8; radius: 4; color: pick.style.accent
                                 anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter } }
                     MouseArea { anchors.fill: parent; hoverEnabled: true
-                                property bool entering: false
-                                // One event is spent on the position the pointer already had when
-                                // the list appeared; only a later one is a move the user made.
-                                onEntered: {
-                                    if (!pick.pointerReady) { pick.pointerReady = true; entering = true }
-                                    else pick.select(line.index)
-                                }
-                                onPositionChanged: {
-                                    if (entering) { entering = false; return }
-                                    if (!pick.pointerReady) { pick.pointerReady = true; return }
-                                    pick.select(line.index)
-                                }
+                                onEntered: pick.selectFromPointer(line.index, line, { x: mouseX, y: mouseY })
+                                onPositionChanged: mouse => pick.selectFromPointer(line.index, line, mouse)
                                 onClicked: { pick.select(line.index); pick.accept() } }
+
                 }
                 Text { anchors.centerIn: parent; visible: pick.shown.length === 0; color: pick.style.dim; font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(14)
                        text: pick.allowNew ? (input.text.trim() ? pick.newLabel : "Type, then press Enter") : "Nothing matches" }
@@ -275,7 +245,7 @@ Scope {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 18; rightMargin: 18; bottomMargin: 12 }
                 color: pick.style.dim; font.family: pick.style.font; font.pixelSize: pick.style.fontPixels(12); elide: Text.ElideRight
                 text: (pick.multi ? "Tab  select several" + (pick.nMarked ? " · " + pick.nMarked + " selected" : "") + "      " : "")
-                    + "Enter  choose      Esc  close" + (pick.preview2 ? "      Alt+B  " + (pick.alt ? "details" : pick.hint || "more") : "")
+                    + "Enter  choose      Esc  clear/close" + (pick.preview2 ? "      Alt+B  " + (pick.alt ? "details" : pick.hint || "more") : "")
             }
         }
     }

@@ -114,5 +114,11 @@ print(p.stderr.strip().splitlines()[-1] if p.stderr.strip() else "no QML test ou
 if p.returncode:
     bad("QML syntax check failed:\n" + p.stderr[-2500:])
 
+# 10. Pointer handoff and search ranking in Qt's QML engine, when installed.
+p = subprocess.run([sys.executable, "test/test_menu.py"], capture_output=True, text=True)
+print(p.stdout.strip())
+if p.returncode:
+    bad("menu interaction tests failed:\n" + (p.stdout + p.stderr)[-2500:])
+
 print(f"\n{'FAILED: ' + str(len(fails)) + ' problem(s)' if fails else 'All checks passed.'}")
 sys.exit(1 if fails else 0)
