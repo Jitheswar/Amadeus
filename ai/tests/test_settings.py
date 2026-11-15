@@ -215,6 +215,7 @@ class ContextTest(unittest.TestCase):
         for query, expected in (("bluetooth headphones", "bluetooth_control"), ("install a package", "pkg_manage"),
                                 ("snapshot rollback", "sys_snapshot"), ("schedule a task", "task_manage"), ("close window", "desktop_window")):
             self.assertIn(expected, [t["name"] for t in find({"query": query}, None)], query)
+        self.assertIn('c.call("tools", everything=True)', (Path(__file__).resolve().parent.parent / "amadeus/cli.py").read_text())
         # Every tool is reachable: listed, or named by tool_find.
         self.assertEqual(names - {"tool_call"} | set(find({}, None)), set(self.tools.REGISTRY))
 

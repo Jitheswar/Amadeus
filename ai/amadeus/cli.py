@@ -347,7 +347,7 @@ def main(argv=None):
             print(f"{C['dim']}{ts}{C['0']} {r['kind']:<8} {short(body, 160)}")
     elif cmd == "tool":
         if not rest:
-            for t in c.call("tools"):
+            for t in c.call("tools", everything=True):
                 print(f"{t['name']:<24} {t['description'][:90]}")
             return
         r = c.call("tool", name=rest[0], args=json.loads(rest[1]) if len(rest) > 1 else {}, origin="user-cli")

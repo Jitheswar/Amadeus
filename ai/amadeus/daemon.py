@@ -375,8 +375,8 @@ def make_handler(d, app=None):
             if m == "usage":
                 from .usage import collect
                 return collect(d.cfg, force=bool(p.get("force")))
-            if m == "tools":
-                return T.specs()
+            if m == "tools":       # a model is sent the short list; a person listing tools sees them all
+                return T.specs(everything=p.get("everything") is True)
             if m == "memory":
                 from . import memory
                 if p.get("forget"):
