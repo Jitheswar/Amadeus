@@ -6,7 +6,8 @@ import Quickshell.Io
 // One look for every Amadeus surface and every generated app. Values come from the
 // system theme (passed in by the launcher), so everything matches and follows a theme change.
 QtObject {
-    function pick(name, fallback) { const v = Quickshell.env(name); return v ? v : fallback }
+    // The personal theme file wins and is followed live, so a theme change reaches an open panel.
+    function pick(name, fallback) { const own = personal[name.slice(4).toLowerCase()]; const v = Quickshell.env(name); return own ? own : v ? v : fallback }
     readonly property color bg: pick("AMA_BG", "#0f0e0d")
     readonly property color surface: pick("AMA_SURFACE", "#191715")
     readonly property color raised: pick("AMA_RAISED", "#26221e")

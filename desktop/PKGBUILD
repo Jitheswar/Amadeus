@@ -15,6 +15,10 @@ package() {
   install -Dm644 "$src"/shell/*.qml "$src"/shell/*.js -t "$pkgdir/usr/share/amadeus-os/shell/"
   install -Dm644 "$src/shell/OMARCHY-LICENSE" "$pkgdir/usr/share/licenses/$pkgname/OMARCHY-LICENSE"
   install -Dm644 "$src/shell/launcher.hides" -t "$pkgdir/usr/share/amadeus-os/"
+  install -Dm644 "$src"/themed/*.tpl -t "$pkgdir/usr/share/amadeus-os/themed/"
+  for theme in "$src"/themes/*/; do
+    install -Dm644 "$theme/colors.toml" -t "$pkgdir/usr/share/amadeus-os/themes/$(basename "$theme")/"
+  done
   install -d "$pkgdir/usr/bin"
   # Only files: a test run can leave a __pycache__ directory beside the programs.
   find "$src/bin" -maxdepth 1 -type f -exec install -Dm755 {} -t "$pkgdir/usr/bin/" \;

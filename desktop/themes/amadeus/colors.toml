@@ -1,0 +1,33 @@
+# The Amadeus look. A theme is this one file: every application's colours are rendered
+# from it by amadeus-theme. Add your own under ~/.config/amadeus/themes/NAME/colors.toml.
+mode = "dark"
+
+accent = "#ffa14a"
+accent2 = "#ff6f3c"
+selection = "#342f29"
+muted = "#5c554d"
+
+background = "#0f0e0d"
+surface = "#191715"
+raised = "#26221e"
+line = "#342f29"
+
+foreground = "#f1ebe1"
+dark_foreground = "#9c948a"
+light_foreground = "#d9d2c7"
+bright_foreground = "#f1ebe1"
+
+red = "#ff6b5e"
+yellow = "#f4c35b"
+orange = "#ff6f3c"
+green = "#8fd19e"
+cyan = "#7fd6c8"
+blue = "#8ab4f8"
+magenta = "#d7a6f0"
+
+bright_red = "#ff8a7f"
+bright_yellow = "#ffd98a"
+bright_green = "#a9e0b5"
+bright_cyan = "#a0e6da"
+bright_blue = "#a9c8ff"
+bright_magenta = "#e5c2f7"

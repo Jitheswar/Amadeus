@@ -45,6 +45,9 @@ hl.config({
   input = { kb_layout = "us", follow_mouse = 1, touchpad = { natural_scroll = true, tap_to_click = true, disable_while_typing = true } },
 })
 
+-- The chosen theme's colours, written by amadeus-theme; until one is chosen the values above stand.
+pcall(dofile, (os.getenv("XDG_CONFIG_HOME") or (os.getenv("HOME") .. "/.config")) .. "/amadeus/current/theme/hyprland.lua")
+
 -- Motion: short and decisive. Things arrive quickly and settle gently; nothing bounces,
 -- and nothing runs longer than a quarter of a second.
 hl.curve("arrive", { type = "bezier", points = { { 0.16, 1 }, { 0.3, 1 } } })

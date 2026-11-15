@@ -8,7 +8,7 @@ say()    { notify-send -a Amadeus "$@"; }
 root_choices() { printf '%s\n' Apps Trigger Install Gaming Chat Remove Update Setup System About; }
 install_choices() { printf '%s\n' Terminal Browser Editor AI Development Harness 'Web app' Packages AUR; }
 remove_choices() { printf '%s\n' Packages Harness 'Web app'; }
-setup_choices() { printf '%s\n' Display GPU 'Text size' Defaults Config Tasks; }
+setup_choices() { printf '%s\n' Display GPU Theme 'Text size' Defaults Config Tasks; }
 update_choices() { printf '%s\n' Everything 'Harnesses and tools only'; }
 trigger_choices() { printf '%s\n' Capture; }
 
@@ -178,6 +178,7 @@ setup_menu() {
   case $choice in
     GPU)         gpu_menu ;;
     Display)     exec amadeus-display ;;
+    Theme)       exec amadeus-theme ;;
     "Text size") local s; s=$(printf '%s\n' 12 14 16 18 20 | pick "Text size (now $(amadeus-display text))") || exit 0
                  say "$(amadeus-display text "$s")" ;;
     Defaults)    defaults_menu ;;

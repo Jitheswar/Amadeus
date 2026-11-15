@@ -96,6 +96,10 @@ PY
   shot 17-tasks 1.0
   ama panel context '{"source":"Settings","menu":"Display","query":"make text easier to read"}'
   shot 18-ai-context 1.0
+  # One theme file recolours the shell and the open panel live.
+  AMADEUS_THEME_SHARE=/src/desktop amadeus-theme set amadeus-light >/dev/null || return 1
+  shot 20-light-theme 1.2
+  AMADEUS_THEME_SHARE=/src/desktop amadeus-theme set amadeus >/dev/null || return 1
   printf '%s\n' '{"font_size":20}' >"$HOME/.config/amadeus/theme.json"
   shot 14-large-text 1.0
   ipc shell state >"$OUT/large-text-shell.json"

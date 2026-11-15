@@ -457,6 +457,56 @@ esac""")
         self.assertIn("Visible\tvisible", listed)
         self.assertNotIn("Hidden", listed)
 
+    # ---- theme ----------------------------------------------------------------
+    def test_theme_renders_every_application_from_one_file(self):
+        env = {"AMADEUS_THEME_SHARE": str(ROOT / "desktop")}
+        skel = ROOT / "desktop/skel/.config"
+        for name in ("foot/foot.ini", "swaylock/config"):
+            (self.config / name).parent.mkdir(parents=True, exist_ok=True)
+            (self.config / name).write_text((skel / name).read_text())
+        (self.config / "amadeus").mkdir(exist_ok=True)
+        (self.config / "amadeus/theme.json").write_text('{"font_size": 16}')
+        self.stub("foot"); self.stub("gsettings"); self.stub("pkill"); self.stub("hyprctl")
+        self.assertEqual(self.run_cmd("amadeus-theme", "list", env=env).stdout.split(), ["amadeus", "amadeus-light"])
+        # The shipped look is the default theme: applying it changes nothing.
+        self.assert_ok(self.run_cmd("amadeus-theme", "set", "amadeus", env=env))
+        for name in ("foot/foot.ini", "swaylock/config"):
+            self.assertEqual((self.config / name).read_text(), (skel / name).read_text())
+        shipped = json.loads((ROOT / "desktop/theme/theme.json").read_text())
+        mine = json.loads((self.config / "amadeus/theme.json").read_text())
+        self.assertEqual(mine.pop("font_size"), 16)
+        self.assertEqual(mine, {k: shipped[k] for k in mine})
+
+        self.assert_ok(self.run_cmd("amadeus-theme", "set", "amadeus-light", env=env))
+        self.assertEqual(self.run_cmd("amadeus-theme", "current", env=env).stdout, "amadeus-light\n")
+        self.assertIn("background=f6f1e8", (self.config / "foot/foot.ini").read_text())
+        self.assertIn("pad=14x14", (self.config / "foot/foot.ini").read_text())
+        self.assertIn(["set", "org.gnome.desktop.interface", "color-scheme", "prefer-light"], self.calls_of("gsettings"))
+        theme = self.config / "amadeus/current/theme"
+        for name in ("kitty.conf", "alacritty.toml", "ghostty.conf", "btop.theme", "gtk.css", "hyprland.lua", "foot.ini", "swaylock"):
+            self.assertNotIn("{{", (theme / name).read_text(), name)
+        # An application that is not installed yet starts out themed; a file the user owns is kept.
+        self.assertIn(str(theme / "kitty.conf"), (self.config / "kitty/kitty.conf").read_text())
+        (self.config / "ghostty/config").write_text("font-size = 13\n")
+        self.assert_ok(self.run_cmd("amadeus-theme", "set", "amadeus", env=env))
+        self.assertEqual((self.config / "ghostty/config").read_text(), "font-size = 13\n")
+
+    def test_theme_accepts_a_personal_theme_and_refuses_a_broken_one(self):
+        env = {"AMADEUS_THEME_SHARE": str(ROOT / "desktop")}
+        self.stub("gsettings"); self.stub("pkill")
+        mine = self.config / "amadeus/themes/mine"
+        mine.mkdir(parents=True)
+        (mine / "colors.toml").write_text('background = "#101010"\nforeground = "#eeeeee"\naccent = "#33aaff"\nred = "#ff0000"\n'
+                                          'green = "#00ff00"\nyellow = "#ffff00"\nblue = "#0000ff"\nmagenta = "#ff00ff"\ncyan = "#00ffff"\n')
+        self.assert_ok(self.run_cmd("amadeus-theme", "set", "mine", env=env))
+        self.assertEqual(json.loads((self.config / "amadeus/theme.json").read_text())["accent"], "#33aaff")
+        (mine / "colors.toml").write_text('background = "#101010"\n')
+        p = self.run_cmd("amadeus-theme", "set", "mine", env=env)
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("missing", p.stderr)
+        self.assertEqual(json.loads((self.config / "amadeus/theme.json").read_text())["accent"], "#33aaff")
+        self.assertEqual(self.run_cmd("amadeus-theme", "set", "nope", env=env).returncode, 1)
+
     # ---- install catalogue --------------------------------------------------
     def test_catalog_says_so_when_it_is_not_installed(self):
         p = self.run_cmd("amadeus-catalog", env={"AMADEUS_CATALOG": str(self.tmp / "missing")})
