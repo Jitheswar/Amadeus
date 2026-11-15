@@ -66,8 +66,10 @@ The shell reads compositor events and service bindings for live state. Layout an
 are configuration data; the available widget IDs must agree with the AI desktop tools.
 The panel and generated apps share QML components with the shell's visual theme.
 
-Each picker opening loads an index of eligible desktop entries and settings routes, then
-filters locally. Apps applies desktop visibility, user-entry precedence and package-owner
+A navigation menu loads an index of eligible desktop entries and settings routes when it
+opens, then filters locally; a list of things to choose, such as packages, searches only
+itself. A choice that leads to another list holds the picker on screen so the next list
+replaces it in place. Apps applies desktop visibility, user-entry precedence and package-owner
 filtering. Settings are searchable even when they are omitted from the ordinary Apps
 list. A global result cancels the originating picker before its action is resolved and
 launched, so another menu cannot interpret the result as a package or display mode.
@@ -78,7 +80,11 @@ menu destination, and Ctrl+Enter prepares that context in the AI panel.
 
 Configuration application depends on the surface. Hyprland loads personal overrides over
 shipped defaults and validates managed changes before reloading. The shell watches its
-JSON files. Text size updates shell/panel sizing, GTK scale and terminal configuration;
+JSON files. A theme change renders every application's colours from one file, swaps the
+set in whole, updates the shell and an open panel through the watched theme file,
+reloads what can reload and recolours open terminals in place. At session start, a
+display the user has not configured receives a scale and text size chosen from its
+resolution and physical size. Text size updates shell/panel sizing, GTK scale and terminal configuration;
 terminals that cannot reload take the change in a new window. Explicit GPU-mode changes
 require a new login because the compositor selects its rendering device at startup.
 
@@ -123,6 +129,12 @@ enforcement point, where it adjusts the policy's answer for user-level, reversib
 calls only. Denials, destructive and privileged prompts, screen consent and the
 capabilities that govern the AI's own permissions are decided by the policy alone in
 every mode, and automations and generated apps always run under the plain policy.
+
+System events reach the same daemon. systemd reports a failed user or system service
+through an on-failure hook, and an hourly timer reports a nearly full disk. An enabled
+task bound to the event runs; otherwise the daemon offers a notification whose single
+action submits a request to the panel. Event fields are validated before they appear in
+any request, and the root-side reporter passes on only a unit name.
 
 Screen observation is explicit and bounded. It captures the focused window and available
 AT-SPI control names, roles and actions without reading password values. Images become
@@ -212,7 +224,9 @@ Repository signing keys and private API-key files serve separate purposes.
 The ISO carries a local repository collected from the install package lists and bundled
 apps. The target CPU supports the bundled x86-64-v3 packages; the generic fallback needs
 network downloads. The Try session uses the live kernel and a temporary user, with
-changes in memory. Portable installation is an explicit workflow for a selected USB
+changes in memory, compressed swap, and the installed system's default applications,
+read from the same package list. Its boot entries carry no serial console, which the
+test harness supplies for itself. Portable installation is an explicit workflow for a selected USB
 and includes broader driver/boot coverage.
 
 The medium also carries package-index snapshots for offline browsing. A shared seeder

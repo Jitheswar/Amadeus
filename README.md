@@ -19,10 +19,10 @@ The target is a Core i5-13450HX laptop with Intel UHD graphics, an RTX 3050 6 GB
 | Area | Design |
 |---|---|
 | Base | Arch with CachyOS repositories first, a CachyOS kernel, encrypted btrfs, systemd-boot and zram. Processor-specific builds are selected when supported. |
-| Desktop | Hyprland with one Quickshell shell for the bar, menus, launcher and notifications. Personal configuration overrides shipped defaults. |
+| Desktop | Hyprland with one Quickshell shell for the bar, menus, launcher and notifications. Personal configuration overrides shipped defaults. One theme file colours every application, and display scale and text size start from the panel's size. |
 | Graphics | Automatic mode uses Intel for the desktop and offloads suitable applications to NVIDIA. Other GPU modes are an explicit user choice and apply at the next login. Hardware power behavior still needs testing. |
 | Recovery | A snapshot before a system update, a matching copy of the boot files, and rollback from the installed system or installer medium. AI package transactions have their own pre/post snapshots. |
-| AI | A user-session daemon applies capability policy, approvals, audit logging and file undo to Amadeus tool requests. Subscription CLIs, APIs and compatible local servers are optional. |
+| AI | A user-session daemon applies capability policy, approvals, audit logging and file undo to Amadeus tool requests. Requests carry a short tool list and a small memory; failed services and a full disk are noticed and offered. Subscription CLIs, APIs and compatible local servers are optional. |
 | Generated apps | QML applications with explicit sandbox permissions, private data and source-version history. |
 
 The package lists in [installer/](installer/) define what is installed. The
@@ -138,7 +138,7 @@ mark off again. Only you can set it; Amadeus cannot grant it to itself.
 Open **Tasks** in the panel or **Setup → Tasks** to create scheduled or desktop-event work.
 New tasks are disabled until enabled. Each can use the default agent or a specific provider.
 They run only while the user session and daemon are available; missed timer runs are not
-replayed. Automated changes still ask for approval. There is no continuous screen capture
+replayed. Automated changes still ask for approval unless you marked that task as above. There is no continuous screen capture
 or background model polling. Disabling stops future triggers; use Stop for an active run.
 Task creation and configuration can be undone, which also reconciles their user timers.
 
@@ -195,6 +195,22 @@ host-shell command runs with the user's existing OS permissions, including any s
 access the user enabled separately. File undo, app source rollback and system snapshot
 rollback cover different kinds of changes.
 
+Requests are kept small. A model is sent a short, fixed list of everyday tools and
+looks the others up when it needs them; every tool still passes the same permission
+check. The system prompt and tool list do not change between requests, so providers that
+cache prompts reuse them. In a long conversation, old tool output and all but the newest
+screenshot are dropped. The panel shows each task's token use and the share that was
+reused, and `ama audit` records it. `context_chars` in the configuration sets the limit.
+
+Amadeus remembers a short list of notes between requests: at most 40 single sentences,
+in one plain file you can read and edit. `ama memory` lists them, and `ama memory forget N`
+or `ama memory clear` removes them. Saving a note always asks you first, in every
+execution mode, because a note is read into every later request.
+
+Agents working on the system, Amadeus or a coding harness, start from a short entry
+guide and pull up one topic guide per area on demand: `ama guide` lists them. The guides
+give rules and method; `ama discover` reports what is actually installed.
+
 ## Build and validate
 
 Use `build.sh` as the build/test entry point. Builds run in Docker and installation tests
@@ -248,22 +264,6 @@ driver and broader boot-image coverage; CPU-build compatibility still applies.
 The medium seeds missing package indexes for offline browsing. Their first online sync
 fetches current metadata instead of treating the copy time as freshness. Signature
 verification remains enabled.
-
-Requests are kept small. A model is sent a short, fixed list of everyday tools and
-looks the others up when it needs them; every tool still passes the same permission
-check. The system prompt and tool list do not change between requests, so providers that
-cache prompts reuse them. In a long conversation, old tool output and all but the newest
-screenshot are dropped. The panel shows each task's token use and the share that was
-reused, and `ama audit` records it. `context_chars` in the configuration sets the limit.
-
-Amadeus remembers a short list of notes between requests: at most 40 single sentences,
-in one plain file you can read and edit. `ama memory` lists them, and `ama memory forget N`
-or `ama memory clear` removes them. Saving a note always asks you first, in every
-execution mode, because a note is read into every later request.
-
-Agents working on the system, Amadeus or a coding harness, start from a short entry
-guide and pull up one topic guide per area on demand: `ama guide` lists them. The guides
-give rules and method; `ama discover` reports what is actually installed.
 
 ## Updates and recovery
 

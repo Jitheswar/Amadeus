@@ -21,6 +21,8 @@ The package lists say what is on the system, and `installer/amadeus-install` say
   from those, or the offline install breaks; the VM test installs without network to
   catch it. This guarantee covers the target processor-specific package set; document
   the generic-processor path's network requirement instead of claiming universal offline support.
+- **The live session has the installed defaults.** `iso/mkiso.sh` reads the default
+  application list directly; do not repeat application names in the Try package list.
 - **Base and extras are separate.** The optional-extras yes/no controls only its own
   bundle, never base apps. Name the bundle in the prompt and final summary. Optional
   menu installs must not silently return to the default package set.

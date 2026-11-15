@@ -177,8 +177,9 @@ are written by users and are the least trusted software on the system.
 
 ## Look and motion
 
-Amadeus OS has its own visual identity, defined once in `desktop/theme/theme.json` and
-read by the shell, the Amadeus panel and every generated app.
+Amadeus OS has its own visual identity. Fonts, shape and timing are defined once in
+`desktop/theme/theme.json`; colours come from the chosen theme (see "One theme file for
+every application") and reach the shell, the Amadeus panel and every generated app.
 
 - **Palette: warm black with one amber accent.** Near-black surfaces with a slight warm
   tint, off-white text, and a single amber accent (with a deeper orange for gradients),
@@ -187,8 +188,12 @@ read by the shell, the Amadeus panel and every generated app.
   purple palettes most Linux desktops ship, which this would otherwise be mistaken for.
 - **Type: Inter for the interface, JetBrains Mono for code**, set system-wide, so
   applications match the shell.
-- **Shape: floating, rounded surfaces** (bar, panel, picker, notifications) on a
-  background the shell draws itself: no wallpaper image and no wallpaper program.
+- **Shape: floating, rounded surfaces** (panel, picker, notifications) on a background
+  the shell draws itself: no wallpaper image and no wallpaper program. The bar is the
+  exception: a flush strip in the background colour with no outline, because an outlined
+  box under a gap drew more attention than its contents. Controls are quiet filled
+  rectangles; a tint marks the current choice and the accent fill is kept for the one
+  main action of a view, over identical outlined pills that gave a view no hierarchy.
 - **Motion: short and decisive.** Three durations (110, 180, 260 ms) and one easing
   curve that arrives fast and settles gently. Window movement uses compositor animation
   curves intended to settle without overshoot. Opening and closing are a single
@@ -366,7 +371,11 @@ entry; multiple profiles retain the upstream account dropdown and remember the l
 choice. The Try account has an explicit password-free login screen after logout.
 
 The artwork and GTK style are rendered from the desktop palette at package build time.
-Administrator overrides have separate files. Cage and ReGreet run only on the login
+The user can restyle the login screen from any installed theme, as Omarchy's unlock-screen
+switcher does. Because the login screen belongs to the system, a root step publishes it:
+it receives only a theme name and validated colour values, renders from the packaged
+templates and swaps the result in whole, so root never opens a file the user controls.
+Administrator overrides have separate files and win. Cage and ReGreet run only on the login
 screen, not during the desktop session. ReGreet uses the D-Bus-activated AccountsService
 to enumerate profiles; its actual idle memory needs measurement. This adds a graphical
 compositor and GTK greeter in exchange for accessible native controls and maintained
@@ -383,8 +392,10 @@ checks focus after approval and before each step. There is no continuous capture
 
 Saved automations use user systemd timers or existing desktop events. They are opt-in,
 have an explicit agent choice, avoid overlapping runs and apply event cooldowns. Every
-automated write asks even if the user's ordinary session has a grant. Root mode and
-approvals are never persisted in tasks. Units contain only a task ID, not its prompt;
+automated write asks even if the user's ordinary session has a grant, with one exception
+the user sets per task: a marked task may make automatic mode's reversible changes
+unasked. No tool can set the mark, and changing what the task does or when it runs
+clears it. Root mode and approvals are never persisted in tasks. Units contain only a task ID, not its prompt;
 private job files are the source for timer reconciliation after undo.
 
 The existing daemon publishes activity when request state changes. The shell watches
@@ -392,3 +403,64 @@ that file and enabled event names. No new resident scheduler, idle model request
 poller or screen recorder is introduced. Stop cancels further tool execution, provider
 processes and pending approvals; a provider request or OS command already running may finish within its
 timeout. Native GUI actions retain the application's own recovery semantics.
+
+## One theme file for every application
+
+Colours used to be repeated by hand in the compositor, terminal and lock-screen
+configuration, with a check that they matched. Following Omarchy, a theme is now one
+`colors.toml`, and `desktop/bin/amadeus-theme` renders a template per application from
+it. Chosen over per-application theme packages (one more thing to install and keep in
+step for each program) and over a generated palette from a wallpaper (there is no
+wallpaper). What a theme leaves out is derived from its background and foreground, so a
+nine-colour file is a whole theme.
+
+- Files Amadeus ships (terminal, lock screen) get only their colour keys replaced and
+  are restored if the application rejects the result. A file the user owns is left alone.
+- An application that is not installed gets a first configuration that includes the
+  rendered file, so it is themed from its first start.
+- Open terminals are recoloured by writing colour escape sequences to each terminal's
+  own device, as Omarchy does: nothing is signalled or restarted. Evidence: the VM test
+  asks a real terminal for its background after a change.
+- The default theme must reproduce the shipped files exactly; a test compares them.
+- Only the mechanism is taken from Omarchy. Its palettes are not shipped.
+
+## Display scale and text size from the panel
+
+The compositor's own guess and a fixed 14 px ignored pixel density. At session start a
+display without a setting of its own gets the largest scale that divides its resolution
+cleanly and does not exceed its density relative to 125 pixels per inch by more than a
+tenth; text grows one or two pixels where that still leaves things small, and is never
+reduced. A display reporting no size, or one under nine inches (televisions report an
+aspect ratio), keeps scale 1. A setting made by hand is never replaced. The thresholds
+are a judgement, checked against eight common panels in a unit test, not measured on
+users; the target laptop has not been tried.
+
+## What a request carries
+
+Each step of a request sent every tool definition, a system prompt that changed each
+minute and a history that only grew.
+
+- **A fixed everyday tool list, the rest on demand.** A lookup tool returns matching
+  definitions and an envelope runs one; the enforcement point unwraps the envelope
+  before policy. Chosen over a provider's own deferred-loading feature because it works
+  the same for every provider and the subscription CLIs, and over adding tools to the
+  list as they are found because a changing list defeats prompt caching. Cost: a
+  rarely used tool takes one extra step to find. The sent definitions are about a third
+  of the full set.
+- **Nothing per-request in the prompt.** The time travels with the request's own text.
+- **Old output is dropped, not summarised.** Summarising costs a model request and can
+  invent; a dropped result can be fetched again. Dropping happens in place, once.
+- **Memory is a capped plain file**, at most 40 one-sentence notes read into every
+  request, over a searchable store: it stays small enough to read whole, the user can
+  edit it, and saving is guarded in every mode because a note persists into every later
+  request. Evidence so far is unit tests and a scripted model; cache hits and savings
+  with a live provider have not been measured.
+
+## Noticing without a resident watcher
+
+Failed services are reported by a systemd drop-in that adds an on-failure hook to every
+service, and disk space by an hourly user timer. Chosen over a process following the
+journal: no new always-running process, and nothing happens until something fails. The
+drop-in applies to every service on the system, which is the cost; its own reporting
+unit is exempt so a failure cannot report itself. A notice is an offer built from
+validated fields, repeated at most every six hours, and it acts only when clicked.

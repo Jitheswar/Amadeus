@@ -47,6 +47,8 @@ self-test that runs inside the installed system.
 - **The VM test starts with the try session**: the ISO boots its default entry with a
   small disk labelled AMADEUSTRY attached, and `iso/live/try/usr/local/bin/amadeus-try-check`
   reports onto it whether the desktop, the shell and Amadeus came up.
+- **A self-test that needs a helper script** ships it on the answers disk: add the file
+  to the list `test/vm-test.py` copies, and run it from where that disk is mounted.
 - **The ISO's boot entries carry no serial console.** On real hardware a `console=ttyS0`
   argument starts a serial login that restarts forever on a port that is not there. Tests
   write to the serial device directly; the installed test system gets its console from
