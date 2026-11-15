@@ -17,7 +17,8 @@ discovery output rather than this roadmap.
 - Topic guides an agent pulls up per area, alongside live discovery.
 - Requests that carry a short fixed tool list with the rest found on demand, a cacheable
   prompt, bounded history, token reporting and a small user-editable memory.
-- Notices for failed services and a nearly full disk, offered as one-click requests, and
+- Notices for failed services, crashed programs, a nearly full disk and overdue updates,
+  offered as one-click requests, and
   a per-task grant for unasked reversible changes that only the user can set.
 - A Hyprland desktop with a shared shell, cross-menu app/settings search, filtered app
   and audio-device lists, unified text sizing, capture tools and configurable defaults.
@@ -66,7 +67,7 @@ by the full VM suite. Signature verification remained enabled.
 ## Planned work
 
 - Goals that run to completion in the background: plan, work, verify, and resume after a restart.
-- More things noticed without asking: crashed applications, pending updates, a boot that needed a rollback.
+- Noticing a boot that needed a rollback, which needs a marker the rollback tool does not yet leave.
 - Snapshot selection from the boot menu.
 - An explicit offline local-model fallback suited to the target machine's memory.
 - Richer workspace suggestions built on the opt-in desktop-event task system.

@@ -29,6 +29,8 @@ package() {
   done
   sed 's|@NOTICE@|/usr/bin/ama event unit-failed scope=user unit=|; s|= %i|=%i|' "$src/systemd/amadeus-notice.service" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/amadeus-notice@.service"
   sed 's|@NOTICE@|/usr/lib/amadeus/notice-system|' "$src/systemd/amadeus-notice.service" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/system/amadeus-notice@.service"
+  # "+" runs the reporter outside the crash handler's sandbox, which hides the users' sockets.
+  printf '[Service]\nExecStopPost=+/usr/lib/amadeus/notice-system --crash\n' | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/system/systemd-coredump@.service.d/10-amadeus-notice.conf"
   sed 's|@AMA@|/usr/bin/ama|' "$src/systemd/amadeus-space.service" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/amadeus-space.service"
   install -Dm644 "$src/systemd/amadeus-space.timer" -t "$pkgdir/usr/lib/systemd/user/"
   install -d "$pkgdir/usr/lib/systemd/user/timers.target.wants"

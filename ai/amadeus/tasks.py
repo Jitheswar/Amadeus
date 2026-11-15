@@ -6,8 +6,8 @@ from .tools import ToolError, sh
 from .tools import files
 
 ID = re.compile(r"^[a-z][a-z0-9-]{1,39}$")
-EVENTS = ("app-focused", "battery-low", "network-changed", "unit-failed", "disk-low")
-MATCH = {"app-focused": "app", "unit-failed": "unit", "disk-low": "mount"}
+EVENTS = ("app-focused", "battery-low", "network-changed", "unit-failed", "disk-low", "app-crashed", "updates-due")
+MATCH = {"app-focused": "app", "unit-failed": "unit", "disk-low": "mount", "app-crashed": "app"}
 LOCK = threading.RLock()
 
 

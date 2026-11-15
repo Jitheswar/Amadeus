@@ -459,7 +459,11 @@ minute and a history that only grew.
 ## Noticing without a resident watcher
 
 Failed services are reported by a systemd drop-in that adds an on-failure hook to every
-service, and disk space by an hourly user timer. Chosen over a process following the
+service, and crashes by a step after the system's crash handler. An hourly user timer,
+which also runs shortly after login, reads disk space, services that failed before the
+session existed, and the date of the last full update from the package log. The update
+reminder is deliberately a date, not a count of pending packages: counting needs a
+network sync in the background, and "two weeks" needs none. Chosen over a process following the
 journal: no new always-running process, and nothing happens until something fails. The
 drop-in applies to every service on the system, which is the cost; its own reporting
 unit is exempt so a failure cannot report itself. A notice is an offer built from

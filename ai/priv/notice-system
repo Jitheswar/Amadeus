@@ -1,10 +1,20 @@
 #!/bin/bash
-# Tell the Amadeus of each logged-in user that a system service failed; only the unit's name is passed on.
+# Tell a logged-in user's Amadeus that a system service failed or a program crashed; only a validated name is passed on.
+tell() {  # RUNTIME_DIR EVENT WORDS...
+  local dir=$1 user; shift
+  [[ -S $dir/amadeus/daemon.sock ]] || return 0
+  user=$(id -un "${dir##*/}" 2>/dev/null) || return 0
+  runuser -u "$user" -- env XDG_RUNTIME_DIR="$dir" /usr/bin/ama event "$@" || true
+}
+if [[ ${1:-} == --crash ]]; then
+  # The crash that was just recorded: whose it was, and the program's name.
+  read -r uid app < <(coredumpctl list -n 1 --no-pager --json=short 2>/dev/null |
+    python3 -c 'import json, os, sys; e = json.load(sys.stdin)[-1]; print(e["uid"], os.path.basename(e["exe"]))' 2>/dev/null)
+  [[ $uid =~ ^[0-9]+$ && $app =~ ^[A-Za-z0-9][A-Za-z0-9+._-]{0,63}$ ]] || exit 0
+  tell "/run/user/$uid" app-crashed "app=$app"
+  exit 0
+fi
 unit=$1
 [[ $unit =~ ^[A-Za-z0-9@:._\\-]{1,200}\.(service|socket|mount|timer)$ ]] || exit 0
-for dir in /run/user/*; do
-  [[ -S $dir/amadeus/daemon.sock ]] || continue
-  user=$(id -un "${dir##*/}" 2>/dev/null) || continue
-  runuser -u "$user" -- env XDG_RUNTIME_DIR="$dir" /usr/bin/ama event unit-failed scope=system "unit=$unit" || true
-done
+for dir in /run/user/*; do tell "$dir" unit-failed scope=system "unit=$unit"; done
 exit 0

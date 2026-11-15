@@ -124,11 +124,14 @@ the selected provider, so image reasoning needs a vision-capable model. Input us
 observation and checks the window again after approval. Completed GUI actions have no
 automatic file undo.
 
-Amadeus also notices some things by itself. When a service fails, or a disk passes 90%
-full, a notification offers to look into it; clicking it hands the panel a request that
+Amadeus also notices some things by itself. When a service fails, a program crashes, a
+disk passes 90% full, or the system has gone two weeks without a full update, a
+notification offers to look into it; clicking it hands the panel a request that
 runs under your execution mode and approvals like any other. The same thing is not
-offered again for six hours, and `notices = false` in the configuration turns this off.
-Failures are reported by systemd as they happen; disk space is read once an hour.
+offered again for six hours (three days for the update reminder), and `notices = false` in the configuration turns this off.
+Failures and crashes are reported by systemd as they happen. Disk space, services that
+failed before you logged in and the date of the last update are read once an hour and
+shortly after login, from local files only: nothing contacts the network to check.
 
 A task can be marked **Unasked changes** in its card (or with `ama task auto ID on`).
 That task may then change your files and desktop without asking, as Auto mode does.

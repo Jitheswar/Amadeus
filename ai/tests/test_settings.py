@@ -333,6 +333,38 @@ class NoticeTest(unittest.TestCase):
         for data in ({"mount": "/etc", "percent": 93}, {"mount": "/", "percent": "93"}, {"mount": "/", "percent": 900}):
             self.assertIsNone(d("disk-low", data), data)
         self.assertIsNone(d("battery-low", {}))
+        self.assertIn("Change nothing without asking", d("app-crashed", {"app": "nautilus"})[3])
+        for app in ("", "../../bin/sh", "a b", "x" * 80, "$(reboot)"):
+            self.assertIsNone(d("app-crashed", {"app": app}), app)
+        self.assertIn("snapshot", d("updates-due", {"days": 30})[3])
+        for days in (3, "30", 99999):
+            self.assertIsNone(d("updates-due", {"days": days}), days)
+
+    def test_local_checks_report_what_they_find_without_the_network(self):
+        from datetime import datetime, timedelta, timezone
+        log = Path(self.tmp.name) / "pacman.log"
+        old = (datetime.now(timezone.utc) - timedelta(days=40)).strftime("%Y-%m-%dT%H:%M:%S+0000")
+        recent = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%S+0000")
+        log.write_text(f"[{old}] [PACMAN] Running 'pacman -r /mnt -Sy'\n")
+        self.assertEqual(self.notices.days_since_update(log), 40)       # never upgraded: counted from installation
+        log.write_text(log.read_text() + f"[{recent}] [PACMAN] starting full system upgrade\n[{recent}] [ALPM] upgraded x\n")
+        self.assertEqual(self.notices.days_since_update(log), 2)
+        self.assertIsNone(self.notices.days_since_update(Path(self.tmp.name) / "missing"))
+        log.write_text(f"[{old}] [PACMAN] starting full system upgrade\n")
+        failed = mock.Mock(stdout="bluetooth.service loaded failed failed Bluetooth\n")
+        usage = mock.Mock(used=95, total=100)
+        env = {"AMADEUS_PACMAN_LOG": str(log), "AMADEUS_TRY_MARKER": str(Path(self.tmp.name) / "no-try")}
+        with mock.patch("amadeus.notices.subprocess.run", return_value=failed) as run, mock.patch("shutil.disk_usage", return_value=usage), \
+             mock.patch.dict(os.environ, env):
+            events = self.notices.check()
+        self.assertIn(("disk-low", {"mount": "/", "percent": 95}), events)
+        self.assertIn(("unit-failed", {"unit": "bluetooth.service", "scope": "system"}), events)
+        self.assertIn(("updates-due", {"days": 40}), events)
+        self.assertTrue(all(call.args[0][0] == "systemctl" for call in run.call_args_list))
+        (Path(self.tmp.name) / "no-try").write_text("")
+        with mock.patch("amadeus.notices.subprocess.run", return_value=mock.Mock(stdout="")), mock.patch("shutil.disk_usage", return_value=mock.Mock(used=1, total=100)), \
+             mock.patch.dict(os.environ, env):
+            self.assertEqual(self.notices.check(), [])                   # the Try session is never told to update
 
     def test_an_offer_is_made_once_and_only_runs_when_the_user_clicks(self):
         ran = []

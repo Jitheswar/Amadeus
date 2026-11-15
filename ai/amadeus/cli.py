@@ -295,14 +295,11 @@ def main(argv=None):
         if len(rest) == 3 and rest[0] == "auto" and rest[2] in ("on", "off"):
             return print("unasked reversible changes: " + ("on" if c.call("task_auto", id=rest[1], on=rest[2] == "on")["auto"] else "off"))
         sys.exit(HELP)
-    if cmd == "event" and rest == ["disk-check"]:
-        import shutil
+    if cmd == "event" and rest == ["check"]:
+        from . import notices
         c = Client()
-        for mount in ("/", "/home"):
-            usage = shutil.disk_usage(mount)
-            percent = round(100 * usage.used / usage.total)
-            if percent >= 90:
-                c.call("desktop_event", name="disk-low", data={"mount": mount, "percent": percent})
+        for name, data in notices.check():
+            c.call("desktop_event", name=name, data=data)
         return
     if cmd == "event":
         if len(rest) < 2: sys.exit(HELP)

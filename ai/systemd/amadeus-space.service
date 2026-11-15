@@ -1,7 +1,7 @@
 [Unit]
-Description=Amadeus: notice when a disk is nearly full
+Description=Amadeus: look for a full disk, failed services and overdue updates
 
 [Service]
 Type=oneshot
-ExecStart=@AMA@ event disk-check
+ExecStart=@AMA@ event check
 Nice=10

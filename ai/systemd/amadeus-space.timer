@@ -1,8 +1,9 @@
 [Unit]
-Description=Amadeus: look at free disk space once an hour
+Description=Amadeus: look at local system state once an hour and after login
 
 [Timer]
 OnCalendar=hourly
+OnStartupSec=3min
 RandomizedDelaySec=10min
 Persistent=false
 
