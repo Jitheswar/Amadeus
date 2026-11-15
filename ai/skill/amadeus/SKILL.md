@@ -23,13 +23,14 @@ live, which of the user's configuration files exist, the AI tools with the capab
 each needs, and the current permission policy. If you are connected to the `amadeus`
 MCP server, the `system_discover` tool returns the same map.
 
-If `ama` is missing, this is not an Amadeus system; stop and say so.
+If `ama` is missing, report that discovery is unavailable. Check the executable path
+and installation before drawing conclusions about the system.
 
 ## 2. Go deeper by asking the system, not by guessing
 
 | To learn | Ask |
 |---|---|
-| What a command does and accepts | `<command> --help`, or read it: `ama discover` lists them and most are short scripts |
+| What a command does and accepts | Read its header first; use its documented help form. Do not assume an arbitrary command safely accepts `--help`. |
 | Every file a package owns | `pacman -Qlq <package>` |
 | Which package owns a file | `pacman -Qo <path>` |
 | What is installed on purpose | `pacman -Qqe` |
@@ -48,17 +49,21 @@ the syntax. Its location is in the map under "defaults shipped with the system".
 These are properties of the design, not details that drift.
 
 1. **Two layers.** Files under `/usr` and `/etc/skel` belong to the system and are
-   replaced on update. Never edit them. The user's files in their home directory
-   include the defaults and override them. The map shows which user files exist.
+   replaced on update. Change the user's layer instead. Some formats include the
+   defaults; others use personal JSON settings. Preserve unrelated values. The map
+   shows which user files exist.
 2. **Prefer the system's own tools to editing files.** When the map lists a tool or
    command for the job (shortcuts, bar layout, default applications, providers), use
-   it: those paths validate the change, record it in the audit log, and can undo it.
+   it. Inspect its declared risk, validation and recovery behavior; do not assume
+   every shell command is audited or undoable.
 3. **Validate before you apply.** For the desktop, run `Hyprland --verify-config`. A rejected
    config must not be left in place. For anything else, find the checker the same way
    you found the command.
-4. **System changes are snapshotted and reversible.** Package changes take a snapshot
-   before and after. Find the way back with `amadeus-rollback` before you make a risky
-   change, and tell the user which snapshot is the safe point.
+4. **Establish recovery before risk.** Inspect available snapshots and the owning
+   tool's recovery information before a risky change. Manual package operations do
+   not all create snapshots, and a snapshot attempt can fail. File undo, app source
+   history and system rollback cover different data. Name a safe point only after
+   verifying it exists; do not imply it backs up personal data.
 5. **You do not have root unless the user turned it on.** `ama status` shows root mode.
    If a change needs it and it is off, say what you need and stop. Only the user turns
    it on; do not look for another route to root.

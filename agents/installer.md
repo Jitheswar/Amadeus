@@ -18,20 +18,34 @@ The package lists say what is on the system, and `installer/amadeus-install` say
   except where a package is conditional on detected hardware.
 - **The ISO carries every package the install needs.** `iso/mkiso.sh` collects them from
   the package lists and the bundled applications. Anything the installer installs must come
-  from those, or the offline install breaks; the VM test installs without network to catch it.
+  from those, or the offline install breaks; the VM test installs without network to
+  catch it. This guarantee covers the target processor-specific package set; document
+  the generic-processor path's network requirement instead of claiming universal offline support.
+- **Base and extras are separate.** The optional-extras yes/no controls only its own
+  bundle, never base apps. Name the bundle in the prompt and final summary. Optional
+  menu installs must not silently return to the default package set.
 - **Repository order is a decision.** CachyOS repositories come before the Arch ones, and
   the processor-specific ones only when the processor supports them. The kernel is named
   once in the installer; boot entries, the NVIDIA module and the self-test follow it.
 - **AI coding harnesses are not packages.** They are installed per user through mise
   (`desktop/bin/amadeus-harness`); do not add one to a package list.
+  Do not download a default harness during setup or first login either.
 - **Applications outside the Arch repositories** go in the list for those. Each must have
   a recipe that downloads the publisher's own release; read the recipe before adding it.
-  No third-party package repository is ever added to the installed system.
+  Beyond the selected CachyOS and Arch repositories, do not add another binary
+  repository to supply an optional application.
 - **The installer erases a disk.** Interactive runs must make the user type the disk
   name. Nothing may weaken that prompt. Unattended mode exists for the VM harness.
 - **Recovery is a feature of the layout.** Subvolume names, the copy of the boot
-  partition inside the root filesystem, and snapshot hooks are relied on by
+  partition inside the root filesystem, and snapshot configuration are relied on by
   `desktop/bin/amadeus-rollback`. Change them together or not at all.
+- **Offline indexes are not fresh indexes.** Use the shared seeding helper for the
+  installer and Try session. Publish missing indexes atomically, preserve existing
+  indexes, and mark seeds due for online refresh. Never disable signature checks to
+  hide a database/signature mismatch.
+- **Credential stores and signing keys are separate.** Do not add an automatically
+  activated desktop keyring as an incidental default dependency. Keep package-signing
+  keyrings required for repository verification.
 - Settings written into the new system belong in a file under a `.d` directory when the
   program supports one, so the package's own file stays untouched.
 

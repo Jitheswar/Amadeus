@@ -9,12 +9,14 @@ not style.
 
 ## Invariants
 
-1. **One enforcement point.** Every action the AI takes, from any provider, the MCP
-   bridge, a generated app or the command line, passes through the daemon's `execute`
-   method in `ai/amadeus/daemon.py`: policy, then approval, then run, then audit. Never
-   add a path that reaches a tool function without it.
-2. **Standard library only.** No third-party Python packages. A system update must not
-   be able to break the layer, and the code must stay small enough to audit.
+1. **One enforcement point.** Every registered Amadeus tool request, from a provider,
+   the MCP bridge, a generated app or the command line, passes through the daemon's
+   `execute` method in `ai/amadeus/daemon.py`: policy, then approval, then run, then
+   audit as appropriate. Never add a path that reaches a tool function without it.
+   Do not imply that this controls arbitrary programs launched outside Amadeus.
+2. **Standard library only.** No third-party Python packages. Keep the dependency chain
+   small and the code auditable. Interpreter and provider compatibility still need
+   testing.
 3. **The daemon is never root.** Privileged work is a request to the helper in
    `ai/priv/`, which validates it again on its own side. The helper must stay able to
    refuse: do not move validation out of it.
@@ -26,10 +28,18 @@ not style.
 6. **Undo and audit.** A tool that changes a file records it first (`remember` in
    `ai/amadeus/tools/files.py`). The audit log is hash-chained; never write to it except
    through `ai/amadeus/audit.py`.
+   Successful read-only tools are not individually logged as actions. Report the
+   recovery information actually returned; file undo, package snapshots and app
+   source history have different scopes, and a snapshot attempt can fail.
 7. **Generated apps are untrusted.** They run in the sandbox with only what their
    manifest declares. Never give an app a capability by default.
 8. **Secrets** are read through the config module and are scrubbed from the audit log.
    Never log a request body that could hold one.
+9. **Provider setup is privileged user configuration.** Return only display-safe
+   descriptors to the UI. Generated-app RPCs must not expose provider setup or root
+   management. Keep the panel's saved agent separate from the terminal harness.
+10. **Usage is on demand.** Do not add idle quota polling, model requests or credential
+    refresh to a usage collector. Bound external replies and keep tokens out of them.
 
 ## Adding a tool
 

@@ -8,8 +8,9 @@ user starts with in `desktop/skel/`.
 
 ## Rules
 
-- **Two layers.** Defaults are shipped and replaced on update. The user's file includes
-  them. Never put something the user would want to change only in the shipped file with
+- **Two layers.** Defaults are shipped and replaced on update. Use personal includes
+  or field-preserving updates as appropriate to the configuration format. Never put
+  something the user would want to change only in the shipped file with
   no way to override it, and never make an update depend on editing a user's file.
 - **The compositor config must load.** Check it with `Hyprland --verify-config --config FILE`;
   the configuration language changes between releases, so check against the installed
@@ -37,11 +38,21 @@ user starts with in `desktop/skel/`.
   `amadeus-editor` or `amadeus-harness run`; the user chooses what they are.
 - **One picker.** Every list a user chooses from goes through `desktop/bin/amadeus-pick`,
   which the shell draws. Do not add another menu program.
+  A cross-menu search result must cancel the originating picker before launching its
+  destination. Keep free-text prompts distinct. Respect desktop-entry visibility and
+  personal-entry precedence when filtering helpers out of Apps.
 - **State comes from events.** The bar reads the compositor's event stream. Do not add a
   timer where an event exists.
 - **Commands** follow the naming rule and carry their description on line 2. A command
   that changes the system confirms first and says how to undo.
-- **Nothing here selects the NVIDIA card.** The desktop renders on the Intel GPU.
+- **Intel is the automatic desktop GPU.** Only an explicit user GPU-mode choice may
+  change that. Do not wake NVIDIA merely to read its state.
+- **Settings have different owners.** Application defaults use their wrappers; the
+  panel's default agent uses the AI configuration. Keep them independent. Validate
+  managed text-size/configuration changes as a whole and restore on failure. Explain
+  terminal-window and GPU-login exceptions rather than promising every change is live.
+- **Usage follows intent.** Read the default-agent label without starting an idle
+  daemon; collect usage only when opened or explicitly refreshed.
 
 ## Checking your change
 

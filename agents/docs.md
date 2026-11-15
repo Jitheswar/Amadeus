@@ -4,8 +4,8 @@ Read `AGENTS.md` first, section "Documentation layout".
 
 ## What goes where
 
-- `README.md`: what the system is, how to build and install it, an honest status table.
-  Update the status table in the same change that alters what is verified.
+- `README.md`: what the system is, how to build and install it, and an honest account
+  of verification. Update that account when the evidence changes.
 - `docs/DECISIONS.md`: one entry per choice: what, over what, and the evidence. A change
   of component edits its entry; it does not append a contradiction.
 - `docs/ARCHITECTURE.md`: how the parts work together. No file inventories.
@@ -22,6 +22,14 @@ Read `AGENTS.md` first, section "Documentation layout".
   of its own, a guide. The check fails without the row.
 - **Claims of verification are dated by the commit.** Write what was tested and where
   (container, VM, real machine). Never write "works" for something that has not run.
+  Name the runtime baseline when a later documentation-only commit reports existing
+  results. A prose refresh needs the fast checks, not a claim that the VM was rerun.
+- **Review related audiences together.** Behavior changes can affect the README,
+  architecture, decision record, roadmap, contributor rules and installed-agent skill.
+  Keep a correct shared pointer such as `CLAUDE.md` instead of duplicating its target.
+- **Separate intent from evidence.** Do not present hardware power behavior, provider
+  authentication or performance estimates as tested facts. Historical packaging
+  rationale is not a claim about a vendor's current distribution channels.
 - Plain words. Write for someone reading this for the first time.
 - The official line of the distribution is "El Psy Kongroo". It appears at the top of
   `README.md`, on the login screen, and where the installer greets and finishes. Keep it

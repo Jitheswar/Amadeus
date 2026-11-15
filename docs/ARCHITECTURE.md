@@ -1,110 +1,172 @@
 # Architecture
 
-Why each component was chosen is in [DECISIONS.md](DECISIONS.md). This file describes how
-the parts work together.
+Amadeus combines an ordinary desktop, a user-session AI daemon, and a separate privileged
+helper. [DECISIONS.md](DECISIONS.md) records why those parts were chosen; the
+[README](../README.md) covers user workflows and verification limits.
 
-## Components
+## Requests and authority
 
+```mermaid
+flowchart LR
+    Clients[Panel, CLI and MCP clients] --> Daemon[User-session daemon]
+    Apps[Generated applications] --> AppGate[Per-app socket and manifest check]
+    AppGate --> Daemon
+    Daemon <--> Providers[API adapters or subscription CLIs]
+    Daemon --> Execute[Daemon.execute]
+    Execute --> Policy[Policy and approval]
+    Policy --> Tools[Registered tool]
+    Tools --> User[User-level action]
+    Tools --> Root[Root helper when enabled]
+    User --> Audit[Action audit and file journal]
+    Root --> Audit
 ```
- panel (SUPER+Z)     ama CLI   Claude Code / Desktop / Codex      generated apps
-        \              |              | MCP (ama mcp)                  | per-app socket,
-         \             |              |                                | manifest tools only
-          +------------+--------------+--------------------------------+
-                                      |
-                              amadeusd  (user service)
-           providers ── agent loop ── Daemon.execute ── tools
-                                      |   policy → approval → run → audit
-                                      |
-                    root mode off: stops here      root mode on: /run/amadeus/priv.sock
-                                                   amadeus-priv (transient root unit)
-```
 
-The panel is one long-running Quickshell process. Each request it sends is a task with
-its own session id, so tasks run in parallel on one connection. The daemon tags every
-file it saves for undo with the session that changed it, which is what lets the panel
-undo one task as a whole; stopping a task sets a flag that `Daemon.execute` checks before
-running any further tool, and ends a subscription provider's process. Only file changes
-can be undone this way: window actions and package changes are not in the undo journal.
+`Daemon.execute` is the enforcement point for Amadeus tool calls. It resolves a tool's
+capability and argument-dependent risk, applies path and capability policy, obtains any
+required approval, checks whether the task was stopped, runs the tool, and records the
+relevant result. The [daemon](../ai/amadeus/daemon.py) and
+[policy](../ai/amadeus/policy.py) define the actual routing and decisions.
 
-`Daemon.execute` is the single enforcement point. Nothing reaches a tool except
-through it, whichever model, client or app made the request.
+The panel keeps a session ID per task and correlates responses by request ID, allowing
+parallel tasks on one connection. File-journal entries are associated with their session
+so a task can undo its own recorded file changes. Stopping a task prevents further tools
+and terminates its registered provider process; completed changes remain until explicitly
+undone. Window actions and package changes are outside the file journal.
 
-### Providers
+## Providers and defaults
 
-| type | covers | loop runs in |
-|---|---|---|
-| `anthropic` | Claude API | daemon |
-| `openai` | OpenAI, OpenRouter, ollama, llama.cpp, any compatible endpoint | daemon |
-| `claude-cli` | Claude subscription | Claude Code, tools via MCP |
-| `codex-cli` | ChatGPT/Codex subscription | codex, tools via MCP |
+There are two execution models. API adapters return model turns while the daemon owns
+the tool loop. Subscription CLIs own their agent loop and reach Amadeus tools over MCP.
+The [provider factory](../ai/amadeus/providers/__init__.py) defines supported adapter types;
+the [configuration module](../ai/amadeus/config.py) defines shipped profiles and private
+credential resolution. History uses a provider-neutral representation.
 
-History is kept in a neutral format, so `ama provider use` switches models even in
-the middle of a conversation.
+The saved panel provider lives in the AI configuration. Panel Settings and Defaults →
+Agent update that value; a panel override is sent explicitly with the next request and
+then returns to the saved choice. Each task displays the provider it used. This is
+independent from the terminal harness preference used by the desktop wrappers.
 
-### Tools (39)
+Provider setup RPCs return display-safe fields, never saved API keys. API keys are written
+to private files. Native subscription sign-in remains with the installed CLI. An installed
+binary or populated model setting is a setup hint rather than a successful authentication
+check. The Antigravity adapter disables native system actions and exposes the Amadeus MCP
+bridge; these adapter boundaries also need testing against real provider logins.
 
-System state and processes, services, journal, packages, power profile, snapshots,
-system config; files with undo; sandboxed and host shell; windows, workspaces,
-launching with GPU selection, keybindings, bar/widgets/themes; network; app
-build/update/run/rollback.
+The bar reads the saved provider without starting the daemon just to show a label. Usage
+is requested on opening or explicit refresh, with a short-lived cache and bounded replies.
+Collectors read vendor account limits without a model call or credential refresh. They
+return quota/status fields rather than tokens. Recent request counts come from Amadeus's
+audit records and do not measure all activity in external clients. See
+[usage collection](../ai/amadeus/usage.py).
 
-### Generated applications
+## Desktop state and search
 
-An app is a directory under `~/.local/share/amadeus/apps/<id>`: QML sources, a
-`manifest.json`, a private `data/` directory, and its own git history.
+The shell reads compositor events and service bindings for live state. Layout and theme
+are configuration data; the available widget IDs must agree with the AI desktop tools.
+The panel and generated apps share QML components with the shell's visual theme.
 
-- **Declarative permissions:** `network`, `nvidia`, `ai`, `files` (path + ro/rw),
-  `tools` (which OS tools the app may call). The sandbox command line is generated
-  from the manifest and nothing else; `ama app command ID` prints it.
-- **Empty manifest:** a window on the Intel GPU and its own data directory. No
-  network, no home directory, no D-Bus, read-only system, private PID namespace.
-- **Asking:** creating or updating an app with no new permissions does not prompt.
-  Any widening of permissions is shown to the user first.
-- **Incremental updates:** an update sends only changed files, is syntax-checked
-  before it replaces the working version, and becomes a commit. `rollback` restores
-  any earlier version.
-- **OS access from inside:** the `Os` component speaks to a per-app socket. The
-  daemon checks each call against the manifest, then against system policy; any
-  call that changes state prompts even if policy would allow it for the user.
+Each picker opening loads an index of eligible desktop entries and settings routes, then
+filters locally. Apps applies desktop visibility, user-entry precedence and package-owner
+filtering. Settings are searchable even when they are omitted from the ordinary Apps
+list. A global result cancels the originating picker before its action is resolved and
+launched, so another menu cannot interpret the result as a package or display mode.
+Free-text prompts are kept distinct from list navigation.
 
-## Security model
+Configuration application depends on the surface. Hyprland loads personal overrides over
+shipped defaults and validates managed changes before reloading. The shell watches its
+JSON files. Text size updates shell/panel sizing, GTK scale and terminal configuration;
+terminals that cannot reload take the change in a new window. Explicit GPU-mode changes
+require a new login because the compositor selects its rendering device at startup.
 
-| risk | meaning | handling |
-|---|---|---|
-| read | observes | allowed by policy, except protected paths |
-| modify | reversible user-level change | policy: allow, ask, or deny; "always this session" possible |
-| destructive | data loss or hard to undo; host shell; window-manager Lua | always asks, never remembered |
-| privileged | needs root | refused unless root mode is on, then always asks |
+The audio picker tracks ready PipeWire endpoints and checks the complete source/sink type.
+Application streams, monitors and virtual nodes are filtered from its device choices.
 
-- **Protected paths** (ssh and gpg keys, keyrings, provider credentials, the secrets
-  directory) are denied even for reads, after resolving `..` and symlinks.
-- **Root mode** is a transient systemd unit started through polkit authentication.
-  It is never enabled, so it cannot exist after a shutdown; `--ttl` ends it sooner.
-  The helper accepts one user id (SO_PEERCRED) and, unless started with `--full`,
-  only validated operations: systemctl, pacman, snapper, writing files under `/etc`
-  (login, sudo, PAM, ssh, fstab excluded). Arbitrary root commands need `--full`.
-- **Transactions:** package changes are wrapped in a snapper pre/post pair and return
-  the undo command. System files are backed up before replacement. User files the AI
-  writes are journalled for `ama undo`, and written atomically.
-- **Audit:** every action, denial and request is appended to a hash-chained log with
-  secrets redacted. `ama audit verify` detects edits or deletions.
-- **Injected instructions:** the model is told that tool output is data, but the real
-  defence is structural: whatever text the model reads, it cannot destroy, escalate
-  or leave the sandbox without a prompt that shows the user the exact action.
-- **Unapproved by default:** prompts time out to "no"; closing the dialog, Enter and
-  Escape all decline.
+## Generated applications
 
-## Hardware
+An app has QML sources, a manifest, private data and source-version history under the
+configured app-data directory. Its manifest grants access to resources such as network,
+files, GPU and specific Amadeus tools. The [app framework](../ai/amadeus/apps.py) and
+[sandbox builder](../ai/amadeus/sandbox.py) are the schema and enforcement sources.
 
-- The panel is wired to the Intel GPU; the compositor and ordinary apps render there.
-- The RTX 3050 runtime-suspends when idle. Amadeus reads its state from sysfs and
-  never calls `nvidia-smi` on a sleeping card, since that wakes it.
-- `desktop_launch` selects the GPU per application: NVIDIA for games and apps that
-  declare `PrefersNonDefaultGPU`, Intel otherwise, with an explicit override. No
-  global variable forces NVIDIA.
-- Video decode: Intel VA-API (`intel-media-driver`) for the desktop and browser;
-  NVDEC through `libva-nvidia-driver` when an app runs on the NVIDIA card.
-- Vulkan: Intel and NVIDIA ICDs, 64- and 32-bit, for Steam and Proton.
-- CUDA is not preinstalled (about 5 GB). Install `cuda cudnn` when needed; sandboxes
-  get the card with `nvidia: true`.
-- Power: power-profiles-daemon and thermald, nothing overlapping.
+An empty manifest grants a window and its own data, with no home-directory, network or
+session-bus access. Widening permissions requires approval. Source changes are syntax
+checked and saved transactionally before becoming versions. App source rollback does
+not roll back its private runtime data.
+
+An app's OS component connects to a dedicated socket. The daemon first limits the call
+to manifest-granted tools, then applies normal system policy. State-changing app requests
+require approval even when the ordinary user policy would allow them. Apps do not gain
+provider-configuration or root-management RPC access through that socket.
+
+## Security and recovery boundaries
+
+| Risk | Treatment |
+|---|---|
+| Read | Subject to capability policy and path denials; no approval prompt. |
+| Modify | Policy can allow, ask or deny; eligible grants may last for the session. |
+| Destructive | Always asks when policy permits consideration; never remembered. |
+| Privileged | Structured tools require root mode and approval for each action. |
+
+Path denials resolve symlinks and parent traversal. The shipped policy protects credential
+locations; the configuration's private secrets store is additionally protected by the
+policy implementation. A denial cannot be bypassed by choosing another Amadeus client.
+
+The daemon never runs as root. User-enabled root mode starts a transient helper through
+polkit. It checks the peer user and validates its permitted operations again. Unrestricted
+root execution requires the explicit full mode. Root mode expires at shutdown and can
+have a shorter lifetime.
+
+Approved host-shell commands run with the user's existing OS privileges. The separately
+authenticated passwordless-sudo switch applies to user processes, including those commands;
+it is not the structured root helper. Both controls are off by default.
+
+Recovery has distinct scopes:
+
+- File tools journal changes they can restore. Some system-file operations also make
+  backups before replacement; inspect the tool result for the recovery path.
+- The update command takes a snapshot before updating. Number-based cleanup keeps the
+  configured recent history. Ordinary manual package operations have no automatic hook.
+- The structured AI package helper attempts a pre/post snapshot pair and reports the
+  resulting IDs and recovery information. Failure to create a snapshot must not be
+  mistaken for a guaranteed recovery point.
+- System-root rollback restores the selected btrfs root and its matching boot files.
+  Home, logs and package-cache subvolumes are separate from that root snapshot.
+
+The audit is hash-chained and redacts resolved secrets. Requests, denials, state-changing
+actions and failed reads are recorded; successful read-only tools are not individually
+logged as actions. Hash verification detects changes in the retained chain. Approvals
+expire or close to denial by default.
+
+These boundaries govern registered Amadeus operations. A provider login, an arbitrary
+user-launched program and already granted OS privileges are separate trust decisions.
+
+## Installation and the live medium
+
+The guided UI collects answers and delegates installation to the same backend used by
+the unattended VM harness. Base package lists are unconditional. The optional extras
+answer controls a separate bundle; it never installs the optional gaming/chat clients or
+coding harnesses automatically. GNOME Keyring is absent from the default package lists.
+Repository signing keys and private API-key files serve separate purposes.
+
+The ISO carries a local repository collected from the install package lists and bundled
+apps. The target CPU supports the bundled x86-64-v3 packages; the generic fallback needs
+network downloads. The Try session uses the live kernel and a temporary user, with
+changes in memory. Portable installation is an explicit workflow for a selected USB
+and includes broader driver/boot coverage.
+
+The medium also carries package-index snapshots for offline browsing. A shared seeder
+publishes only missing indexes, atomically, with a timestamp that requires their first
+online refresh. It never stamps old data with installation time or overwrites an existing
+cache. Pacman then downloads current database/signature pairs under its configured
+verification policy. The ISO compressor does not traverse temporary mounted filesystems.
+
+## Hardware policy
+
+Automatic mode configures Intel rendering and per-app NVIDIA offload. An explicit GPU
+preference can change that policy at the next login. The launcher and AI desktop tools
+honor those choices; status reads use sysfs instead of waking the NVIDIA card to inspect it.
+
+The selected driver packages, firmware and power settings are configuration choices, not
+proof of real-machine behavior. Vulkan and video-decode paths are provisioned for the
+target GPUs; CUDA is optional and applies to NVIDIA. Suspend, runtime power-down, Dynamic
+Boost and the explicit GPU modes still need hardware validation.

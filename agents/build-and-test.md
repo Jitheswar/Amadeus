@@ -29,6 +29,11 @@ self-test that runs inside the installed system.
   lacks.
 - **The VM has no NVIDIA card, no battery and no Wi-Fi.** A passing VM test says nothing
   about them. Say so when you report a result.
+  Scripted local-model tests also do not verify a vendor login or live API endpoint.
+- **Exercise the first online refresh.** Offline catalogue queries are insufficient
+  for seeded package indexes. Test the conditional-HTTP database/signature pair and
+  preservation of an existing cache. On a mismatch, inspect hashes, signatures and
+  timestamps; do not work around it by weakening pacman's verification.
 - **Verdicts come from files, not the console.** The harness reads logs the guest writes
   to the answers disk. Keep it that way.
 - **`./build.sh preview` shows what the shell looks like**, not how windows behave: it
@@ -44,6 +49,9 @@ self-test that runs inside the installed system.
   what you need inside the container.
 - The harness reuses downloaded packages from the build machine's cache read-only. It
   must never write to it.
+- **Tie evidence to the tested runtime.** Distinguish a later documentation-only commit
+  from the source baked into an ISO. Keep diagnostic scripts and generated logs in
+  `out/`; an inspection probe must not silently repair the system under test.
 
 ## Reading a failure
 

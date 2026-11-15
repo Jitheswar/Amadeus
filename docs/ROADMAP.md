@@ -1,46 +1,56 @@
 # Roadmap
 
-## Done
-- AI layer: session daemon, capability policy, approvals, hash-chained audit log, undo journal
-- Providers: Claude API, OpenAI-compatible (OpenAI, OpenRouter, local), Claude, Codex and Antigravity subscriptions through MCP
-- Generated-app framework: manifest, sandbox, component library, lint, version history
-- Root mode: separate root helper, restricted or unrestricted, time limit, gone at shutdown
-- Installer: encrypted btrfs, snapshots before updates, NVIDIA only when present
-- ISO build and VM test harness, both in a container; the full run passes (117 checks on 2026-11-15, CachyOS base and Hyprland): install, first boot, rollback from the system, rollback from the ISO
-- Built-in agent skill and `ama discover`: agents learn the system by inspecting it, not from stored documentation
-- End-to-end AI request test on the installed system with a scripted model
-- Amadeus panel: docked, parallel tasks, show steps, stop, undo a whole task; ask about the focused window (Super+A)
-- Panel provider settings with a saved default agent and temporary overrides; on-demand subscription usage in the bar
-- Try Amadeus OS from the stick: the desktop running from memory, nothing written to any disk
-- Offline install: every package on the ISO; snapshots only before updates, five kept
-- Setup > GPU: automatic, NVIDIA for everything, or Intel only
-- CachyOS repositories, `linux-cachyos` kernel with its prebuilt NVIDIA module, `cachyos-settings`
-- Bar with drawn icons and drop-down panels: calendar, power mode (automatic by cable and charge), Wi-Fi, Bluetooth, volume, brightness, background apps, stay awake, timed passwordless administrator access, weather
-- Install catalogue: terminals, browsers, editors, AI desktop apps and development tools, each from the system repositories first and an AUR recipe of the publisher's build otherwise; web apps
-- Amadeus menu: Setup (display, text size, defaults, config), System, About
-- Shortcuts: universal copy and paste, clipboard history, overlay scratchpad, move window to workspace
-- Capture: freeze-and-choose screenshots saved and copied; screen recording with no sound, the computer's sound, or both with the microphone; Trigger > Capture menu
-- Guided installer that starts when the USB stick boots
-- AI coding harnesses through mise (install, remove, update, run); defaults for terminal, editor and harness
-- Own visual identity and motion system from one theme file; headless preview of the shell
-- Launcher, menus and notifications drawn by the shell; text in the launcher that matches no application goes to Amadeus
-- Install menu for Arch packages and the AUR with a details pane; `amadeus-aur` with recipe review
-- Shortcut and command list (Super+K), read from the live configuration
-- Universal application and settings search from every menu, a clean Apps list, and unified shell, panel, GTK and terminal text sizing
-- Desktop on Hyprland (moved from niri): defaults, bar driven by the compositor's events, AI-managed file checked with `Hyprland --verify-config` before it is kept
-- Applications outside the Arch repositories built from publisher releases; no third-party repository
+The [README](../README.md#verification) records the verification baseline. Package,
+command, provider and shortcut inventories belong to their source files and live
+discovery output rather than this roadmap.
 
-## In progress
-1. `amadeus-update` in the VM; a real model driving the installed system
+## Implemented
 
-## Next
-2. First install on the real machine: NVIDIA power-down, PRIME offload, Wi-Fi, suspend
-3. Snapshots selectable in the boot menu
-4. Local model as the offline fallback (a 4-bit 7B model fits the 6 GB card)
-5. Context awareness: the daemon follows compositor events and offers workspace layouts per activity
-6. Extending existing applications: side panels attached to an application's windows
+- A user-session AI daemon with policy checks, approval, audit and file undo; a separate
+  transient root helper; and sandboxed, versioned generated applications.
+- Subscription, API and local-model selection, saved panel-agent defaults, temporary
+  overrides, and on-demand usage controls. Terminal harness installation and defaults
+  remain independent user choices.
+- A Hyprland desktop with a shared shell, cross-menu app/settings search, filtered app
+  and audio-device lists, unified text sizing, capture tools and configurable defaults.
+- Guided and unattended installation, a temporary Try session, an optional extras choice,
+  signed offline packages for the target CPU, and package-index snapshots that refresh
+  correctly on the first network sync.
+- An opt-in policy for gaming/chat clients and coding harnesses, plus a default desktop
+  without automatic GNOME Keyring activation.
+- Update snapshots, boot-file recovery and rollback from the running system or installer
+  medium. Ordinary manual package changes do not create automatic snapshots.
+- Container builds, fast checks, headless previews and a full VM install/recovery harness.
 
-## Not yet verified
-- Anything on real hardware
-- API providers against live endpoints (tested against a local mock)
-- Root-mode operations as root
+## Verified baseline
+
+The runtime identified in the README passed 117 installed-system VM checks: 102 on first
+boot, eight after rollback from the running system, and seven after rollback from the ISO. The Try-session
+checks, fast checks and QML syntax checks also passed; rendered previews were inspected.
+The VM installation had no internet access. AI requests used a scripted local model.
+
+The package-index regression was reproduced with an old index and a newer detached
+signature: installation-time freshness could retain the old data. The shared seeder
+passed a conditional-HTTP regression and a real signed-metadata refresh check, followed
+by the full VM suite. Signature verification remained enabled.
+
+## Next validation
+
+1. Install on the target machine and measure NVIDIA runtime power-down, PRIME offload,
+   Dynamic Boost, Wi-Fi, Bluetooth, battery use and suspend/resume.
+2. Exercise live subscription sign-in and API endpoints, including cancellation, approvals
+   and quota collection. The VM results do not establish vendor-account compatibility.
+3. Test full system updates and mirror changes in the VM, plus structured root-mode
+   actions beyond the existing refusal and helper checks.
+4. Walk through the guided installer and desktop controls by hand. The automated installer
+   test uses the backend; preview images do not verify real compositor motion.
+
+## Planned work
+
+- Snapshot selection from the boot menu.
+- An explicit offline local-model fallback suited to the target machine's memory.
+- Context-aware workspace suggestions based on compositor events.
+- Side panels attached to existing applications and a visible mark on windows the AI
+  is working with.
+
+These are planned features, not behavior supplied by the current image.

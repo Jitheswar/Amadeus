@@ -14,19 +14,18 @@ first and the Arch repositories second.
 |---|---|---|
 | **Arch packages, CachyOS builds first** | Everything Arch offers (rolling, every required application has a maintained package, standard filesystem layout so vendor binaries run unmodified), plus the same packages rebuilt for newer processors (x86-64-v3, which this CPU supports) and a kernel tuned for desktop responsiveness with a matching prebuilt NVIDIA module. | A second set of repositories to trust, and their own build of the package manager comes with them. |
 | Plain Arch | One upstream. | Generic builds; the stock kernel. |
-| NixOS (unstable) | Atomic system generations and rollback in the boot menu: the best fit for an AI that changes the system. | Checked on 2026-11-11: Brave was removed from nixpkgs for lack of maintainers, and Claude Desktop is not packaged. A browser whose security updates depend on us is not acceptable. |
-| openSUSE Tumbleweed / Aeon | Rolling with tested snapshots and transactional updates. | Claude Desktop ships only as a `.deb`; several other required applications need repackaging. |
+| NixOS (unstable) | Atomic system generations and rollback in the boot menu: the best fit for an AI that changes the system. | The initial packaging evaluation favored the existing pacman/vendor-release workflow. This is a historical choice, not a claim about current optional-app availability. |
+| openSUSE Tumbleweed / Aeon | Rolling with tested snapshots and transactional updates. | The initial vendor-app packaging workflow would need additional ownership in another package ecosystem. |
 | Fedora Atomic, Debian, Ubuntu | Stable. | Not rolling. |
 | Void, Gentoo | Minimal. | Few of the required applications; no systemd (Void). |
 
-What to expect from the CachyOS builds, stated plainly: they are the same software as
-Arch's, compiled with newer instructions and link-time optimisation. The gain is a few
-percent in most programs and more in some. They are not more thoroughly tested than
-Arch's and track Arch closely, so they are not a stability measure. Stability here
-comes from what is below, as before:
+The selected CachyOS builds target newer CPU instructions where supported. This
+project has not measured a performance gain or established greater stability than
+Arch. Recovery and validation are separate requirements:
 
 - a btrfs snapshot before every update (`amadeus-update`), the newest five kept; installing
-  or removing a single package takes none, so the list stays short and meaningful
+  or removing a package manually has no automatic snapshot hook. Structured AI package
+  transactions separately attempt pre/post snapshots and report the resulting recovery data
 - a copy of `/boot` inside each snapshot, so a snapshot carries its matching kernel
 - `amadeus-rollback`, from the running system or from the installer medium
 - AI changes go through one enforcement point with an undo journal and an audit log
@@ -38,49 +37,49 @@ on it.
 
 ## Kernel, boot, storage
 
-- **Kernel: `linux-cachyos`**, the kernel CachyOS recommends by default: built with
-  Clang and link-time optimisation, profiled, 1000 Hz, with their scheduler tuning for
-  desktop responsiveness. Whatever scheduler that default uses is the one used here; no
-  alternative scheduler is layered on top. Over Arch's `linux` (generic build) and over
+- **Kernel: `linux-cachyos`**, the selected CachyOS desktop kernel family. Its upstream
+  build configuration and scheduler can change; Amadeus does not layer another scheduler on top or claim
+  benchmarked gains. Over Arch's `linux` (generic build) and over
   the other CachyOS variants (LTS, hardened, server and real-time builds answer needs
   this machine does not have).
 - **System tuning: `cachyos-settings`** (their sysctl values, I/O scheduler rules and
   related defaults) and `ananicy-cpp` with their rule set, which lowers the priority of
   background work so the foreground stays responsive. That is one more always-running
-  process; it idles at a few MB.
+  process; its actual idle memory and responsiveness benefit need measurement.
 - **Boot loader: systemd-boot.** Already part of systemd; nothing extra to maintain.
   Over GRUB (large, slow, fragile config generation) and limine.
 - **Filesystem: btrfs on LUKS2**, subvolumes `@ @home @log @pkg`, zstd compression.
   Snapshots are the recovery mechanism, so the filesystem must provide them; over ext4
   (no snapshots) and ZFS (out-of-tree module on a rolling kernel).
-- **Swap: zram**, no swap partition. 16 GB of RAM with compressed swap in memory beats
-  writing to the SSD. The cost: hibernation is not available, so the system menu does
-  not offer it.
+- **Swap: zram**, no swap partition. Compressed memory-backed swap avoids a dedicated
+  disk swap partition. The shipped layout does not configure hibernation; the menu
+  offers it only when logind reports it available.
 
 ## Graphics
 
-- **Intel renders the desktop; NVIDIA is off until asked for.** `nvidia-open` (the RTX
-  3050 is supported by the open module) with runtime power management `0x02`, so the
-  card is fully powered down when idle. Applications are offloaded one at a time
-  (`amadeus-gpu-run`, or the AI decides per application). Nothing sets NVIDIA globally.
+- **Automatic mode renders on Intel and offloads applications to NVIDIA.** The selected
+  open module uses runtime power management `0x02`, aiming to let the card suspend
+  when idle. Actual power behavior remains unverified on hardware. Applications are
+  offloaded one at a time (`amadeus-gpu-run`, or the AI decides per application).
+  Only an explicit user-selected GPU mode may select NVIDIA globally.
 - **Driver package: `linux-cachyos-nvidia-open`**, for the card in this machine
   (GA107BM, `10de:25ec`, Ampere): the open kernel module is NVIDIA's supported path for
-  this generation, and this package is that module prebuilt for the `linux-cachyos`
-  kernel and versioned in lockstep with it and with `nvidia-utils`, so there is no DKMS
-  compile and no window where kernel and module disagree. CachyOS carries a newer driver
-  branch than Arch. The GPU firmware ships in `nvidia-utils`; `linux-firmware-nvidia` is only for
-  nouveau and is not installed. `lib32-nvidia-utils` is there for Proton.
-- **Dynamic Boost on (`nvidia-powerd`).** The laptop firmware reports it as supported. It
-  is the one GPU daemon worth running: under load it shifts power budget from the CPU
-  to the GPU, which is where games on this machine are limited.
-- **CUDA is installed on demand**, not preinstalled: the toolkit is 5 GB.
+  this generation at the initial driver evaluation. This package provides it prebuilt
+  for the `linux-cachyos` kernel family, avoiding a local DKMS build. Package
+  compatibility and the actual driver/power path still need target-machine validation.
+  The proprietary-driver firmware comes with `nvidia-utils`; the image excludes the
+  separate nouveau firmware package. `lib32-nvidia-utils` supports optional Proton use.
+- **Dynamic Boost on (`nvidia-powerd`).** It is enabled when NVIDIA is provisioned to
+  support firmware-controlled power allocation under load. Its benefit and battery cost
+  need real-machine measurement.
+- **CUDA is optional**, with its packages defined separately from the base image.
 - Left at the driver default, to be tried on the real machine: S0ix video-memory
-  self-refresh (`NVreg_EnableS0ixPowerManagement`). The platform supports it and only
-  offers s2idle sleep, but if deep idle is not reached it costs battery during sleep.
+  self-refresh (`NVreg_EnableS0ixPowerManagement`). The actual suspend path, memory
+  retention and battery cost need hardware testing.
 - **The user can choose, in Setup > GPU**: automatic (the default above), NVIDIA for
-  everything (the compositor renders on NVIDIA and the Intel GPU only passes frames to
-  the built-in screen; most performance, most power, the card never sleeps), or Intel
-  only (nothing is sent to NVIDIA, so it stays asleep). The choice is written to the
+  everything (the compositor renders on NVIDIA), or Intel only (desktop launches
+  do not offload to NVIDIA). Actual display routing and power consumption must be
+  measured on the machine. The choice is written to the
   session environment and takes effect at the next login, because the compositor picks
   its GPU when it starts. udev gives the two cards stable names for this.
 - No GPU switching daemon (optimus-manager, envycontrol, supergfxctl): PRIME render
@@ -121,16 +120,17 @@ it is kept, then applied with a reload. A rejected change leaves the old one in 
 
 The USB stick starts a guided installer by itself (gum, styled with the system palette):
 keyboard, internet (optional), name and password, computer name, time zone, disk,
-encryption, applications, then a summary. Nothing is written until the disk's name is
+encryption, optional extras, then a summary. Base apps install regardless of the
+extras answer. Nothing is written until the disk's name is
 typed at the summary. It hands its answers to the same `amadeus-install` that the
 unattended VM test drives, so the tested path and the guided path are one path.
 
 **Everything the installation needs is on the ISO.** When the ISO is built, a fresh empty
 package database stands in for the new system and every package pacman would download to
 install the package lists and the bundled applications is collected, checked against its
-signature, and stored on the ISO as a repository. The installer uses it and needs no
-network; the internet is needed afterwards only for updates and for what is set up per
-user (Claude Code and other harnesses, through mise). The cost is size: the ISO grows by
+signature, and stored on the ISO as a repository. On the target x86-64-v3 CPU, the
+installer uses it without a network; updates, optional downloads and provider sign-in
+need a connection later. The tradeoff is size: the ISO grows by
 the size of those packages. The collected packages are the x86-64-v3 builds, which this
 machine runs; a processor without v3 installs from the internet as before. The VM test
 installs with its network cut off, so the offline path is the tested one.
@@ -142,7 +142,8 @@ gigabyte) and runs Arch's kernel, which the live medium boots, not CachyOS's: en
 judge the hardware and the desktop, not the kernel tuning. The install entry is the
 second one in the menu. The try session fetches the repository package lists once the
 network comes up, so the Install menu and the catalogue show what can be added; it
-installs nothing by itself, and without a connection the lists stay empty.
+installs nothing by itself. Missing lists are seeded from the medium for offline
+browsing, then marked due for the first online refresh.
 
 **Mirrors are chosen for quality first, then speed.** The first `amadeus-update` ranks
 the official mirrors once: the Arch list from the Mirror Status data (fully synced, HTTPS,
@@ -159,10 +160,10 @@ background service.
 
 One toolkit for the bar, launcher, notifications, AI surfaces and generated apps.
 
-- Over **web views** (models write HTML best, but 100–150 MB per window and a second
-  toolkit for the shell).
+- Over **web views** (a second application runtime and toolkit would be needed for the shell).
 - Over **AGS/Astal** (a JavaScript runtime per shell) and **EWW** (too limited).
-- QML is declarative, reloads live, and a window costs about 40 MB.
+- QML is declarative and supports shared components. Memory and responsiveness need
+  measurement for each actual surface.
 - The weakness, that models write QML less reliably than HTML, is handled by a small
   component library, a lint pass before a new version replaces the working one, and
   per-app version history.
@@ -189,13 +190,14 @@ read by the shell, the Amadeus panel and every generated app.
 - **Shape: floating, rounded surfaces** (bar, panel, picker, notifications) on a
   background the shell draws itself: no wallpaper image and no wallpaper program.
 - **Motion: short and decisive.** Three durations (110, 180, 260 ms) and one easing
-  curve that arrives fast and settles gently. Window movement uses critically damped
-  curves that arrive fast and settle without overshoot, so windows never bounce. Opening and closing are a single
+  curve that arrives fast and settles gently. Window movement uses compositor animation
+  curves intended to settle without overshoot. Opening and closing are a single
   motion driven by one value, so a surface can be interrupted halfway and reverse.
-  Nothing animates for longer than a quarter of a second, and nothing animates that
-  does not explain where something came from or went.
-- **No blur or transparency effects.** The compositor does not provide them, and they
-  cost battery on the integrated GPU for no gain in legibility.
+  Motion should explain a transition and remain short. The theme is authoritative for
+  shell timing; compositor animation settings are maintained separately.
+- **No blur or transparency effects.** They are disabled by the shipped compositor
+  configuration to avoid additional rendering work. This is a default choice rather
+  than a compositor limitation.
 - GTK applications are told to use dark mode, the same accent and the same fonts through
   system defaults; a user's own settings still win.
 
@@ -207,14 +209,13 @@ through mise, not as system packages.
 - They release several times a week; mise installs the publisher's build directly and
   `mise upgrade` moves them all at once, with no recipe in between to wait for.
 - They live in the user's home, so installing or updating one needs no administrator
-  password and cannot break the system.
+  password. They still execute with the user's permissions and require trust in the publisher.
 - One tool covers all of them, and the same menu reaches anything else mise can install.
 - The list offered in the menu is a short file of names; only names mise's registry
-  still knows are shown, and the program each one provides is asked from mise, so no
-  command names or sources are written down in this repository.
+  still knows are shown, and the program each one provides is asked from mise, rather than duplicating that executable mapping in menu code.
 
 Over AUR packages (a second maintainer between the publisher and the user, root to
-install), npm installed globally (needs a system Node and root) and each tool's own
+install), system-wide npm installs (shared ownership and a separate runtime/update path) and each tool's own
 installer script (a different updater per tool).
 
 ## The bar and its controls
@@ -255,9 +256,9 @@ even when a package is asked for by name rather than chosen from the catalogue.
 Gaming and chat clients are opt-in through the Amadeus menu. Their catalogue entries
 name the official Arch repository explicitly, so those installs use its signed packages.
 
-Two small background helpers were added with the shortcuts: a clipboard watcher (cliphist,
-a few MB, idle until something is copied) for clipboard history, and nothing for copy and
-paste themselves, which send the standard keys to the focused window on demand.
+Clipboard history uses separate `wl-paste` watchers for text and images, with cliphist
+storing changes on demand. Copy and paste bindings send their keys on demand and do
+not require their own persistent process.
 
 ## Defaults: terminal, editor, harness
 
@@ -268,8 +269,9 @@ so changing a default takes effect everywhere at once without logging out.
 
 ## AI layer: Python standard library
 
-A daemon in the user session with no third-party packages, so a system update cannot
-break it and the enforcement code stays small enough to read in one sitting. Over Rust
+A daemon in the user session using only the Python standard library, reducing dependency
+churn and keeping the enforcement code small enough to review. Interpreter, service and
+provider changes can still require compatibility fixes. Over Rust
 or Go: nothing here is performance-critical, and fast iteration matters more. Root
 actions never run in the daemon: they go to a separate root helper that exists only
 while root mode is on and is gone at shutdown.
@@ -279,7 +281,7 @@ while root mode is on and is gone at shutdown.
 | Need | Choice | Why |
 |---|---|---|
 | Terminal | foot | Wayland-native, starts instantly, a few MB of memory |
-| File manager | Nautilus | It is already required as the file chooser for the desktop portal that provides screen sharing, so it adds nothing |
+| File manager | Nautilus | Provides the Files app and directory handling in the GTK desktop |
 | Document viewer | Papers | Maintained GTK4 successor to Evince |
 | Image viewer | imv | Tiny, keyboard-driven, Wayland-native |
 | Camera | Snapshot | Uses PipeWire/libcamera; the older choices (Cheese, guvcview) do not |
@@ -327,8 +329,9 @@ GNOME Keyring is not installed by default. Automatic Secret Service activation o
 a fresh desktop can otherwise ask the user to create or unlock a separate keyring.
 Users who want a desktop keyring can install a Secret Service provider from the
 package menu. Applications that require Secret Service need a provider before
-they can store credentials. Existing keyring files are not removed. Amadeus API keys continue to use its
-private, permission-restricted secrets directory.
+they can store credentials. Existing keyring files are not removed. Amadeus API keys
+continue to use its private, permission-restricted secrets directory. Repository signing
+keys are independent and remain required.
 
 ## Package index snapshots from the install medium
 
@@ -338,3 +341,10 @@ requests must not keep an old database while downloading a newer detached signat
 Seeding publishes each file atomically and never replaces an existing index. The try
 session and installed-system setup use the same helper; signature verification stays
 with pacman when the first online sync downloads current metadata.
+
+## Image filesystem boundary
+
+The SquashFS build is restricted to the root filesystem. A temporary system mount
+that survives build-tool cleanup must remain an empty mount directory in the image.
+This avoids reading host sysfs data or other mounted pseudo-filesystems into the ISO.
+The mounted-filesystem fixture and final archive inspection verified that behavior.

@@ -84,10 +84,12 @@ One target: x86_64, the machine in `README.md`. Do not add support for hardware 
 machine does not have. Hardware that is present only sometimes is detected, never
 assumed:
 
-- NVIDIA packages and settings apply only when the card is found at install time.
+- NVIDIA packages and settings follow hardware detection, except for portable installs
+  and explicit installer choices that provision the driver in advance.
 - Never run a tool that wakes the NVIDIA card (for example `nvidia-smi`) to read its
   state. Read sysfs.
-- Nothing may select the NVIDIA card globally. Offload is per application.
+- Automatic mode uses Intel for the desktop and NVIDIA offload per application.
+  Only the user's explicit GPU-mode selection may choose NVIDIA globally.
 
 ## Privileged commands
 
@@ -104,6 +106,9 @@ assumed:
 - **Never run the installer, a package manager, or any system-changing command on the
   machine you are developing on.** Everything is built and tested in the container and
   the VM. This is the project's hardest rule.
+  The explicit physical-USB workflow is separate: use `./build.sh usb` only for a
+  drive the user has identified, never a guessed device. It unmounts that drive on
+  the host and exposes it to the installer VM.
 
 ## Git
 
@@ -152,10 +157,12 @@ How a configuration change reaches a running system:
 
 1. **Defaults ship in the package** under `/usr/share/amadeus-os/`. Updating the package
    updates them.
-2. **The user's file includes the defaults** and adds overrides. Updates never rewrite a
-   user's file.
-3. **Changes apply live.** The compositor and the bar watch their files; the daemon
-   reloads on `ama reload`. A change must never require logging out.
+2. **Preserve the user's layer.** Use includes where the format supports them. For
+   full-file JSON settings, preserve unrelated user values when changing a field.
+   Package updates must not overwrite personal configuration.
+3. **Prefer live application.** The compositor and the bar watch their files; the
+   daemon reloads on `ama reload`. Document exceptions accurately: a terminal may
+   need a new window, and changing the compositor's GPU needs a new login.
 4. **Write, validate, keep or restore.** Anything that writes configuration validates
    the result as a whole and puts the previous content back if validation fails.
 

@@ -2,174 +2,202 @@
 
 *El Psy Kongroo.*
 
-A minimal, rolling Linux distribution in which the AI is part of the operating system:
-it reads real system state, acts through permission-checked tools, rearranges the
-desktop, and builds sandboxed applications on demand. The system underneath is complete
-and works without any AI provider or network connection.
+A minimal, rolling Linux distribution with an AI layer that can inspect the system,
+use permission-checked tools, rearrange the desktop, and build sandboxed applications.
+The desktop works without an AI account. The supported offline installation path
+includes the packages needed to reach a usable system.
 
-It is built for one machine: Core i5-13450HX, RTX 3050 6 GB with Intel UHD graphics,
-16 GB RAM, 1 TB NVMe. Nothing is included for hardware that machine does not have.
+The target is a Core i5-13450HX laptop with Intel UHD graphics, an RTX 3050 6 GB,
+16 GB RAM and a 1 TB NVMe drive.
 
-> **Status: pre-release.** The ISO installs, boots and rolls back in a virtual machine,
-> passing every check. It has not been installed on real hardware yet. See [Status](#status).
+> **Pre-release:** the current runtime passed 117 installed-system VM checks, including
+> both rollback paths, plus the live-session checks. Real hardware and live provider
+> authentication have not been verified. See [Verification](#verification).
 
-## What you get
+## The system
 
-| | |
+| Area | Design |
 |---|---|
-| **Base** | Arch, with packages from the CachyOS repositories (built for newer processors) and the `linux-cachyos` kernel. Rolling. Encrypted btrfs, systemd-boot, compressed swap in RAM. About 750 packages after install. |
-| **Recovery** | A snapshot before every update, the newest five kept. `amadeus-rollback` returns the system to any of them, from the running system or from the USB stick when it no longer starts. |
-| **Graphics** | Intel draws the desktop. The NVIDIA card is powered off until an application is sent to it; nothing forces it on. CUDA, Vulkan and video decode are available on both. |
-| **AI layer** | One daemon through which every AI action passes: capability policy, approval for destructive actions, tamper-evident audit log, undo. Works with a Claude subscription or API key, OpenAI-compatible APIs, OpenRouter, Codex, and local models. |
-| **Root mode** | The AI has no root access by default. `ama root on` grants it; it ends at shutdown at the latest and must be turned on again. |
-| **Generated apps** | The AI writes small applications from a shared component library. Each runs in its own sandbox with only the permissions its manifest declares, and keeps a version history. |
-| **Desktop** | Hyprland, with a bar, launcher, menus and notifications drawn by the system's own shell; a scratchpad that floats over everything; screenshots and screen recording built in. |
-| **Look** | Its own identity: warm black with a single amber accent, floating rounded surfaces, and short, decisive motion. One theme file drives the shell, the panel and every generated app. |
-| **Applications** | A small default set for everyday work, defined by the [official package list](installer/packages.apps). The installer offers [publisher releases built through AUR recipes](installer/packages.aur) separately. Gaming and Chat in the Amadeus menu offer optional installs from official Arch repositories. |
+| Base | Arch with CachyOS repositories first, a CachyOS kernel, encrypted btrfs, systemd-boot and zram. Processor-specific builds are selected when supported. |
+| Desktop | Hyprland with one Quickshell shell for the bar, menus, launcher and notifications. Personal configuration overrides shipped defaults. |
+| Graphics | Automatic mode uses Intel for the desktop and offloads suitable applications to NVIDIA. Other GPU modes are an explicit user choice and apply at the next login. Hardware power behavior still needs testing. |
+| Recovery | A snapshot before a system update, a matching copy of the boot files, and rollback from the installed system or installer medium. AI package transactions have their own pre/post snapshots. |
+| AI | A user-session daemon applies capability policy, approvals, audit logging and file undo to Amadeus tool requests. Subscription CLIs, APIs and compatible local servers are optional. |
+| Generated apps | QML applications with explicit sandbox permissions, private data and source-version history. |
 
-### For AI agents
+The package lists in [installer/](installer/) define what is installed. The
+[architecture](docs/ARCHITECTURE.md) explains how the parts interact, and the
+[decisions](docs/DECISIONS.md) explain the choices and their limits.
 
-The system ships a skill that teaches any agent (Claude Code picks it up automatically;
-`ama skill` prints it for others) to configure and manage it. The skill contains no
-description of the system. It tells the agent to run `ama discover`, which builds a map
-by inspecting the machine at that moment, and then how to dig further by asking the
-system itself. Documentation written into a skill goes stale; a system that describes
-itself cannot.
+## Default apps and optional extras
 
-Why each component was chosen, and over what: [docs/DECISIONS.md](docs/DECISIONS.md).
-How the pieces fit: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The base desktop and default applications are installed whether the installer's
+**Optional extras** answer is yes or no. This includes btop and fastfetch. The
+[desktop list](installer/packages.desktop) and
+[application list](installer/packages.apps) are the authoritative package sets.
 
-## Using it
+The yes/no choice controls only Brave Origin, herdr and LocalSend, the
+[optional publisher-app bundle](installer/packages.aur).
+The installer names that bundle and shows its selection separately from base apps in
+the final summary. Those releases are packaged through AUR recipes; they are separate
+from the official repository packages.
 
-```
-ama "why is the fan loud?"          inspects the system, then answers or fixes it
-ama "set up a workspace for writing"  arranges windows, panels and shortcuts
-ama "build me a habit tracker"      generates a sandboxed application
-```
+Gaming and Chat are directly in the Amadeus menu. Steam is optional under **Gaming**;
+Discord and Telegram are optional under **Chat**. Their catalogues use explicitly named
+official Arch repositories. Claude Desktop is optional
+under **Install → AI**; Claude Code is optional under the existing **Install → Harness**
+menu. ProtonPlus and those clients are absent from the default package set, and no
+coding harness is automatically installed.
 
-**The Amadeus panel** (Super+Z) docks to the right edge of the screen and stays there
-while you work. Each request is a task: tasks run side by side, each can show its steps,
-be stopped, and have everything it changed undone together. **Super+A** opens the panel
-pointed at the window you are looking at, so "summarise this" or "make this half width"
-means that window.
+GNOME Keyring is absent by default, so a fresh desktop has no automatically activated
+GNOME password-store prompt. Apps that require Secret Service need an optional provider
+before they can store credentials. Package-signing keys remain part of the system;
+Amadeus API keys use its private secrets directory.
 
-Open **Settings** in the panel to choose a subscription, API provider or local model.
-**Setup → Defaults → Agent** saves the agent this panel uses; choosing another agent
-in the panel overrides the next request. Missing coding agents are installed through
-the existing **Install → Harness** menu. API keys are saved privately.
+## Using the desktop
 
-The AI control at the top right shows the default agent and opens subscription usage.
-Usage is fetched when opened or refreshed, using each agent's existing sign-in.
+Open the Amadeus menu with **Super+Space**. Start typing an installed app or setting
+name from a list to search across menus. A global result closes the current menu before
+opening its destination. Free-text entry prompts continue to accept the text they ask
+for. Apps respects desktop-entry visibility and hides dependency-owned helpers and
+secondary launchers; settings remain available through search.
 
-Start typing an installed app or setting name from any menu to find it across menus.
-Selecting a global result closes the original menu and opens the app or setting.
-Text size in Setup or the display popover adjusts the shell, panel, GTK apps and
-terminal configuration together; existing terminals may need a new window.
+Use **Setup → Defaults** for application choices. The terminal, editor and terminal
+harness use wrappers, so changing a default applies to shortcuts and menus that call
+those wrappers. **Agent** is a separate choice for the right-side AI panel.
 
-| | |
-|---|---|
-| `ama status` | provider, root mode, machine state |
-| `ama provider` · `use NAME` · `key NAME` | list providers, switch, store an API key |
-| `ama root on [--ttl MIN] [--full]` · `ama root off` | allow system changes for a while |
-| `ama app list` · `run` · `history` · `rollback` · `remove` | generated applications |
-| `ama audit` · `ama audit verify` · `ama undo` | what the AI did, proof the log is intact, undo the last file change |
-| `ama doctor` | check drivers, GPU, sandbox, providers and applications |
-| `ama discover` | a live map of the system: commands, files, tools, permissions |
-| `Super+K` | every keyboard shortcut and system command, searchable |
-| `Super+Space` | the Amadeus menu, with applications and settings searchable from every list |
-| `Super+Shift+Enter` | your default AI coding harness, in a terminal |
-| `Super+C` · `Super+V` · `Super+Ctrl+V` | copy and paste that work the same everywhere, terminals included · clipboard history |
-| `Super+S` · `Super+Alt+S` | show or hide the scratchpad over everything · send the focused window to it |
-| `Print` | screenshot: the screen freezes; drag an area, click a window, or click empty space for the whole screen. Saved and copied. |
-| `Alt+Print` | record the screen (no sound, the computer's sound, or that and the microphone), or stop recording. A red mark in the bar also stops it. |
-| `Super+Escape` | lock, suspend, hibernate, log out, restart, shut down |
-| `Super+Z` · `Super+A` | the Amadeus panel · the panel, about the focused window |
-| `amadeus-update` | update the system and the applications from the AUR |
-| `amadeus-aur` | look up, review, build and install applications from the AUR |
-| `amadeus-harness` | install, remove, update and run AI coding harnesses (Claude Code, Codex, opencode, Antigravity CLI and others) through mise |
-| `amadeus-default` | show or set your default terminal, editor and harness |
-| `amadeus-rollback` | list snapshots, or go back to one |
+The display popover and Setup text-size control adjust shell and panel text, GTK
+scaling and terminal configuration together. Existing terminals may need a new window.
+Display resolution and scaling are separate from text size. The sound popover lists
+ready device endpoints and omits application streams, monitors and virtual nodes.
 
-### The bar
+The bar's controls open their corresponding settings. Power profiles follow cable and
+battery state when those services are available. The passwordless-administrator switch
+is off by default and requires authentication to enable; it is separate from AI root
+mode. Its timed choices end automatically, and it never survives a restart.
 
-| | |
-|---|---|
-| Left | Workspaces, and the title of the focused window. |
-| Centre | Administrator-without-password switch (15 minutes, 30 minutes, 1 hour, or until turned off), stay-awake switch, the day and 12-hour time (click for a calendar), the weather. |
-| Right | Applications running in the background, Bluetooth, Wi-Fi, volume, display, AI usage, battery, and the Amadeus button. Each opens a small panel: devices and networks to connect to, sliders, and the power mode. |
+For the current shortcuts and command descriptions, use **Super+K** or
+`amadeus-keys --print`. The [desktop defaults](desktop/hypr/default.lua) define the
+shipped bindings; the [bar layout](desktop/shell/bar.default.json) defines its initial
+placement. Personal bar changes live in `~/.config/amadeus/bar.json`.
 
-Power mode follows the cable: performance when plugged in, balanced on battery, battery
-saver under 20%. The layout is a file (`~/.config/amadeus/bar.json`); ask Amadeus to
-rearrange it, or edit it.
+## Using Amadeus
 
-### The Amadeus menu
+**Super+Z** opens the right-side panel. **Super+A** opens it with the focused window as
+context. Each request is a task: tasks can run in parallel, show their steps, be stopped,
+and undo journalled file changes. Stopping a task does not undo completed actions.
 
-| | |
-|---|---|
-| **Install** | Terminals, browsers, editors, AI desktop apps, development tools, AI coding harnesses, web apps, any package, anything from the AUR. Each list shows details beside it and marks what is installed. Software comes from the system repositories when it is there, and from an AUR recipe of the publisher's own build only when it is not. |
-| **Remove** | Packages, harnesses and tools, web apps. |
-| **Update** | Everything, or only what mise manages. |
-| **Trigger** | Capture: screenshot, and the three kinds of screen recording. |
-| **Setup** | Display resolution and scaling, GPU (automatic, NVIDIA for everything, or Intel only), text size, defaults (including the panel agent and what opens each kind of file), and Config, which opens any of the system's configuration files in your editor. |
-| **System** | Lock, suspend, hibernate, log out, restart, shut down. |
-| **About** | The facts about this machine. |
+Open **Settings** in the panel to select a subscription, API provider or local model.
+**Setup → Defaults → Agent** saves the panel's default. A temporary panel selection
+applies to the next request; **Use default** clears it. The terminal harness default is
+independent. Install a missing CLI through **Install → Harness**, then use the provider's
+sign-in flow. Provider definitions live in the [configuration module](ai/amadeus/config.py).
 
-## Build
+API setup accepts a model, server address and private key. Saved keys are not displayed
+in the provider listing. A CLI being installed or configuration fields being present
+is not proof that authentication or a model endpoint works.
 
-Everything is built and tested inside a container. Nothing is installed on the machine
-doing the build. Requirements: Docker and KVM.
+The AI control at the top right shows the default agent and opens usage. It reads
+subscription limits on demand and caches results briefly. It sends no model request
+and does not refresh credentials. Recent Amadeus request counts are not a complete
+history of every external agent. Providers without subscription limits show an
+explanation rather than an invented quota.
 
-```
-./build.sh iso     build out/amadeus-os-<date>-x86_64.iso
-./build.sh test    install it in a VM, boot the result, run the self-test and both rollback paths
-./build.sh preview draw the shell and the panel headless; pictures land in out/preview/
+```bash
+ama "why is the fan loud?"
+ama "set up a workspace for writing"
+ama "build me a habit tracker"
 ```
 
-## Install
+Use `ama --help` for CLI usage, `ama discover` for the installed capabilities, and
+`ama doctor` for diagnostics. On an installed system, `ama skill` prints the agent
+management guide. That guide teaches discovery rather than storing a system inventory.
 
-**To try it without installing**, write the ISO to a USB stick (step 1 below) and start
-the computer from it (F12 at the logo on Dell machines). The first menu entry, **Try
-Amadeus OS**, starts the full desktop from the stick. Everything runs in memory and
-nothing is written to any disk; it is gone when you turn the computer off. It runs the
-stick's own kernel rather than CachyOS's, which is enough to check graphics, Wi-Fi,
-Bluetooth, sleep and the desktop.
+AI actions follow the configured policy. Destructive and privileged tools require
+approval; structured privileged tools also require user-enabled root mode. An approved
+host-shell command runs with the user's existing OS permissions, including any sudo
+access the user enabled separately. File undo, app source rollback and system snapshot
+rollback cover different kinds of changes.
 
-**To install onto a USB drive** (a fast one: a cheap stick writes too slowly to run a
-system from), use `./build.sh usb /dev/sdX` from a computer with Docker. The installer
-appears in a window and the virtual machine running it sees only that drive.
+## Build and validate
 
-**To install for good:**
+Use `build.sh` as the build/test entry point. Builds run in Docker and installation tests
+run in QEMU/KVM. The tested setup uses the host Intel render node for VM graphics.
+No build package is installed on the host.
 
-1. Write the ISO to a USB stick:
-   `sudo dd if=out/amadeus-os-*.iso of=/dev/sdX bs=4M status=progress oflag=sync`
-2. Boot it (UEFI, Secure Boot off) and choose **Install Amadeus OS**. The guided installer starts: keyboard,
-   internet (optional), your name and password, time zone, disk, encryption,
-   optional extras, then a summary. The extras answer does not change the base apps.
-3. Nothing is written until you type the disk's name at the summary. Then it installs,
-   which takes about ten minutes and needs no internet: every package is on the ISO. It
-   then offers to restart. Connect afterwards, from the bar, for updates.
-
-## Repository
-
-```
-installer/   amadeus-install and the package lists: this is the definition of the system
-desktop/     the amadeus-desktop package: compositor defaults, bar, system tools
-ai/          the amadeus package: daemon, policy, providers, tools, app framework, UI components
-iso/         live-medium additions and the ISO build
-test/        VM harness: install, first boot, rollback from the system, rollback from the ISO
-docs/        decisions, architecture, roadmap
-build.sh     entry point
+```bash
+./build.sh check
+./build.sh iso
+./build.sh preview
+./build.sh test
 ```
 
-## Status
+The [build guide](agents/build-and-test.md) explains the checks and generated logs.
+The script's header documents other modes. Build output belongs in `out/` and is not
+committed.
 
-| | |
-|---|---|
-| Verified in a VM (117 checks, all passing) | UEFI boot and unattended encrypted install on the CachyOS base and kernel; first boot into the Hyprland desktop; the shell, universal app/settings search, unified text sizing, optional app defaults, keyring disabled by default, saved AI agent selection, usage controls, bar drop-downs, stay-awake and passwordless-administrator switches, notifications, clipboard history, scratchpad, screenshots and screen recording; every shortcut described and listed by Super+K; the install catalogue, web apps, harnesses through mise, defaults; snapshots, sandbox, policy and audit log; AI requests end to end with a scripted model; rollback from the running system and from the ISO, each followed by a clean boot |
-| Not yet exercised | A real model driving the system (the VM has no provider login, so the model is scripted); clicking through the panel and bar by hand; the guided installer's screens and its Wi-Fi step (the VM test uses the unattended path behind it); `amadeus-update`; Setup > GPU modes |
-| Decided, not yet built | A mark on windows the AI is working in |
-| Never tested | Real hardware: the NVIDIA driver and power path, Dynamic Boost, Wi-Fi, suspend |
+## Try and install
 
-The earlier Arch + Hyprland version is kept under the tag `v0-arch`.
+Use the exact ISO filename generated in `out/`. Writing it to a USB drive erases that
+USB drive immediately; it is separate from the installer's later disk confirmation.
+Replace both placeholders with the intended ISO file and whole USB drive:
 
-Next steps are in [docs/ROADMAP.md](docs/ROADMAP.md).
+```bash
+sudo dd if=out/amadeus-os-YYYY.MM.DD-x86_64.iso of=/dev/sdX bs=4M status=progress oflag=sync
+```
+
+Boot in UEFI mode with Secure Boot off. **Try Amadeus OS** is the default entry: it
+starts a temporary desktop in memory without installing to an internal disk. Changes
+are lost on shutdown. The live medium uses Arch's kernel, so its hardware behavior does
+not establish that of the installed CachyOS kernel.
+
+Choose **Install Amadeus OS** for the guided flow. It asks for identity, network and
+storage choices, then the optional extras selection. Nothing is installed onto the
+selected system disk until its name is typed at the final summary. The target machine's
+x86-64-v3 installation works without internet; the generic-processor fallback needs a
+connection. Harness downloads, provider sign-in and later updates need network access.
+
+For a portable system on a USB drive, `./build.sh usb /dev/sdX` starts the guided installer
+in a VM that sees the selected drive. That workflow unmounts the chosen USB on the host,
+and the installer erases it after confirmation. Portable installs include the NVIDIA
+driver and broader boot-image coverage; CPU-build compatibility still applies.
+
+The medium seeds missing package indexes for offline browsing. Their first online sync
+fetches current metadata instead of treating the copy time as freshness. Signature
+verification remains enabled.
+
+## Updates and recovery
+
+Run `amadeus-update` as your user. It takes a system snapshot before updating, ranks
+mirrors when due, and updates repository packages, AUR apps and mise-managed tools.
+Number-based cleanup is configured to retain the newest five snapshots. The temporary
+Try session takes no system snapshot because its changes disappear on restart.
+
+Normal manual package installs and removals have no automatic snapshot hook. The AI's
+structured package tool asks the root helper to create a pre/post pair and reports the
+available recovery information. Inspect current snapshots before relying on a particular
+recovery point. A system-root snapshot does not back up the separate home subvolume.
+
+Use `amadeus-rollback` to inspect recovery choices. It can select a system snapshot from
+the running installation or the installer medium. Journalled file undo and generated-app
+source rollback do not replace a backup of personal data.
+
+## Verification
+
+Runtime [cab3010](https://github.com/Jitheswar/Amadeus/commit/cab3010864cdbc7bea2d2d9179630cd92465f793),
+with results recorded in [82c2880](https://github.com/Jitheswar/Amadeus/commit/82c28800a98b0e6cdbcf1a4f14bff7fa3b8e74d5),
+passed **117 installed-system checks**: 102 on first boot,
+eight after rollback from the running system, and seven after rollback from the ISO.
+The live-session test, fast checks, QML syntax checks and headless previews also passed.
+This includes offline encrypted installation, package-index refresh, optional app and
+keyring defaults, cross-menu search, text sizing, agent defaults, usage controls, and AI
+requests against a scripted local model.
+
+Real hardware, live subscription/API authentication, manual guided-installer interaction,
+full system updates and the explicit GPU modes still need validation. The VM has no
+NVIDIA card, battery or Wi-Fi adapter. Preview images check rendering rather than real
+compositor motion.
+
+Contributors should start with [AGENTS.md](AGENTS.md). Planned work and remaining
+validation are tracked in the [roadmap](docs/ROADMAP.md). The earlier Arch version is
+preserved under the `v0-arch` tag.
