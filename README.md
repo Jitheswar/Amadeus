@@ -10,7 +10,7 @@ includes the packages needed to reach a usable system.
 The target is a Core i5-13450HX laptop with Intel UHD graphics, an RTX 3050 6 GB,
 16 GB RAM and a 1 TB NVMe drive.
 
-> **Pre-release:** the current runtime passed 117 installed-system VM checks, including
+> **Pre-release:** the current runtime passed 136 installed-system VM checks, including
 > both rollback paths, plus the live-session checks. Real hardware and live provider
 > authentication have not been verified. See [Verification](#verification).
 
@@ -88,8 +88,8 @@ placement. Personal bar changes live in `~/.config/amadeus/bar.json`.
 **Super+Z** opens the right-side panel. **Super+A** opens it with the focused window as
 context. Each request is a task: tasks can run in parallel, show their steps, be stopped,
 and undo journalled file changes. Stopping a task does not undo completed actions or
-instantly interrupt an OS command already in progress. **Super+Shift+Escape** stops all
-Amadeus tasks and dismisses their pending approvals. The bar shows a working count while
+instantly interrupt a provider request or OS command already in progress.
+**Super+Shift+Escape** stops all Amadeus tasks and dismisses their pending approvals. The bar shows a working count while
 requests are active.
 
 The same AI panel is reachable from desktop settings, **Ctrl+Enter** in a menu,
@@ -212,17 +212,24 @@ source rollback do not replace a backup of personal data.
 
 ## Verification
 
-Runtime [cab3010](https://github.com/Jitheswar/Amadeus/commit/cab3010864cdbc7bea2d2d9179630cd92465f793),
-with results recorded in [82c2880](https://github.com/Jitheswar/Amadeus/commit/82c28800a98b0e6cdbcf1a4f14bff7fa3b8e74d5),
-passed **117 installed-system checks**: 102 on first boot,
-eight after rollback from the running system, and seven after rollback from the ISO.
-The live-session test, fast checks, QML syntax checks and headless previews also passed.
-This includes offline encrypted installation, package-index refresh, optional app and
-keyring defaults, cross-menu search, text sizing, agent defaults, usage controls, and AI
-requests against a scripted local model.
+Runtime [8c87514](https://github.com/Jitheswar/Amadeus/commit/8c875149191eb9db66f795060191f15d8106de55)
+passed **136 installed-system checks**: 121 on first boot,
+8 after rollback from the running system, and 7 after rollback from the ISO.
+The Try-session checks, fast checks, QML checks and inspected headless previews also passed.
+Installation had no internet access. AI requests used a scripted local model.
+
+The VM exercised password-only profile entry, rejection of an incorrect password,
+graphical logout/login in both sessions, and keyboard navigation with a stationary mouse.
+Native AI checks covered setting changes and exact text-size undo, timer enable/disable,
+disabled jobs, event cooldowns, a model run from a real app-focus event, NetworkManager
+profile updates, screen-image delivery, approved keyboard input and return to idle.
+Checks for the Files entry, optional-app/keyring defaults, search, usage controls and
+package-index refresh also passed.
 
 Real hardware, live subscription/API authentication, manual guided-installer interaction,
-full system updates and the explicit GPU modes still need validation. The VM has no
+full system updates and the explicit GPU modes still need validation. Multi-profile login
+needs a manual walkthrough beyond the account-cache unit checks. Live vision reasoning
+and accessibility actions across applications also need validation. The VM has no
 NVIDIA card, battery or Wi-Fi adapter. Preview images check rendering rather than real
 compositor motion.
 

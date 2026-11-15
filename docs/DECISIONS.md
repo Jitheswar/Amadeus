@@ -390,5 +390,5 @@ private job files are the source for timer reconciliation after undo.
 The existing daemon publishes activity when request state changes. The shell watches
 that file and enabled event names. No new resident scheduler, idle model request, quota
 poller or screen recorder is introduced. Stop cancels further tool execution, provider
-processes and pending approvals; an OS command already running may finish within its
+processes and pending approvals; a provider request or OS command already running may finish within its
 timeout. Native GUI actions retain the application's own recovery semantics.

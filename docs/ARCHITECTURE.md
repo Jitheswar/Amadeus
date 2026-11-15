@@ -9,6 +9,7 @@ helper. [DECISIONS.md](DECISIONS.md) records why those parts were chosen; the
 ```mermaid
 flowchart LR
     Clients[Panel, CLI and MCP clients] --> Daemon[User-session daemon]
+    Tasks[Opt-in schedules and desktop events] --> Daemon
     Apps[Generated applications] --> AppGate[Per-app socket and manifest check]
     AppGate --> Daemon
     Daemon <--> Providers[API adapters or subscription CLIs]
@@ -121,7 +122,7 @@ is stored in a job. File undo of job configuration reconciles the derived timers
 
 The daemon writes an activity summary on state changes, and the shell watches it for the
 working count. Stop resolves pending approvals to denial, closes approval dialogs and
-terminates a registered provider process. An OS command already executing can finish;
+terminates a registered provider process. A provider request or OS command already executing can finish;
 completed window actions cannot be reversed by file undo.
 
 ## Generated applications

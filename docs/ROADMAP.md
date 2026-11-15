@@ -28,10 +28,13 @@ discovery output rather than this roadmap.
 
 ## Verified baseline
 
-The runtime identified in the README passed 117 installed-system VM checks: 102 on first
-boot, eight after rollback from the running system, and seven after rollback from the ISO. The Try-session
-checks, fast checks and QML syntax checks also passed; rendered previews were inspected.
-The VM installation had no internet access. AI requests used a scripted local model.
+The runtime identified in the README passed 136 installed-system VM checks: 121 on first
+boot, 8 after rollback from the running system, and 7 after rollback from the ISO.
+The Try-session checks, fast checks and QML checks also passed; rendered previews were
+inspected. The VM installation had no internet access. AI requests used a scripted model.
+The new native checks exercise real compositor focus and NetworkManager profile changes,
+plus timers, screen sharing, guarded keyboard input and settings undo. Login tests cover
+password entry, rejection and both graphical session round trips.
 
 The package-index regression was reproduced with an old index and a newer detached
 signature: installation-time freshness could retain the old data. The shared seeder
@@ -47,7 +50,8 @@ by the full VM suite. Signature verification remained enabled.
 3. Test full system updates and mirror changes in the VM, plus structured root-mode
    actions beyond the existing refusal and helper checks.
 4. Walk through the guided installer and desktop controls by hand. The automated installer
-   test uses the backend; preview images do not verify real compositor motion.
+   test uses the backend; preview images do not verify real compositor motion. Include the
+   multi-profile chooser and accessibility actions in several native applications.
 
 ## Planned work
 
