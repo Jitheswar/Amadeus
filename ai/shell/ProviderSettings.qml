@@ -57,7 +57,7 @@ Item {
             Row {
                 spacing: Theme.gap * 0.5
                 Repeater { model: ["Subscription", "API", "Local"]
-                    Btn { required property string modelData; text: modelData; primary: settings.kind === modelData
+                    Btn { required property string modelData; text: modelData; selected: settings.kind === modelData
                           onClicked: { settings.kind = modelData; settings.editing = false } }
                 }
             }
@@ -84,14 +84,14 @@ Item {
             }
             Column {
                 visible: !!settings.chosen.name; width: parent.width; spacing: Theme.gap * 0.6
-                Txt { text: "Model" }
+                Txt { text: "Model"; label: true }
                 Field { id: tuneModel; width: parent.width; placeholder: settings.chosen.kind === "Subscription" ? "Blank uses the agent's own default" : "Model name from your provider" }
-                Txt { text: "Reasoning effort"; visible: (settings.chosen.effort_levels || []).length > 0 }
+                Txt { text: "Reasoning effort"; label: true; visible: (settings.chosen.effort_levels || []).length > 0 }
                 Flow {
                     visible: (settings.chosen.effort_levels || []).length > 0
                     width: parent.width; spacing: Theme.gap * 0.5
                     Repeater { model: [""].concat(settings.chosen.effort_levels || [])
-                        Btn { required property string modelData; text: modelData || "Default"; primary: settings.effort === modelData
+                        Btn { required property string modelData; text: modelData || "Default"; selected: settings.effort === modelData
                               onClicked: settings.effort = modelData }
                     }
                 }
@@ -112,17 +112,17 @@ Item {
             }
             Column {
                 visible: settings.editing; width: parent.width; spacing: Theme.gap * 0.6
-                Txt { text: "Provider name" }
+                Txt { text: "Provider name"; label: true }
                 Field { id: apiName; width: parent.width; placeholder: "my-api" }
                 Row { spacing: Theme.gap * 0.5
-                    Btn { text: "OpenAI compatible"; primary: settings.apiType === "openai"; onClicked: settings.apiType = "openai" }
-                    Btn { text: "Claude API"; primary: settings.apiType === "anthropic"; onClicked: { settings.apiType = "anthropic"; address.text = "https://api.anthropic.com" } }
+                    Btn { text: "OpenAI compatible"; selected: settings.apiType === "openai"; onClicked: settings.apiType = "openai" }
+                    Btn { text: "Claude API"; selected: settings.apiType === "anthropic"; onClicked: { settings.apiType = "anthropic"; address.text = "https://api.anthropic.com" } }
                 }
-                Txt { text: "Model" }
+                Txt { text: "Model"; label: true }
                 Field { id: model; width: parent.width; placeholder: "Model name from your provider" }
-                Txt { text: "Server address" }
+                Txt { text: "Server address"; label: true }
                 Field { id: address; width: parent.width; placeholder: "https://api.openai.com/v1" }
-                Txt { text: "API key" }
+                Txt { text: "API key"; label: true }
                 Field { id: key; width: parent.width; placeholder: "Leave blank to keep the saved key"; input.echoMode: TextInput.Password }
                 Btn { text: "Save settings"; primary: true; onClicked: {
                     settings.saveApi(apiName.text.trim(), { type: settings.apiType, model: model.text.trim(), base_url: address.text.trim() }, key.text)

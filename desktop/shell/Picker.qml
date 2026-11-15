@@ -39,14 +39,21 @@ Scope {
 
     function geometry() { return { x: box.x, y: box.y + view.y, width: view.width, height: view.height, contentY: view.contentY } }
     function label(line) { const t = line.indexOf("\t"); return t < 0 ? line : line.slice(0, t) }
+    // A choice that leads to another list keeps the card on screen: the next list replaces
+    // this one in place instead of the menu closing and opening again.
+    property bool holding: false
+    Timer { id: hold; interval: 160; onTriggered: { pick.holding = false; pick.open = false } }
     function start(prompt, infile, pipe, options) {
-        if (open) finish("cancel", [])
+        const swap = holding
+        hold.stop(); holding = false
+        if (open && !swap) finish("cancel", [])
         let o = {}
         try { o = JSON.parse(options) } catch (e) {}
         pick.prompt = prompt; pick.pipe = pipe
         pick.globalSearch = !!o.globalSearch; pick.multi = !!o.multi; pick.allowNew = !!o.allowNew
         pick.preview = o.preview || ""; pick.preview2 = o.preview2 || ""; pick.hint = o.hint || ""; pick.newLabel = o.newLabel || "Press Enter to use what you typed"
-        pick.alt = false; pick.marked = ({}); pick.detail = ""; pick.items = []; pick.shown = []
+        pick.alt = false; pick.marked = ({}); pick.detail = ""
+        if (!swap) { pick.items = []; pick.shown = [] }
         pick.index = 0; pick.filterText = ""; pick.searchPinned = false; pointerGate.reset()
         input.text = ""
         loader.path = infile
@@ -70,9 +77,12 @@ Scope {
     }
     function finish(status, lines) {
         if (pipe) Quickshell.execDetached(["sh", "-c", 'printf "%s\\n" "$@" > "$0"', pipe, status].concat(lines))
-        pipe = ""; open = false; fetch.running = false; pointerGate.reset()
+        pipe = ""; fetch.running = false; pointerGate.reset()
+        if (status === "ok" && !multi) { holding = true; hold.restart() }
+        else { hold.stop(); holding = false; open = false }
     }
     function accept() {
+        if (holding) return
         if (globalResults[current]) {
             const id = globalResults[current].id
             finish("cancel", [])

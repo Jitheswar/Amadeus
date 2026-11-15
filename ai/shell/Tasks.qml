@@ -21,8 +21,12 @@ Flickable {
         id: body
         width: parent.width
         spacing: Theme.gap
-        Row { spacing: Theme.gap; Btn { text: "Refresh"; onClicked: root.refresh() } Btn { text: "Back"; onClicked: root.close() } }
-        Txt { text: "Tasks"; font.pixelSize: Theme.size * 1.3; font.weight: Font.DemiBold }
+        Row {
+            width: parent.width; spacing: Theme.gap * 0.5
+            Txt { text: "Tasks"; title: true; width: parent.width - reload.width - done.width - Theme.gap }
+            Btn { id: reload; text: "Refresh"; onClicked: root.refresh() }
+            Btn { id: done; text: "Done"; onClicked: root.close() }
+        }
         Txt { width: parent.width; dim: true; text: "Scheduled and event-triggered work runs only when enabled. Changes still need your approval. Nothing is captured continuously." }
         Txt { width: parent.width; text: root.formError || root.message; visible: !!text; color: Theme.warn }
         Repeater {
@@ -50,25 +54,25 @@ Flickable {
             }
         }
         Txt { visible: root.jobs.length === 0; text: "No saved tasks. Ask Amadeus to create one, or add it below."; width: parent.width; dim: true }
-        Txt { text: "New task"; font.weight: Font.DemiBold }
+        Txt { text: "New task"; label: true }
         Field { id: label; width: parent.width; placeholder: "Task name" }
         Field { id: prompt; width: parent.width; placeholder: "What should Amadeus do?" }
         Flow { width: parent.width; spacing: Theme.gap * 0.5
             Repeater { model: ["Daily", "Hourly", "App focus", "Low battery", "Network change"]
-                Btn { required property string modelData; text: modelData; primary: root.schedule === modelData; onClicked: root.schedule = modelData }
+                Btn { required property string modelData; text: modelData; selected: root.schedule === modelData; onClicked: root.schedule = modelData }
             }
         }
         Field { id: when; width: parent.width; visible: root.schedule === "Daily"; text: "09:00"; placeholder: "Time (24-hour HH:MM)" }
         Field { id: match; width: parent.width; visible: root.schedule === "App focus"; placeholder: "App id, e.g. firefox (leave blank for any app)" }
-        Txt { text: "Agent"; dim: true }
+        Txt { text: "Agent"; label: true }
         Flow { width: parent.width; spacing: Theme.gap * 0.5
-            Btn { text: "Use default"; primary: !root.provider; onClicked: root.provider = "" }
+            Btn { text: "Use default"; selected: !root.provider; onClicked: root.provider = "" }
             Repeater { model: root.providers
-                Btn { required property var modelData; text: modelData.label; primary: root.provider === modelData.name; onClicked: root.provider = modelData.name }
+                Btn { required property var modelData; text: modelData.label; selected: root.provider === modelData.name; onClicked: root.provider = modelData.name }
             }
         }
         Btn {
-            text: "Save disabled"; enabled: label.text.trim() && prompt.text.trim()
+            text: "Save disabled"; primary: true; enabled: label.text.trim() && prompt.text.trim()
             onClicked: {
                 let args = { action: "save", id: "task-" + Date.now().toString(36), label: label.text.trim(), prompt: prompt.text.trim(), provider: root.provider, enabled: false }
                 if (root.schedule === "Daily" || root.schedule === "Hourly") {

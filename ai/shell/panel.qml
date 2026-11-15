@@ -263,8 +263,8 @@ ShellRoot {
                 Txt { width: parent.width - manage.width - jobsButton.width - Theme.gap * 1.2; anchors.verticalCenter: parent.verticalCenter
                       text: [root.selectedInfo.label || "Choose an agent", root.selectedInfo.kind, (root.tune || root.selectedInfo).model, (root.tune || root.selectedInfo).effort].filter(Boolean).join(" · ")
                       elide: Text.ElideRight; wrapMode: Text.NoWrap }
-                Btn { id: jobsButton; text: "Tasks"; onClicked: { root.tasksOpen = !root.tasksOpen; root.settingsOpen = false; root.refreshTasks() } }
-                Btn { id: manage; text: "Settings"; onClicked: { root.tasksOpen = false; root.settingsOpen = !root.settingsOpen; root.refreshProviders() } }
+                Btn { id: jobsButton; text: "Tasks"; selected: root.tasksOpen; onClicked: { root.tasksOpen = !root.tasksOpen; root.settingsOpen = false; root.refreshTasks() } }
+                Btn { id: manage; text: "Settings"; selected: root.settingsOpen; onClicked: { root.tasksOpen = false; root.settingsOpen = !root.settingsOpen; root.refreshProviders() } }
             }
             ProviderSettings {
                 visible: root.settingsOpen
@@ -357,7 +357,9 @@ ShellRoot {
                         color: row.kind === "user" ? Theme.accent : row.kind === "error" ? Theme.bad : row.kind === "approval" ? Theme.warn : (["tool", "note", "about"].includes(row.kind) ? Theme.dim : Theme.fg)
                         font.pixelSize: row.kind === "tool" ? Theme.size * 0.85 : Theme.size
                     }
-                    Btn { text: "Copy"; visible: row.kind === "ai"; onClicked: { messageText.selectAll(); messageText.copy(); messageText.deselect() } }
+                    Txt { text: "Copy"; label: true; visible: row.kind === "ai"; x: Theme.gap * 0.8
+                          MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor
+                                      onClicked: { messageText.selectAll(); messageText.copy(); messageText.deselect() } } }
                     Row {
                         visible: row.kind === "approval" && row.pending
                         spacing: Theme.gap * 0.6
@@ -389,7 +391,7 @@ ShellRoot {
                     spacing: Theme.gap * 0.5
                     Repeater { model: root.modes
                         Btn { required property var modelData; text: modelData.label
-                              primary: root.mode === modelData.key; onClicked: root.chooseMode(modelData.key) }
+                              selected: root.mode === modelData.key; onClicked: root.chooseMode(modelData.key) }
                     }
                 }
                 Txt { width: parent.width; dim: true; font.pixelSize: Theme.size * 0.85
