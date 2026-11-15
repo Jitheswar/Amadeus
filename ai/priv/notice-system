@@ -7,10 +7,17 @@ tell() {  # RUNTIME_DIR EVENT WORDS...
   runuser -u "$user" -- env XDG_RUNTIME_DIR="$dir" /usr/bin/ama event "$@" || true
 }
 if [[ ${1:-} == --crash ]]; then
-  # The crash that was just recorded: whose it was, and the program's name.
-  read -r uid app < <(coredumpctl list -n 1 --no-pager --json=short 2>/dev/null |
-    python3 -c 'import json, os, sys; e = json.load(sys.stdin)[-1]; print(e["uid"], os.path.basename(e["exe"]))' 2>/dev/null)
-  [[ $uid =~ ^[0-9]+$ && $app =~ ^[A-Za-z0-9][A-Za-z0-9+._-]{0,63}$ ]] || exit 0
+  # The crash that was just recorded: whose it was, and the program's name. The record
+  # reaches the journal a moment after the handler exits, so wait briefly for a fresh one.
+  for _ in 1 2 3 4 5 6; do
+    read -r uid app < <(coredumpctl list -n 1 --no-pager --json=short 2>/dev/null | python3 -c '
+import json, os, sys, time
+e = json.load(sys.stdin)[-1]
+if time.time() - e["time"] / 1e6 < 30: print(e["uid"], os.path.basename(e["exe"]))' 2>/dev/null)
+    [[ -n ${uid:-} ]] && break
+    sleep 0.5
+  done
+  [[ ${uid:-} =~ ^[0-9]+$ && ${app:-} =~ ^[A-Za-z0-9][A-Za-z0-9+._-]{0,63}$ ]] || { echo "amadeus: no fresh crash record to report" >&2; exit 0; }
   tell "/run/user/$uid" app-crashed "app=$app"
   exit 0
 fi
