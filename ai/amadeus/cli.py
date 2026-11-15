@@ -10,8 +10,9 @@ HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
   ama provider [--json | use NAME | key NAME | tune NAME [model=M] [effort=LEVEL]]
   ama mode [ask | sandbox | auto]
                               how much a request may do unasked; full access is confirmed per request in the panel
-  ama task list | run ID       inspect or run an enabled task; manage tasks in the panel
-  ama event NAME JSON          deliver an opted-in desktop event
+  ama task list | run ID | auto ID on|off
+                              inspect or run an enabled task; `auto` lets that task make reversible changes unasked
+  ama event NAME JSON          deliver a desktop or system event (systemd reports failed services this way)
   ama usage [--force]          subscription limits and local request counts as JSON
   ama root on [--full] [--ttl MIN] | off | status
   ama app list | run ID | history ID | rollback ID [N] | remove ID
@@ -291,10 +292,23 @@ def main(argv=None):
         c = Client()
         if not rest or rest == ["list"]: return print(json.dumps(c.call("tasks"), indent=2))
         if len(rest) == 2 and rest[0] == "run": return print(json.dumps(c.call("task_run", id=rest[1])))
+        if len(rest) == 3 and rest[0] == "auto" and rest[2] in ("on", "off"):
+            return print("unasked reversible changes: " + ("on" if c.call("task_auto", id=rest[1], on=rest[2] == "on")["auto"] else "off"))
         sys.exit(HELP)
+    if cmd == "event" and rest == ["disk-check"]:
+        import shutil
+        c = Client()
+        for mount in ("/", "/home"):
+            usage = shutil.disk_usage(mount)
+            percent = round(100 * usage.used / usage.total)
+            if percent >= 90:
+                c.call("desktop_event", name="disk-low", data={"mount": mount, "percent": percent})
+        return
     if cmd == "event":
-        if len(rest) != 2: sys.exit(HELP)
-        return Client().call("desktop_event", name=rest[0], data=json.loads(rest[1]))
+        if len(rest) < 2: sys.exit(HELP)
+        # systemd units pass plain key=value words; a desktop event passes one JSON object.
+        data = json.loads(rest[1]) if rest[1].startswith("{") else dict(word.split("=", 1) for word in rest[1:])
+        return Client().call("desktop_event", name=rest[0], data=data)
     if cmd == "panel":
         return panel_cmd(rest)
     if cmd == "provider" and rest == ["--json"]:

@@ -4,8 +4,8 @@ from .. import tasks
 
 
 @tool("task_manage", "List, save, enable/disable or remove an Amadeus task. Tasks are disabled unless enabled=true is explicit. "
-      "A timer uses a systemd calendar expression; an event is app-focused, battery-low or network-changed. "
-      "match filters the app id or connection name. A provider name is optional (empty uses the saved default). "
+      "A timer uses a systemd calendar expression; an event is app-focused, battery-low, network-changed, "
+      "unit-failed (a service failed) or disk-low. match filters the app id, connection, unit or mount name. A provider name is optional (empty uses the saved default). "
       "Every automated change still asks at execution time; root mode and approvals are never saved in a task.",
       {"action": {"type": "string", "enum": ["list", "save", "enable", "disable", "remove"]},
        "id": {"type": "string"}, "label": {"type": "string"}, "prompt": {"type": "string"},

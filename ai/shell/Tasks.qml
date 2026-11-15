@@ -13,6 +13,7 @@ Flickable {
     signal manage(var args)
     signal runTask(var job)
     signal stopTask(string session)
+    signal grant(string id, bool on)
     signal close()
     clip: true
     contentHeight: body.height
@@ -42,11 +43,15 @@ Flickable {
                     Txt { text: modelData.label; font.weight: Font.DemiBold; width: parent.width }
                     Txt { width: parent.width; dim: true; text: (modelData.enabled ? "Enabled" : "Disabled") + " · " + (modelData.trigger === "timer" ? modelData.calendar : modelData.event + " · " + modelData.match) + " · " + (modelData.provider || "Default agent") }
                     Txt { width: parent.width; text: modelData.prompt }
+                    Txt { width: parent.width; visible: !!modelData.auto; color: Theme.warn; font.pixelSize: Theme.size * 0.85
+                          text: "This task may change your files and desktop without asking. Deleting, root and screen actions still ask. Editing the task turns this off." }
                     Txt { width: parent.width; dim: true; visible: !!modelData.last; text: modelData.last ? "Last: " + modelData.last.state + (modelData.last.summary ? " · " + modelData.last.summary : "") : "" }
                     Flow {
                         width: parent.width; spacing: Theme.gap * 0.5
                         Btn { text: modelData.enabled ? "Disable" : "Enable"; onClicked: root.manage({action: modelData.enabled ? "disable" : "enable", id: modelData.id}) }
                         Btn { text: "Run"; enabled: modelData.enabled; onClicked: root.runTask(modelData) }
+                        Btn { text: modelData.auto ? "Unasked changes: on" : "Unasked changes: off"; selected: !!modelData.auto
+                              onClicked: root.grant(modelData.id, !modelData.auto) }
                         Btn { text: "Stop"; visible: !!modelData.last && modelData.last.state === "running"; onClicked: root.stopTask(modelData.last.session) }
                         Btn { text: "Remove"; onClicked: root.manage({action: "remove", id: modelData.id}) }
                     }

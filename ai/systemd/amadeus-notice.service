@@ -1,0 +1,8 @@
+[Unit]
+Description=Amadeus: report that %i failed
+# This unit's own failure must not report itself.
+OnFailure=
+
+[Service]
+Type=oneshot
+ExecStart=@NOTICE@ %i

@@ -1,0 +1,7 @@
+[Unit]
+Description=Amadeus: notice when a disk is nearly full
+
+[Service]
+Type=oneshot
+ExecStart=@AMA@ event disk-check
+Nice=10

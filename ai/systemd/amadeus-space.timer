@@ -1,0 +1,10 @@
+[Unit]
+Description=Amadeus: look at free disk space once an hour
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=10min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

@@ -21,6 +21,18 @@ package() {
   printf '#!/usr/bin/python3\nimport sys\nsys.path.insert(0, "/usr/share/amadeus")\nfrom amadeus.cli import main\nmain()\n' >"$pkgdir/usr/bin/ama"
   chmod 755 "$pkgdir/usr/bin/ama"
   sed 's|@AMA@|/usr/bin/ama|' "$src/systemd/amadeusd.service" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/amadeusd.service"
+  # Failed services and a nearly full disk are reported to the session daemon.
+  install -Dm755 "$src/priv/notice-system" -t "$pkgdir/usr/lib/amadeus/"
+  for scope in user system; do
+    install -Dm644 "$src/systemd/10-amadeus-notice.conf" -t "$pkgdir/usr/lib/systemd/$scope/service.d/"
+    printf '[Unit]\nOnFailure=\n' | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/$scope/amadeus-notice@.service.d/10-no-loop.conf"
+  done
+  sed 's|@NOTICE@|/usr/bin/ama event unit-failed scope=user unit=|; s|= %i|=%i|' "$src/systemd/amadeus-notice.service" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/amadeus-notice@.service"
+  sed 's|@NOTICE@|/usr/lib/amadeus/notice-system|' "$src/systemd/amadeus-notice.service" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/system/amadeus-notice@.service"
+  sed 's|@AMA@|/usr/bin/ama|' "$src/systemd/amadeus-space.service" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/amadeus-space.service"
+  install -Dm644 "$src/systemd/amadeus-space.timer" -t "$pkgdir/usr/lib/systemd/user/"
+  install -d "$pkgdir/usr/lib/systemd/user/timers.target.wants"
+  ln -s ../amadeus-space.timer "$pkgdir/usr/lib/systemd/user/timers.target.wants/amadeus-space.timer"
   install -Dm644 "$src/priv/org.amadeus.rootmode.policy" -t "$pkgdir/usr/share/polkit-1/actions/"
   install -Dm644 "$src"/../docs/*.md "$src/../README.md" -t "$pkgdir/usr/share/doc/amadeus/"
 }

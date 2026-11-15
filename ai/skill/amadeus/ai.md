@@ -27,7 +27,9 @@ Read this before changing how Amadeus thinks or what it may do.
 
 Use `task_manage`. A task is saved disabled until the user enables it, runs only while
 the session is up, never stores an approval or root grant, and its changes still ask.
-Say when it will run and with which provider.
+Say when it will run and with which provider. A task can also react to a failed
+service or a nearly full disk. Only the user can mark a task to make reversible
+changes unasked (`ama task auto`); you cannot, and editing the task clears the mark.
 
 ## Context, tools and memory
 

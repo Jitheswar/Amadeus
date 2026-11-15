@@ -1,0 +1,10 @@
+#!/bin/bash
+# Tell the Amadeus of each logged-in user that a system service failed; only the unit's name is passed on.
+unit=$1
+[[ $unit =~ ^[A-Za-z0-9@:._\\-]{1,200}\.(service|socket|mount|timer)$ ]] || exit 0
+for dir in /run/user/*; do
+  [[ -S $dir/amadeus/daemon.sock ]] || continue
+  user=$(id -un "${dir##*/}" 2>/dev/null) || continue
+  runuser -u "$user" -- env XDG_RUNTIME_DIR="$dir" /usr/bin/ama event unit-failed scope=system "unit=$unit" || true
+done
+exit 0

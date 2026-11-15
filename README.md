@@ -124,6 +124,17 @@ the selected provider, so image reasoning needs a vision-capable model. Input us
 observation and checks the window again after approval. Completed GUI actions have no
 automatic file undo.
 
+Amadeus also notices some things by itself. When a service fails, or a disk passes 90%
+full, a notification offers to look into it; clicking it hands the panel a request that
+runs under your execution mode and approvals like any other. The same thing is not
+offered again for six hours, and `notices = false` in the configuration turns this off.
+Failures are reported by systemd as they happen; disk space is read once an hour.
+
+A task can be marked **Unasked changes** in its card (or with `ama task auto ID on`).
+That task may then change your files and desktop without asking, as Auto mode does.
+Everything else still asks, and editing what the task does or when it runs turns the
+mark off again. Only you can set it; Amadeus cannot grant it to itself.
+
 Open **Tasks** in the panel or **Setup → Tasks** to create scheduled or desktop-event work.
 New tasks are disabled until enabled. Each can use the default agent or a specific provider.
 They run only while the user session and daemon are available; missed timer runs are not

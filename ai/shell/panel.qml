@@ -289,6 +289,7 @@ ShellRoot {
                 onRefresh: root.refreshTasks()
                 onManage: args => root.taskRequest("tool", {name: "task_manage", args: args})
                 onRunTask: job => root.runSavedTask(job)
+                onGrant: (id, on) => root.taskRequest("task_auto", {id: id, on: on})
                 onStopTask: session => { root.send("stop", {session: session}); root.refreshTasks() }
                 onClose: root.tasksOpen = false
             }

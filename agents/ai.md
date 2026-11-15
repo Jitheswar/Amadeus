@@ -44,7 +44,11 @@ not style.
     sharing with a provider. Input needs separate approval, a fresh session-bound
     observation and focus/lock checks after approval. Never promise file undo for GUI actions.
 12. **Automations retain policy.** Default disabled, no persisted approvals or root grants,
-    no overlapping runs, no idle model polling. Generated units must not contain prompts.
+    no overlapping runs, no idle model polling. The one standing grant is the user's own:
+    a task they mark may make automatic mode's reversible changes unasked. Only the
+    panel or the command line sets it, never a tool, and any change to what the task
+    does or when it runs withdraws it. A notice (a failed service, a full disk) is an
+    offer the user clicks, built from validated event fields, never an action. Generated units must not contain prompts.
     Reconcile derived timers after undo and clean up approval dialogs when stopped.
 
 13. **Modes adjust, never replace, the policy.** An execution mode is per request and is
