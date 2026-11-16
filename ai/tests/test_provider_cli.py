@@ -4,7 +4,7 @@
 Claude Code and Codex run their own agent loop; these tests check the way the
 daemon starts them, what reaches the model, and how their output comes back.
 No subscription, network or real CLI is used."""
-import json, os, sys, tempfile, tomllib, unittest
+import json, os, sys, tempfile, threading, time, tomllib, unittest
 from pathlib import Path
 
 if not os.environ.get("AMADEUS_CONFIG"):
@@ -134,6 +134,17 @@ printf 'codex answer\\n' > "$out"
         self.assertEqual(server, {"command": sys.executable, "args": ["-m", "amadeus.cli", "mcp"],
                                  "env": {"AMADEUS_SESSION": "session-7", "PYTHONPATH": str(config.SHARE)}})
         self.assertTrue(any("system rules" in a and "do it" in a for a in argv))
+
+    def test_codex_can_be_stopped(self):
+        fake = self.script("codex", "exec sleep 30\n")
+        provider = CodexCLI("codex-cli", {"command": str(fake)})
+        started = time.time()
+        def emit(kind, data):
+            if kind == "_proc":
+                threading.Timer(0.2, data.terminate).start()
+        with self.assertRaises(ProviderError):
+            provider.run("system", [{"role": "user", "text": "hi"}], "s", emit)
+        self.assertLess(time.time() - started, 10)
 
     def test_codex_missing_binary_is_a_clear_error(self):
         provider = CodexCLI("codex-cli", {"command": str(self.tmp / "not-there")})

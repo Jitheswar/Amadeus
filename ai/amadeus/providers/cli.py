@@ -120,10 +120,13 @@ class CodexCLI:
             cmd += ["-c", "model_reasoning_effort=" + json.dumps(self.cfg["effort"])]
         cmd.append(system + "\n\n" + _transcript(history))
         try:
-            p = subprocess.run(cmd, capture_output=True, text=True, env=_env(session), cwd=config.WORKSPACE, stdin=subprocess.DEVNULL)
+            p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                                 env=_env(session), cwd=config.WORKSPACE, stdin=subprocess.DEVNULL)
+            emit("_proc", p)        # so stopping the task ends codex too
+            stderr = p.communicate()[1]
             text = out.read().strip()
             if p.returncode and not text:
-                raise ProviderError(f"codex exited {p.returncode}: {p.stderr[-500:]}")
+                raise ProviderError(f"codex exited {p.returncode}: {stderr[-500:]}")
             emit("text", {"text": text})
             return text
         finally:
