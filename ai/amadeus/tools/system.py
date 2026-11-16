@@ -196,7 +196,7 @@ def sys_snapshot(a, ctx):
     return root.call("snapper", action=a["action"], description=a.get("description", "amadeus"), frm=a.get("from"), to=a.get("to"))
 
 
-@tool("sys_config_write", "Write a system configuration file under /etc. The old file is backed up first. Login, sudo, PAM, ssh and fstab files are refused unless root mode is unrestricted. Needs root mode.",
+@tool("sys_config_write", "Write a system configuration file under /etc. The old file is backed up first. Login, sudo, PAM, ssh and fstab files are refused unless root mode is unrestricted; any other file here can still change what runs as root, so the user is asked each time. Needs root mode.",
       {"path": {"type": "string"}, "content": {"type": "string"}}, required=("path", "content"), cap="sys.manage", risk="privileged")
 def sys_config_write(a, ctx):
     return root.call("write_file", path=a["path"], content=a["content"])

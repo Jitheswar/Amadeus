@@ -193,7 +193,9 @@ policy implementation. A denial cannot be bypassed by choosing another Amadeus c
 
 The daemon never runs as root. User-enabled root mode starts a transient helper through
 polkit. It checks the peer user and validates its permitted operations again. Unrestricted
-root execution requires the explicit full mode. Root mode expires at shutdown and can
+root execution requires the explicit full mode. Without it the helper refuses login,
+account and boot-critical files, which prevents a lockout but does not contain root: a
+unit or hook written under `/etc` runs as root, so each such write relies on its approval. Root mode expires at shutdown and can
 have a shorter lifetime.
 
 Approved host-shell commands run with the user's existing OS privileges. The separately

@@ -4,7 +4,11 @@
 Runs as a transient root service only while the user has switched root mode on.
 It is never enabled, so it cannot survive a shutdown. It accepts requests only
 from one user id (checked with SO_PEERCRED) and, unless started with --full,
-only a fixed set of operations with validated arguments."""
+only a fixed set of operations with validated arguments.
+
+The restricted set keeps requests away from login, account and boot-critical files.
+It is not a limit on what root mode can do: a unit or a hook under /etc runs as root.
+What guards those writes is the approval the daemon asks for each one."""
 import argparse, json, os, pwd, re, shutil, socket, struct, subprocess, sys, time
 
 ap = argparse.ArgumentParser()
@@ -17,7 +21,7 @@ START = time.time()
 UNIT = re.compile(r"[A-Za-z0-9_:@\\][A-Za-z0-9_@.:\\-]*")
 PKG = re.compile(r"[a-zA-Z0-9_@+][a-zA-Z0-9@._+-]*")
 PROTECTED = ("/etc/shadow", "/etc/gshadow", "/etc/passwd", "/etc/group", "/etc/sudoers", "/etc/sudoers.d", "/etc/pam.d",
-             "/etc/polkit-1", "/etc/security", "/etc/ssh", "/etc/crypttab", "/etc/fstab", "/etc/amadeus")
+             "/etc/polkit-1", "/etc/security", "/etc/ssh", "/etc/crypttab", "/etc/fstab", "/etc/amadeus", "/etc/ld.so.preload")
 BACKUPS = "/var/lib/amadeus/backups"
 
 
