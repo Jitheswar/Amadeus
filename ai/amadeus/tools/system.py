@@ -1,5 +1,5 @@
 """System state, services, packages, power, snapshots."""
-import os, glob, json, re
+import os, glob, re
 from pathlib import Path
 from . import tool, sh, clip, ToolError
 from .. import root
@@ -114,7 +114,7 @@ def sys_processes(a, ctx):
 def sys_services(a, ctx):
     base = ["systemctl"] + (["--user"] if a.get("scope") == "user" else [])
     if a.get("unit"):
-        return clip(sh(base + ["status", "--no-pager", "-n", "15", a["unit"]]).stdout)
+        return clip(sh(base + ["status", "--no-pager", "-n", "15", "--", str(a["unit"])]).stdout)
     cmd = base + ["list-units", "--type=service", "--no-legend", "--plain", "--no-pager"]
     if a.get("state"):
         cmd += [f"--state={a['state']}"]
@@ -159,9 +159,9 @@ def sys_journal(a, ctx):
 @tool("sys_packages", "Query packages: 'search' the repos, 'info' on one, 'installed' (optionally filtered), 'updates' pending, 'owner' of a file.",
       {"action": {"type": "string", "enum": ["search", "info", "installed", "updates", "owner"]}, "query": {"type": "string"}}, required=("action",))
 def sys_packages(a, ctx):
-    q = a.get("query", "")
-    cmd = {"search": ["pacman", "-Ss", q], "info": ["pacman", "-Si", q] if sh(["pacman", "-Qi", q]).returncode else ["pacman", "-Qi", q],
-           "installed": ["pacman", "-Qe"], "updates": ["checkupdates"], "owner": ["pacman", "-Qo", q]}[a["action"]]
+    q = str(a.get("query", ""))
+    cmd = {"search": ["pacman", "-Ss", "--", q], "info": ["pacman", "-Si", "--", q] if sh(["pacman", "-Qi", "--", q]).returncode else ["pacman", "-Qi", "--", q],
+           "installed": ["pacman", "-Qe"], "updates": ["checkupdates"], "owner": ["pacman", "-Qo", "--", q]}[a["action"]]
     out = sh(cmd, timeout=120).stdout
     if a["action"] == "installed" and q:
         out = "\n".join(l for l in out.splitlines() if q in l)
