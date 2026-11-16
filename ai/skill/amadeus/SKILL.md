@@ -23,6 +23,7 @@ lists them and `ama guide TOPIC` prints one; over MCP the `system_guide` tool do
 - [`recovery.md`](recovery.md): undo, snapshots, rollback
 - [`hardware.md`](hardware.md): GPU, power, displays, audio, network, Bluetooth
 - [`apps.md`](apps.md): building small apps on request
+- [`files.md`](files.md): the user's files, the sandbox, the host shell
 - [`screen.md`](screen.md): seeing and operating an application's window
 - [`troubleshooting.md`](troubleshooting.md): failed services, crashes, a full disk, overdue updates
 
