@@ -94,6 +94,18 @@ class PolicyTest(unittest.TestCase):
         self.p.grant_session("fs.write", "modify")
         self.assertEqual(self.p.decide("fs.write", "modify", {"path": "~/.ssh/a"})[0], "deny")
 
+    def test_amadeus_own_files_are_asked_whatever_the_rule_or_grant(self):
+        """A file tool must not be a way around the capability that guards memory, tasks, apps or the rules."""
+        self.p.rules["fs.write"] = "allow"
+        self.p.grant_session("fs.write", "modify")
+        own = (config.CONFIG / "config.toml", config.DATA / "memory.md", config.DATA / "tasks/job.json",
+               config.DATA / "goals/abc123.json", config.APPS / "notes/manifest.json", config.STATE / "audit.jsonl")
+        for path in own:
+            for args in ({"path": str(path)}, {"src": "~/a", "dst": str(path)}, {"src": str(path), "dst": "~/a"}):
+                self.assertEqual(self.p.decide("fs.write", "modify", args)[0], "ask", args)
+        self.assertEqual(self.p.decide("fs.read", "read", {"path": str(own[1])})[0], "allow")
+        self.assertEqual(self.p.decide("fs.write", "modify", {"path": str(config.WORKSPACE / "a")})[0], "allow")
+
 
 class FilesTest(unittest.TestCase):
     def setUp(self):
@@ -376,6 +388,16 @@ class DaemonRulesTest(unittest.TestCase):
         self.assertTrue(err)
         self.assertIn("declined", out)
         self.assertEqual(asked, ["desktop_clipboard_set"])
+
+    def test_always_is_only_remembered_for_the_users_own_request(self):
+        from amadeus.daemon import Daemon
+        for session, origin, kept in (("core-app", "app:test", False), ("task-x-1", "automation:x", False),
+                                      ("goal-abc123-1", "ai", False), ("core-user", "ai", True)):
+            d = Daemon()
+            d.policy.rules["net.manage"] = "ask"
+            d.ask_user = lambda *a: "always"
+            d.execute("net_control", {"action": "bogus"}, session=session, origin=origin)
+            self.assertEqual("net.manage" in d.policy.session_grants, kept, (session, origin))
 
     def test_reload_keeps_session_grants(self):
         from amadeus.daemon import Daemon

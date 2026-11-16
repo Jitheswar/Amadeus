@@ -56,6 +56,9 @@ not style.
     only relax a user-level `modify` decision. Full access needs a fresh confirmation
     per request and is never stored. A new capability that controls what the AI may do
     or see joins the guarded set there. Model tuning never affects a decision.
+    A file tool that names Amadeus's own configuration, state or data (the workspace
+    excepted) asks under every rule, grant and mode, in `ai/amadeus/policy.py`: without
+    that, writing the file behind a guarded capability would step around it.
 
 14. **A request stays small and stable.** Only the tools named in `CORE` in
     `ai/amadeus/tools/__init__.py` are sent; the rest are reached through `tool_find` and

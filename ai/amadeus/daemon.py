@@ -6,10 +6,15 @@
 
 Everything the AI does goes through `Daemon.execute`, which is the single place
 where policy, approval and audit are enforced."""
-import json, os, socket, socketserver, subprocess, sys, threading, time, uuid, shutil
+import json, os, socketserver, subprocess, threading, time, uuid
 from . import config, audit, policy as P, preferences, providers, tools as T, agent, root, apps
 from .tools import files as F
 from .tools import ToolError
+
+
+def rememberable(session, origin):
+    """An "always" is for the request the user is watching: never an app, a task or a background goal."""
+    return not origin.startswith(("app:", "automation:")) and not session.startswith("goal-")
 
 
 class Ctx:
@@ -69,7 +74,7 @@ class Daemon:
                 decision, reason = "ask", "requested by an app or automation"
         if decision == "ask":
             answer = self.ask_user(session, origin, name, args, cap, risk, reason)
-            if answer == "always":
+            if answer == "always" and rememberable(session, origin):
                 self.policy.grant_session(cap, risk)
             decision = "allow" if answer in ("yes", "always") else "deny"
             reason = "user approved" if decision == "allow" else "user declined"
@@ -106,7 +111,7 @@ class Daemon:
         aid = uuid.uuid4().hex[:12]
         ev = threading.Event()
         self.pending[aid] = {"event": ev, "decision": "no", "session": session}
-        data = {"aid": aid, "tool": name, "args": args, "capability": cap, "risk": risk, "reason": reason, "origin": origin, "rememberable": not origin.startswith(("app:", "automation:"))}
+        data = {"aid": aid, "tool": name, "args": args, "capability": cap, "risk": risk, "reason": reason, "origin": origin, "rememberable": rememberable(session, origin)}
         s = self.sessions.get(session, {})
         conn = s.get("conn")
         try:

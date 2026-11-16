@@ -33,10 +33,17 @@ class Policy:
         if os.environ.get("AGY_DIR"):
             self.deny_paths.append(os.environ["AGY_DIR"])
         self.free_paths = paths.get("free", [])
+        self.own_paths, self.workspace = [config.CONFIG, config.STATE, config.DATA], config.WORKSPACE
         self.session_grants = set()   # capabilities the user chose "always" for; dies with the daemon
 
     def path_denied(self, path):
         return _under(path, self.deny_paths)
+
+    def own_state(self, args):
+        """True when a call names a file Amadeus runs from: its rules, memory, tasks, goals, apps or records.
+        Changing one through a file tool would step around the capability that guards it."""
+        return any(key in args and _under(args[key], self.own_paths) and not _under(args[key], [self.workspace])
+                   for key in ("path", "src", "dst"))
 
     def decide(self, cap, risk, args=None, root_on=False):
         """Return (decision, reason)."""
@@ -53,6 +60,8 @@ class Policy:
             return "ask", f"{risk} action"
         if risk == "read":
             return "allow", "read-only"
+        if self.own_state(args):
+            return "ask", "this changes Amadeus's own settings or records"
         if cap == "fs.write" and "path" in args and _under(args["path"], self.free_paths):
             return "allow", "inside the free workspace"
         if rule == "allow" or cap in self.session_grants:

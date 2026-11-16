@@ -1,7 +1,7 @@
 """Model tuning and execution modes. The two are separate: tuning chooses how a
 provider thinks, a mode chooses how much of the configured policy a request may skip."""
 import copy
-from . import config, policy as P
+from . import config
 
 # What each provider type accepts; an empty choice leaves the provider's own default.
 EFFORTS = {
@@ -84,7 +84,7 @@ def decision(policy, mode, cap, risk, args, root_on):
     if normal == "allow" or risk != "modify" or cap in GUARDED:
         return normal, reason
     # A request must not be able to rewrite the rules it runs under.
-    if any(key in args and P._under(args[key], [config.CONFIG]) for key in ("path", "src", "dst")):
+    if policy.own_state(args):
         return normal, reason
     if mode == "full":
         return "allow", "full access confirmed for this request"
