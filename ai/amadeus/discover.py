@@ -1,7 +1,7 @@
 """A live map of this system, built by looking at it. Nothing here is a stored description:
 commands, files, tools and settings are read from the installed packages and the running
 configuration each time, so the map cannot go out of date."""
-import json, os, subprocess, sys
+import json, os, subprocess
 from pathlib import Path
 from . import config, __version__
 

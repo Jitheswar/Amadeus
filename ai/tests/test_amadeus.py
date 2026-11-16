@@ -1,6 +1,6 @@
 """Run with: python3 -m unittest discover -s tests -v
 Uses throwaway directories; never touches the real config, apps or audit log."""
-import json, os, socket, subprocess, sys, tempfile, threading, time, unittest
+import json, os, subprocess, sys, tempfile, threading, time, unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from unittest import mock

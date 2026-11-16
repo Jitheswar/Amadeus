@@ -5,7 +5,7 @@ manifest that declares everything it may touch. Apps run under bubblewrap with
 exactly those grants; with an empty manifest an app can draw a window and keep
 private data, nothing else. Each app is a git repository, so an update is a
 small commit and any version can be restored."""
-import json, os, re, shutil, subprocess, tomllib, time
+import json, os, re, shutil, subprocess, time
 from pathlib import Path
 from . import config
 from .sandbox import bwrap

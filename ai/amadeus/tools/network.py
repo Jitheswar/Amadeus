@@ -1,5 +1,5 @@
 """Networking through NetworkManager."""
-from . import tool, sh, clip, ToolError
+from . import tool, sh, ToolError
 
 
 @tool("net_status", "Connectivity, active connections, addresses, and optionally nearby Wi-Fi networks.", {"wifi_scan": {"type": "boolean"}}, cap="net.read")

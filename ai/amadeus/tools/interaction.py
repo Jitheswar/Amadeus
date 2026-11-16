@@ -51,7 +51,7 @@ def accessible_tree(active, limit=60):
                     queue.extend((d, p, depth+1) for d, p in children[:limit])
             except (ToolError, ValueError, TypeError): continue
         return address, nodes, "" if nodes else "The focused app exposes no accessible controls. Use the image and keyboard, or its native API."
-    except (ToolError, ValueError, TypeError, KeyError) as error:
+    except (ToolError, ValueError, TypeError, KeyError):
         return "", [], "Accessibility is unavailable for this application."
 
 

@@ -5,7 +5,7 @@ Every external program these commands talk to is a stand-in: nothing here starts
 session, changes a package, asks for a password or touches the user's own files.
 The commands are run from the repository, in a throwaway HOME, with a PATH whose
 first entry holds the stand-ins and whose result is checked."""
-import gzip, json, os, re, shlex, shutil, subprocess, sys, tempfile, threading, time, unittest
+import gzip, json, os, shlex, shutil, subprocess, sys, tempfile, threading, time, unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 from pathlib import Path
@@ -803,7 +803,7 @@ esac
         tool_bin = self.tmp / "installs/claude/2.1/bin"
         tool_bin.mkdir(parents=True)
         claude = tool_bin / "claude"
-        claude.write_text(f"#!/bin/bash\necho claude \"$@\"\n")
+        claude.write_text("#!/bin/bash\necho claude \"$@\"\n")
         claude.chmod(0o755)
         self.stub("mise", body="""case "$1" in
   registry) printf 'claude    aqua:anthropics/claude-code\\nopencode  npm:opencode-ai\\n' ;;

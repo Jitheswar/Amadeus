@@ -1,6 +1,5 @@
 """Claude via the Messages API. Raw HTTP on purpose: the daemon runs on the system
 Python and must not depend on anything outside the base OS."""
-import os
 from .. import config
 from ..attachments import split_result
 from ..agent import user_text

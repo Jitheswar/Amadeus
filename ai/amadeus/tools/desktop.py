@@ -2,7 +2,7 @@
 selection), shortcuts and rules, and the bar layout."""
 import os, json, re, glob, shlex, subprocess, shutil
 from pathlib import Path
-from . import tool, sh, clip, ToolError
+from . import tool, sh, ToolError
 from .files import remember
 
 HYPR_USER = Path.home() / ".config/hypr"

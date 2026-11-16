@@ -12,8 +12,6 @@ Neutral history format (provider adapters translate it):
   {"role": "assistant", "text": str, "calls": [{"id", "name", "args"}], "raw": provider-native}
   {"role": "tool", "results": [{"id", "name", "content": str, "is_error": bool}]}
 """
-from .. import config
-
 
 class ProviderError(Exception):
     pass

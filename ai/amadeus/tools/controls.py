@@ -2,7 +2,7 @@
 import json, os, re
 from pathlib import Path
 from . import tool, sh, ToolError
-from . import desktop, files
+from . import files
 from .. import config
 
 AREAS = ("text", "gpu", "scale", "brightness", "audio", "defaults", "agent", "theme", "stay_awake")

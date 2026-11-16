@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """Guest-side checks of real logout/login; physical input comes from QEMU QMP."""
-import json, os, pwd, subprocess, sys, time, traceback
+import json, pwd, subprocess, sys, time, traceback
 from pathlib import Path
 
 mode = sys.argv[1]

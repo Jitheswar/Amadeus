@@ -1,5 +1,5 @@
 """ama: the command-line face of Amadeus."""
-import json, os, re, socket, subprocess, sys, time
+import json, os, socket, subprocess, sys, time
 from . import config
 
 HELP = """ama — talk to and control Amadeus. El Psy Kongroo.
@@ -157,7 +157,7 @@ def root_cmd(args):
         return
     if sub == "on":
         if not os.path.exists(f"{PRIV_DIR}/root-mode"):
-            sys.exit(f"The privileged helper is not installed; it is part of the amadeus system package.")
+            sys.exit("The privileged helper is not installed; it is part of the amadeus system package.")
         cmd = ["pkexec", f"{PRIV_DIR}/root-mode", "on", "--uid", str(os.getuid())]
         if "--full" in args:
             cmd.append("--full")

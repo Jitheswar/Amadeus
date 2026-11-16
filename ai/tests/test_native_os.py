@@ -1,11 +1,11 @@
 """Native control, visual boundaries and automation tests, entirely in throwaway state."""
-import base64, json, os, struct, sys, tempfile, threading, time, unittest
+import base64, json, os, sys, tempfile, threading, time, unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from amadeus import config, attachments, tasks, tools, policy
+from amadeus import config, attachments, tasks, tools
 from amadeus.daemon import Daemon, Ctx
 from amadeus.tools import controls, interaction, files
 from amadeus.providers.openai import OpenAICompat
@@ -124,7 +124,7 @@ class NativeOS(unittest.TestCase):
         self.daemon.policy.rules["desktop.control"] = "allow"
         self.daemon.policy.grant_session("desktop.control", "modify")
         self.daemon.ask_user = mock.Mock(return_value="no")
-        with mock.patch.dict(tools.REGISTRY["desktop_clipboard_set"], fn=mock.Mock()) as registry:
+        with mock.patch.dict(tools.REGISTRY["desktop_clipboard_set"], fn=mock.Mock()):
             out, failed = self.daemon.execute("desktop_clipboard_set", {"text":"x"}, origin="automation:job")
             self.assertTrue(failed)
             self.daemon.ask_user.assert_called_once()
