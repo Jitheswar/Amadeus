@@ -112,6 +112,22 @@ class AuditTest(unittest.TestCase):
         nxt = audit.record("action", tool="after")
         self.assertEqual(nxt["prev"], big["hash"])
         self.assertEqual(audit.verify()[:2], (True, 2))
+
+    def test_a_record_cut_short_does_not_stop_the_log(self):
+        f = config.STATE / "audit.jsonl"
+        f.unlink(missing_ok=True)
+        first = audit.record("action", tool="a")
+        with open(f, "a") as fh:
+            fh.write('{"ts": 1, "kind": "action", "tool": "cut sho')      # power lost mid-write
+        nxt = audit.record("action", tool="after")
+        self.assertEqual(nxt["prev"], first["hash"])
+        self.assertEqual(audit.record("action", tool="later")["prev"], nxt["hash"])
+        self.assertEqual([r["tool"] for r in audit.read(10)], ["a", "after", "later"])
+        self.assertEqual(audit.verify(), (False, 2, 2), "the damaged line is still reported")
+        f.write_text("garbage with no record at all")
+        self.assertEqual(audit.record("action", tool="fresh")["prev"], "0" * 64)
+        f.unlink()
+
     def test_read_skips_malformed_records(self):
         f = config.STATE / "audit.jsonl"
         f.unlink(missing_ok=True)
