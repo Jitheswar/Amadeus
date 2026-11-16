@@ -139,6 +139,24 @@ class FilesTest(unittest.TestCase):
         self.files.undo_session(self.session)
         self.assertEqual(p.read_text(), "one and two\n")
 
+    def test_replacing_a_file_keeps_its_mode(self):
+        for mode in (0o600, 0o755):
+            f = self.home_file(f"mode-{mode:o}")
+            f.write_text("old")
+            f.chmod(mode)
+            self.files.fs_write({"path": str(f), "content": "new"}, None)
+            self.assertEqual(stat.S_IMODE(f.stat().st_mode), mode)
+            self.files.fs_edit({"path": str(f), "old": "new", "new": "newer"}, None)
+            self.assertEqual((f.read_text(), stat.S_IMODE(f.stat().st_mode)), ("newer", mode))
+
+    def test_a_search_pattern_is_never_read_as_an_option(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "notes.txt").write_text("a line with --version in it\n")
+            ctx = type("Ctx", (), {"policy": policy.Policy(config.load())})
+            found = self.files.fs_search({"path": d, "content": "--version"}, ctx)
+        self.assertIn("notes.txt", found)
+        self.assertNotIn("GNU grep", found)
+
     def test_write_outside_home_is_refused(self):
         p = Path(tempfile.mkdtemp()) / "outside"
         with self.assertRaises(self.files.ToolError):

@@ -1,5 +1,5 @@
 """Files. Every write keeps the previous version so `ama undo` can restore it."""
-import os, json, shutil, time, fnmatch, threading
+import os, json, shutil, time, threading
 from pathlib import Path
 from . import tool, sh, clip, ToolError
 from .. import config
@@ -100,7 +100,7 @@ def fs_read(a, ctx):
 def fs_search(a, ctx):
     p = str(expand(a["path"]))
     if a.get("content"):
-        cmd = ["grep", "-rnI", "--max-count=5", "-E", a["content"], p]
+        cmd = ["grep", "-rnI", "--max-count=5", "-E", "-e", a["content"], "--", p]
         if a.get("name"):
             cmd.insert(1, f"--include={a['name']}")
         out = sh(cmd, timeout=60).stdout
@@ -119,7 +119,13 @@ def fs_write(a, ctx):
     remember(p)
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_name(p.name + ".amadeus-tmp")
-    tmp.write_text(a["content"])
+    keep = p.stat().st_mode & 0o7777 if p.is_file() else None
+    tmp.unlink(missing_ok=True)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666 if keep is None else 0o600)
+    with os.fdopen(fd, "w") as f:
+        if keep is not None:
+            os.fchmod(fd, keep)     # a private or executable file stays one, and is never briefly readable
+        f.write(a["content"])
     os.replace(tmp, p)       # atomic
     return f"wrote {len(a['content'])} bytes to {p}"
 
