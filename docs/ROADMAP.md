@@ -54,6 +54,9 @@ by the full VM suite. Signature verification remained enabled.
 
 ## Next validation
 
+The steps for the first run on the target machine are written out in
+[HARDWARE-TEST.md](HARDWARE-TEST.md), for the user and an AI agent to work through there.
+
 0. On the target machine, try the copy and paste shortcuts by hand, the automatic display
    choice, theme changes across real applications, and the themed login screen.
 1. Install on the target machine and measure NVIDIA runtime power-down, PRIME offload,

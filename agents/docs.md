@@ -10,6 +10,8 @@ Read `AGENTS.md` first, section "Documentation layout".
   of component edits its entry; it does not append a contradiction.
 - `docs/ARCHITECTURE.md`: how the parts work together. No file inventories.
 - `docs/ROADMAP.md`: done, in progress, next, not verified.
+- `docs/HARDWARE-TEST.md`: the steps still to run on real hardware. A finished section
+  moves into the README's verification account and is removed from that file.
 - `AGENTS.md` and `agents/`: rules for contributors.
 
 ## Keeping it true
