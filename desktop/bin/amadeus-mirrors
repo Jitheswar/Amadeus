@@ -1,5 +1,5 @@
 #!/bin/bash
-# Rank the official package mirrors for this connection: complete and fresh first, then measured speed.
+# Rank the official package mirrors for this connection: complete and fresh ones, the nearest of those, then measured speed.
 #   amadeus-mirrors            rank if this machine has never been ranked, or the lists are a month old
 #   amadeus-mirrors --force    rank now
 #   amadeus-mirrors --print    show the choice; change nothing
@@ -40,11 +40,30 @@ fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-echo "Ranking the official Arch mirrors: fully synced, fresh and best-scored first, then measured speed."
-# Quality filters first (complete, fresh, HTTPS, the best-scored fifty), then a speed test.
-# No country filter: a nearby mirror is not automatically a good one, and the speed is
-# measured from this connection, which is the only "near" that matters for a download.
-if ! reflector --completion-percent 100 --age 12 --protocol https --score 20 \
+# Probe URLs on stdin; prints the N that connect soonest from here, nearest first.
+# One per operator: country aliases of one network (xx.mirrors.example) are a single choice.
+nearest() {
+  { xargs -r -P 24 -n 1 curl -s --connect-timeout 3 --max-time 6 --range 0-0 -o /dev/null \
+      -w '%{http_code}\t%{time_namelookup}\t%{time_connect}\t%{url}\n' 2>/dev/null || true; } |
+    awk -F'\t' '$1 == 200 || $1 == 206 { printf "%.4f\t%s\n", $3 - $2, $4 }' | sort -n |
+    awk -F'\t' -v n="$1" '{ split($2, part, "/"); host = part[3]; site = host
+                            if (split(host, label, ".") > 2) sub(/^[^.]*\./, "", site)
+                            if (!(site in seen) && shown < n) { seen[site] = 1; shown++; print $2 } }'
+}
+
+echo "Ranking the official Arch mirrors: fully synced and fresh, the nearest of those, then measured speed."
+# Quality first (complete, synced in the last 12 hours, HTTPS), then the twenty that connect
+# soonest from here, then a download from each. No country filter: connection time measures
+# "near" on the path a download will use. The status score is not used to choose candidates:
+# it is measured from Europe, so its best twenty are European wherever this computer is.
+quality=(--completion-percent 100 --age 12 --protocol https)
+pool=(--score 20)       # only when the mirrors cannot be probed from here
+if reflector "${quality[@]}" --save "$tmp/eligible" 2>/dev/null; then
+  near=$(sed -n 's|^Server = \(.*\)/\$repo/os/\$arch$|\1/lastsync|p' "$tmp/eligible" | nearest 20 |
+           sed -e 's|/lastsync$|/|' -e 's/[][\.*^$()+?{}|]/\\&/g')
+  if (( $(grep -c . <<<"$near" || true) >= 5 )); then pool=(--include "^(${near//$'\n'/|})"); fi
+fi
+if ! reflector "${quality[@]}" "${pool[@]}" \
        --sort rate --number 10 --threads 5 --connection-timeout 5 --download-timeout 10 \
        --save "$tmp/mirrorlist" 2>/dev/null; then
   echo "The Arch mirrors could not be ranked; the current list is kept."
@@ -58,26 +77,35 @@ if (( ${servers:-0} == 0 )); then
 fi
 
 # CachyOS publishes its official mirrors in the mirrorlist package. Rank those entries
-# themselves: fetch a package database from each and keep the reachable ones, fastest first.
+# themselves: take the nearest, fetch part of a package database from each, drop any whose
+# database is a day behind the newest, and keep the rest fastest first.
 cachyos=()
 for f in "$dir/cachyos-v3-mirrorlist" "$dir/cachyos-mirrorlist"; do [[ -f $f ]] && cachyos+=("$f"); done
 ranked_cachyos=""
 if (( ${#cachyos[@]} )); then
-  echo "Ranking the official CachyOS mirrors by measured speed."
+  echo "Ranking the official CachyOS mirrors: the nearest, then fresh ones by measured speed."
   ranked_cachyos="$tmp/cachyos"
   : >"$ranked_cachyos"
   # Rank the v3 list when it exists; the other list uses the same hosts with $arch instead.
+  # The probe is the largest database of that list, so a megabyte of it measures speed.
   probe_arch=x86_64_v3
-  probe_repo=cachyos-core-v3
-  if [[ ${cachyos[0]} != *v3* ]]; then probe_arch=x86_64; probe_repo=cachyos-core; fi
+  probe_repo=cachyos-extra-v3
+  if [[ ${cachyos[0]} != *v3* ]]; then probe_arch=x86_64; probe_repo=cachyos; fi
+  declare -A entry=()
   while IFS= read -r line; do
     url=${line#Server = }
     probe=${url//\$arch_v3/$probe_arch}
     probe=${probe//\$arch/$probe_arch}
     probe=${probe//\$repo/$probe_repo}
-    time=$(curl -fsS --max-time 10 --range 0-1048575 -o /dev/null -w '%{time_total}' "$probe/$probe_repo.db" 2>/dev/null) || continue
-    [[ -n $time ]] && printf '%s\t%s\n' "$time" "$url"
-  done < <(grep '^Server = ' "${cachyos[0]}" 2>/dev/null || true) | sort -n | cut -f2- >"$ranked_cachyos"
+    entry["$probe/$probe_repo.db"]=$url
+  done < <(grep '^Server = ' "${cachyos[0]}" 2>/dev/null || true)
+  while IFS= read -r probe; do
+    got=$(curl -fsS --max-time 10 --range 0-1048575 -o /dev/null -w '%{time_total}\t%header{last-modified}' "$probe" 2>/dev/null) || continue
+    changed=$(date -d "${got#*$'\t'}" +%s 2>/dev/null) || changed=0      # no date: freshness unknown, keep it
+    printf '%s\t%s\t%s\n' "${got%%$'\t'*}" "$changed" "${entry[$probe]}"
+  done < <(printf '%s\n' "${!entry[@]}" | nearest 8) >"$tmp/cachyos.measured"
+  newest=$(cut -f2 "$tmp/cachyos.measured" | sort -n | tail -n 1)
+  awk -F'\t' -v newest="${newest:-0}" '$2 == 0 || newest - $2 <= 86400' "$tmp/cachyos.measured" | sort -n | cut -f3- >"$ranked_cachyos"
 fi
 
 if [[ $print == yes ]]; then

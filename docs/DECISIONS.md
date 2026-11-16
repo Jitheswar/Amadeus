@@ -145,16 +145,31 @@ network comes up, so the Install menu and the catalogue show what can be added; 
 installs nothing by itself. Missing lists are seeded from the medium for offline
 browsing, then marked due for the first online refresh.
 
-**Mirrors are chosen for quality first, then speed.** The first `amadeus-update` ranks
-the official mirrors once: the Arch list from the Mirror Status data (fully synced, HTTPS,
-synced in the last 12 hours, the twenty best-scored servers), then a measured download
-speed from this connection; the CachyOS list is its own official mirrorlist, ranked by
-fetching a package database from each entry. Country is not a filter: a nearby mirror is
-not automatically good, and the speed test measures the path that a download will use.
+**Mirrors are chosen for quality first, then nearness, then speed.** The first
+`amadeus-update` ranks the official mirrors once. For Arch, reflector keeps the mirrors the
+Mirror Status data reports as fully synced, HTTPS and synced in the last 12 hours; the
+twenty of those that connect soonest from this computer, one per operator, are the
+candidates; reflector then measures a download from each and keeps the ten fastest. The
+CachyOS list is its own official mirrorlist: the eight nearest entries are measured with
+part of a package database, and one whose database is a day behind the newest is dropped.
+Country is not a filter: a nearby mirror is not automatically good, and connection time
+and the download test measure the path that a download will use.
+
+The status score no longer chooses the candidates. It is measured from Arch's own probes
+in Europe, so it ranks distance from Europe together with reliability. Evidence, from the
+status data on 2026-11-16: of 345 eligible mirrors in 66 countries, the twenty best-scored
+were all European (eleven in Germany) and the first mirror in India ranked 58th, so from
+a connection in India no mirror in Asia was ever speed-tested. Probing connection time
+from that connection in a container gave the same candidates in 18 of 20 places on two
+runs, and the final list was mirrors in India, Singapore and Korea plus one content
+delivery network. Country aliases of one network count once, or they fill the candidates.
+The score is the fallback when fewer than five mirrors answer the probe.
+
 The previous lists are kept, the new ones are checked with `pacman -Syy`, and a failure
 puts the previous lists back. It is repeated after a month, or when a package replaces a
-list. Cost: about half a minute on the first update, once a month; no timer and no
-background service.
+list. Cost: about a minute on the first update, once a month, including one small request
+to each eligible mirror; no timer and no background service. Not verified: the VM test
+has no internet access, so only the stand-in tests and the container run cover this.
 
 ## Desktop shell and generated applications: Quickshell (QML)
 

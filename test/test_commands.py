@@ -753,26 +753,65 @@ esac""")
         self.assertEqual(self.calls_of("sudo"), [["amadeus-mirrors"], ["pacman", "-Syu"]])
 
     # ---- mirrors -------------------------------------------------------------
-    def test_mirrors_print_the_official_choice_without_changing(self):
+    def mirror_stubs(self, arch=("arch.example",)):
         d = self.tmp / "pacman.d"
         d.mkdir()
-        (d / "cachyos-v3-mirrorlist").write_text(
-            "# official list\nServer = https://cachyos.example/$arch_v3/$repo\n")
+        self.env["AMADEUS_TEST_ARCH_MIRRORS"] = " ".join(arch)
         self.stub("reflector", body="""save=""; prev=""
 for a in "$@"; do [[ $prev == --save ]] && save=$a; prev=$a; done
-printf 'Server = https://arch.example/$repo/os/$arch\\n' > "$save"
+for host in $AMADEUS_TEST_ARCH_MIRRORS; do printf 'Server = https://%s/$repo/os/$arch\\n' "$host"; done > "$save"
 """)
         self.stub("curl", body="""case "$*" in
   *archlinux.org/mirrors/status/json*) exit 0 ;;
-  *cachyos*) printf '0.1' ;;
+  *time_connect*) case "${@: -1}" in
+      *far.example*) printf '200\\t0.01\\t0.90\\t%s\\n' "${@: -1}" ;;
+      *dead.example*) exit 7 ;;
+      *) printf '200\\t0.01\\t0.02\\t%s\\n' "${@: -1}" ;;
+    esac ;;
+  *stale.example*) printf '0.05\\tMon, 02 Nov 2026 10:00:00 GMT' ;;
+  *far.example*) printf '0.30\\tMon, 16 Nov 2026 10:00:00 GMT' ;;
+  *cachyos*) printf '0.10\\tMon, 16 Nov 2026 09:00:00 GMT' ;;
   *) exit 0 ;;
 esac
 """)
+        return d
+
+    def test_mirrors_print_the_official_choice_without_changing(self):
+        d = self.mirror_stubs()
+        (d / "cachyos-v3-mirrorlist").write_text(
+            "# official list\nServer = https://cachyos.example/$arch_v3/$repo\n")
         p = self.run_cmd("amadeus-mirrors", "--print", env={"AMADEUS_MIRROR_DIR": str(d)})
         self.assert_ok(p)
         self.assertIn("Server = https://arch.example/$repo/os/$arch", p.stdout)
         self.assertIn("Server = https://cachyos.example/$arch_v3/$repo", p.stdout)
         self.assertFalse((d / "mirrorlist").exists(), "printing must not write a mirror list")
+
+    def test_mirrors_test_the_speed_of_the_nearest_not_the_best_scored(self):
+        hosts = [f"m{i}.example" for i in range(4)] + ["far.example", "dead.example", "de.cdn.example", "us.cdn.example"]
+        d = self.mirror_stubs(arch=hosts)
+        self.assert_ok(self.run_cmd("amadeus-mirrors", "--print", env={"AMADEUS_MIRROR_DIR": str(d)}))
+        survey, ranking = self.calls_of("reflector")
+        self.assertNotIn("--sort", survey)
+        self.assertNotIn("--score", ranking)
+        pool = ranking[ranking.index("--include") + 1]
+        self.assertTrue(pool.startswith("^(") and pool.endswith(r"far\.example/)"), pool)      # the slowest to connect comes last
+        self.assertIn(r"https://m0\.example/", pool)
+        self.assertNotIn("dead", pool)
+        self.assertEqual(pool.count("cdn"), 1, "aliases of one network are one candidate")
+
+    def test_mirrors_fall_back_to_the_status_score_when_probing_fails(self):
+        d = self.mirror_stubs(arch=("dead.example",))
+        self.assert_ok(self.run_cmd("amadeus-mirrors", "--print", env={"AMADEUS_MIRROR_DIR": str(d)}))
+        self.assertIn("--score", self.calls_of("reflector")[-1])
+
+    def test_mirrors_drop_a_stale_cachyos_mirror_and_put_the_fastest_first(self):
+        d = self.mirror_stubs()
+        (d / "cachyos-v3-mirrorlist").write_text("".join(
+            f"Server = https://{h}/$arch_v3/$repo\n" for h in ("far.example", "stale.example", "cachyos.example")))
+        p = self.run_cmd("amadeus-mirrors", "--print", env={"AMADEUS_MIRROR_DIR": str(d)})
+        self.assert_ok(p)
+        listed = [line for line in p.stdout.split("CachyOS:")[1].splitlines() if line]
+        self.assertEqual(listed, ["Server = https://cachyos.example/$arch_v3/$repo", "Server = https://far.example/$arch_v3/$repo"])
 
     # ---- shortcuts ----------------------------------------------------------
     def test_keys_are_read_from_the_configuration_file(self):
