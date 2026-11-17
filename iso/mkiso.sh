@@ -61,17 +61,31 @@ pc=(pacman --config /tmp/offline.conf --root $ROOT --dbpath $ROOT/db --noconfirm
 # shellcheck disable=SC2046
 want=$(grep -hv '^#' $SRC/installer/packages.{base,desktop,apps,nvidia} | tr '\n' ' ')
 local_pkgs=$(ls $REPO/*.pkg.tar.zst | grep -vE '/cachyos-(keyring|mirrorlist|v3-mirrorlist)-' || true)
-# Packages this machine already downloaded are copied rather than fetched again.
-if [[ -d /hostcache ]]; then
-  # shellcheck disable=SC2086
-  { "${pc[@]}" -Sp --print-format '%f' $want; "${pc[@]}" -Up --print-format '%f' $local_pkgs; } 2>/dev/null | sort -u |
-    while read -r f; do if [[ -f /hostcache/$f ]]; then cp -n "/hostcache/$f" $OFF/; fi; done || true   # only saves downloading
-fi
+# Keep downloads across container exits. Only packages selected by this transaction
+# enter the image, even if older versions remain in the builder's cache.
+cache=$OUT/offline-pkgcache
+mkdir -p "$cache"
 # shellcheck disable=SC2086
-"${pc[@]}" -Sw $want >/dev/null || { echo "   could not collect the packages in the package lists"; exit 1; }
+"${pc[@]}" -Sp --print-format '%f' $want >/tmp/package-files
 # shellcheck disable=SC2086
-"${pc[@]}" -Uw $local_pkgs >/dev/null || { echo "   could not collect what the bundled applications need"; exit 1; }
-rm -f $OFF/*.part
+"${pc[@]}" -Up --print-format '%f' $local_pkgs >>/tmp/package-files
+# pacman prints absolute paths for local inputs. Those ship in amadeus-repo.
+sed -i '\|^/|d' /tmp/package-files
+sort -u -o /tmp/package-files /tmp/package-files
+while IFS= read -r f; do
+  if [[ -f /hostcache/$f && ! -f $cache/$f ]]; then
+    cp "/hostcache/$f" "$cache/$f.tmp"
+    mv "$cache/$f.tmp" "$cache/$f"
+  fi
+done </tmp/package-files
+# shellcheck disable=SC2086
+"${pc[@]}" --cachedir "$cache" -Sw $want >/dev/null || { echo "   could not collect the packages in the package lists"; exit 1; }
+# shellcheck disable=SC2086
+"${pc[@]}" --cachedir "$cache" -Uw $local_pkgs >/dev/null || { echo "   could not collect what the bundled applications need"; exit 1; }
+while IFS= read -r f; do
+  cp "$cache/$f" "$OFF/"
+  if [[ -f $cache/$f.sig ]]; then cp "$cache/$f.sig" "$OFF/"; fi
+done </tmp/package-files
 repo-add -q $OFF/amadeus-offline.db.tar.gz $OFF/*.pkg.tar.zst
 # The package lists that describe exactly what was collected. The installer copies them
 # onto a system installed without a connection, and the try session uses them before it
