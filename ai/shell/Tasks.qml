@@ -53,10 +53,10 @@ Flickable {
                     Txt { width: parent.width; visible: text !== ""; color: goalCard.modelData.state === "waiting" ? Theme.warn : Theme.fg
                           text: goalCard.modelData.question || (goalCard.modelData.notes.length ? goalCard.modelData.notes[goalCard.modelData.notes.length - 1] : "") }
                     Field { id: reply; width: parent.width; visible: goalCard.modelData.state === "waiting"; placeholder: "Answer, or leave blank to continue"
-                            onAccepted: { root.goalAnswer(goalCard.modelData.id, reply.text); reply.text = "" } }
+                            onAccepted: root.goalAnswer(goalCard.modelData.id, reply.text) }
                     Row { spacing: Theme.gap * 0.5; visible: goalCard.open
                         Btn { text: "Continue"; primary: true; visible: goalCard.modelData.state === "waiting"
-                              onClicked: { root.goalAnswer(goalCard.modelData.id, reply.text); reply.text = "" } }
+                              onClicked: root.goalAnswer(goalCard.modelData.id, reply.text) }
                         Btn { text: "Stop"; onClicked: root.goalStop(goalCard.modelData.id) }
                     }
                 }
