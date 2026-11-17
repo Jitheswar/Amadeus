@@ -488,10 +488,33 @@ class GoalTest(unittest.TestCase):
         self.goals.start(self.d, "needs a provider")
         self.assertEqual(self.only()["state"], "failed")
 
+    def test_restart_honors_the_last_report_before_starting_another_round(self):
+        with mock.patch.object(self.goals, "launch"):
+            goal = self.goals.start(self.d, "sort my downloads")
+        for report, claimed, state in (("blocked", False, "waiting"),
+                                       ("finished", False, "working"),
+                                       ("finished", True, "done"),
+                                       ("progress", True, "working")):
+            with self.subTest(report=report, claimed=claimed):
+                self.goals.store(dict(goal, rounds=1, session="interrupted", claimed=claimed))
+                self.goals.update(goal["id"], report, "last report")
+                with mock.patch.object(self.goals, "launch") as launch:
+                    self.goals.resume(self.d)
+                saved = self.goals.load(goal["id"])
+                self.assertEqual(saved["state"], state)
+                self.assertEqual(saved["session"], "")
+                if state == "working":
+                    launch.assert_called_once_with(self.d, goal["id"])
+                    self.assertEqual(saved["claimed"], report == "finished")
+                else:
+                    launch.assert_not_called()
+                if state == "waiting":
+                    self.assertEqual(saved["question"], "last report")
+
     def test_goals_resume_after_a_restart_and_keep_their_limits(self):
         self.script[:] = [("blocked", "which folder?")]
         goal = self.goals.start(self.d, "sort my downloads")
-        stale = dict(self.only(), state="working", session="goal-" + goal["id"] + "-1", question="")
+        stale = dict(self.only(), state="working", session="goal-" + goal["id"] + "-1", reported="", question="")
         self.goals.store(stale)
         self.script[:] = [("finished", "sorted"), ("finished", "checked")]
         self.goals.resume(self.d)

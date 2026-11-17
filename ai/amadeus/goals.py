@@ -118,7 +118,13 @@ def resume(daemon):
     """After a restart: goals that were being worked on carry on from their notes."""
     for goal in listing():
         if goal["state"] == "working":
-            goal["session"] = ""        # the round that was running ended with the old daemon
+            # A tool report is durable before the worker applies its transition.
+            if goal.get("session") and goal.get("reported"):
+                goal["silent"] = 0
+                apply_report(goal)
+                if goal["state"] != "working":
+                    continue
+            goal["session"] = ""
             store(goal)
             launch(daemon, goal["id"])
 
@@ -177,15 +183,22 @@ def work(daemon, ident):
                 goal["silent"] = 0
             if goal["silent"] >= 2:
                 return settle(goal, "failed" if error else "waiting", "" if error else "Two rounds ended without a report. Answer to let me continue, or stop the goal.")
-            if reported == "blocked":
-                return settle(goal, "waiting", goal["notes"][-1])
-            if reported == "finished":
-                if goal["claimed"]:
-                    return settle(goal, "done")
-                goal["claimed"] = True          # the next round checks the claim before it counts
-            elif reported == "progress":
-                goal["claimed"] = False
-            store(goal)
+            apply_report(goal)
+            if goal["state"] == "working":
+                store(goal)
+
+
+def apply_report(goal):
+    reported = goal.get("reported")
+    if reported == "blocked":
+        settle(goal, "waiting", goal["notes"][-1])
+    elif reported == "finished":
+        if goal["claimed"]:
+            settle(goal, "done")
+        else:
+            goal["claimed"] = True  # the next round checks the claim
+    elif reported == "progress":
+        goal["claimed"] = False
 
 
 def stop(daemon, ident):
