@@ -177,7 +177,8 @@ ShellRoot {
         }
         const t = r.task
         if (r.kind === "undo") {
-            if (m.result !== undefined) { add(t, "note", m.result.length ? "Undone:\n" + m.result.join("\n") : "Nothing to undo."); setTask(t, { changed: 0 }) }
+            if (m.error) add(t, "error", m.error)
+            else if (m.result !== undefined) { add(t, "note", m.result.length ? "Undone:\n" + m.result.join("\n") : "Nothing to undo."); setTask(t, { changed: 0 }) }
             return
         }
         if (m.event === "started") setTask(t, {session: m.data.session})

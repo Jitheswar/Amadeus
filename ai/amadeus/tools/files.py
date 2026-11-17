@@ -59,7 +59,17 @@ def undo_last():
 
 def undo_session(session):
     """Put back every file one task changed, newest change first."""
-    mine = [j for j in sorted(_journal().glob("*.json"), reverse=True) if json.loads(j.read_text()).get("session") == session]
+    mine = []
+    newer_paths = set()
+    for j in sorted(_journal().glob("*.json"), reverse=True):
+        entry = json.loads(j.read_text())
+        path = entry["path"]
+        if entry.get("session") != session:
+            newer_paths.add(path)
+        elif path in newer_paths:
+            raise ToolError(f"Another task changed {path}. Undo its newer change first.")
+        else:
+            mine.append(j)
     return [_restore(j) for j in mine]
 
 

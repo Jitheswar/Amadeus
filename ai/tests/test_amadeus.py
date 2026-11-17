@@ -707,6 +707,28 @@ class TaskTest(unittest.TestCase):
         self.assertEqual(F.changed_by("task1"), 0)
         F.current.session = None
 
+    def test_session_undo_preserves_newer_edits_until_their_undo(self):
+        from amadeus.tools import files as F
+        with tempfile.TemporaryDirectory() as directory:
+            shared = Path(directory) / "shared"
+            private = Path(directory) / "private"
+            shared.write_text("original")
+            for session, path, value in (("first", shared, "first edit"),
+                                         ("second", shared, "second edit"),
+                                         ("first", private, "separate edit")):
+                with mock.patch.object(F.current, "session", session, create=True):
+                    F.remember(path)
+                path.write_text(value)
+            with self.assertRaisesRegex(F.ToolError, "Undo its newer change first"):
+                F.undo_session("first")
+            self.assertEqual(shared.read_text(), "second edit")
+            self.assertEqual(private.read_text(), "separate edit")
+            F.undo_session("second")
+            self.assertEqual(shared.read_text(), "first edit")
+            F.undo_session("first")
+            self.assertEqual(shared.read_text(), "original")
+            self.assertFalse(private.exists())
+
     def test_stopped_task_runs_no_more_tools(self):
         import threading
         from amadeus.daemon import Daemon
