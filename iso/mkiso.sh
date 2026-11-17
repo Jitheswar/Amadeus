@@ -13,7 +13,10 @@ done
 
 echo "==> Packaging applications that are not in the Arch repositories (from their AUR recipes)"
 for p in $(grep -hv '^#' $SRC/installer/packages.aur); do
-  bash /src/iso/aur-build.sh $p $REPO $OUT/pkgcache || echo "   WARNING: $p could not be built; the ISO will not include it"
+  if ! bash /src/iso/aur-build.sh "$p" "$REPO" "$OUT/pkgcache"; then
+    echo "Could not build $p for the installer's optional extras. Check the package build output and run ./build.sh iso again." >&2
+    exit 1
+  fi
 done
 
 echo "==> Fetching the CachyOS signing key and mirror lists"
