@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build and test Amadeus OS in a container; nothing is installed on the machine running this.
-#   ./build.sh iso     build out/amadeus-os-<date>-x86_64.iso
+#   ./build.sh iso     build out/amadeus-os-<date>-x86_64.iso (optional ARCH_SNAPSHOT=YYYY-MM-DD)
 #   ./build.sh test    install the ISO in a VM, boot it, run the self-test and both rollback paths
 #   ./build.sh shell   a shell in the build container
 #   ./build.sh preview draw the shell, picker, notifications and panel headless; pictures land in out/preview/
@@ -15,7 +15,7 @@ docker=(docker); docker info >/dev/null 2>&1 || docker=(sudo docker)
 cache=(); [[ -d /var/cache/pacman/pkg ]] && cache=(-v /var/cache/pacman/pkg:/hostcache:ro)
 run=("${docker[@]}" run --rm --privileged --device /dev/kvm -v "$here:/src:ro" -v "$here/out:/out" "${cache[@]}")
 case ${1:-iso} in
-  iso)   "${run[@]}" amadeus-builder bash /src/iso/mkiso.sh ;;
+  iso)   "${run[@]}" -e "ARCH_SNAPSHOT=${ARCH_SNAPSHOT:-}" amadeus-builder bash /src/iso/mkiso.sh ;;
   test)  "${run[@]}" amadeus-builder python3 /src/test/vm-test.py "${@:2}" ;;
   preview) "${run[@]}" amadeus-builder bash /src/test/preview.sh ;;
   usb)

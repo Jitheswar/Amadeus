@@ -239,6 +239,11 @@ No build package is installed on the host.
 ./build.sh test
 ```
 
+If a CachyOS rebuild lags behind an exact-version dependency from Arch, you can select
+a compatible Arch Linux Archive date for the build with
+`ARCH_SNAPSHOT=YYYY-MM-DD ./build.sh iso`. CachyOS packages and AUR recipes still come
+from their current repositories. Installed systems use rolling mirrors.
+
 The [build guide](agents/build-and-test.md) explains the checks and generated logs.
 The script's header documents other modes. Build output belongs in `out/` and is not
 committed.

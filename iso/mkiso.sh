@@ -3,6 +3,15 @@
 set -euo pipefail
 SRC=/src OUT=/out
 P=/tmp/profile REPO=/tmp/repo
+if [[ -n ${ARCH_SNAPSHOT:-} ]]; then
+  if [[ ! $ARCH_SNAPSHOT =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || ! date -d "$ARCH_SNAPSHOT" +%F >/dev/null 2>&1; then
+    echo "ARCH_SNAPSHOT must be a calendar date in YYYY-MM-DD format." >&2
+    exit 1
+  fi
+  # mkarchiso uses pacstrap -M, so the builder's mirror list stays outside the live image.
+  printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "${ARCH_SNAPSHOT//-//}" >/etc/pacman.d/mirrorlist
+  echo "Using the Arch Linux Archive for $ARCH_SNAPSHOT"
+fi
 rm -rf $P $REPO /tmp/work /tmp/pkgsrc && mkdir -p $REPO
 
 echo "==> Packaging amadeus and amadeus-desktop"
