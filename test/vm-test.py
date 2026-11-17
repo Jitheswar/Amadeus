@@ -2,13 +2,18 @@
 """End-to-end test of the ISO in QEMU/KVM (runs inside the builder container).
 Phase 1 boots the ISO through UEFI and lets it install unattended onto an empty disk.
 Phase 2 boots that disk, unlocks it, logs into the desktop and runs the self-test."""
+import argparse
 import glob, json, os, re, select, shutil, socket, subprocess, sys, time
 
 OUT, SRC = "/out", "/src/test"
 VM = f"{OUT}/vm"
 PASSWORD = "test-pass-123"
-extras = "no" if "--no-extras" in sys.argv else "yes"
-phase = next((a.split("=")[1] for a in sys.argv if a.startswith("--phase=")), "all")
+parser = argparse.ArgumentParser(description="Test the Amadeus OS image in a VM.", allow_abbrev=False)
+parser.add_argument("--phase", choices=("all", "try", "install", "boot"), default="all")
+parser.add_argument("--no-extras", action="store_true", help="omit optional packages during installation")
+args = parser.parse_args()
+extras = "no" if args.no_extras else "yes"
+phase = args.phase
 iso = sorted(glob.glob(f"{OUT}/amadeus-os-*.iso"))[-1]
 os.makedirs(VM, exist_ok=True)
 disk, auto, nvram = f"{VM}/disk.qcow2", f"{VM}/auto.img", f"{VM}/OVMF_VARS.fd"
