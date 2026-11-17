@@ -217,7 +217,9 @@ def boot_disk(stage, what):
         print(log[log.index("AMADEUS-SELFTEST-BEGIN"):][-6000:], flush=True)
     else:
         print("self-test never started. Console tail:\n" + open(f"{VM}/boot-serial-{stage}.log", errors="replace").read()[-2500:])
-    if not ("AMADEUS-SELFTEST-END" in log and "fail=0" in log):
+    # Diagnostics may quote successful checks. Only the guest's summary for this boot counts.
+    summary = rf"^AMADEUS-SELFTEST-END stage={stage} pass=[1-9][0-9]* fail=0$"
+    if not re.search(summary, log, re.MULTILINE):
         print(take("desktop-debug.log")[-3000:])
         sys.exit(1)
 
