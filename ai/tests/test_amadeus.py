@@ -613,16 +613,18 @@ class DaemonTest(unittest.TestCase):
 
     def test_approved_write_then_undo(self):
         from amadeus.tools import files
-        target = Path.home() / ".amadeus-test-write2"
-        target.write_text("before")
-        try:
+        with tempfile.TemporaryDirectory(dir=Path.home()) as directory:
+            target = Path(directory) / "notes"
+            sibling = Path(directory) / "notes.amadeus-tmp"
+            target.write_text("before")
+            sibling.write_text("unrelated")
             DaemonTest.answer = "yes"
             self.assertFalse(self.d.execute("fs_write", {"path": str(target), "content": "after"})[1])
             self.assertEqual(target.read_text(), "after")
+            self.assertEqual(sibling.read_text(), "unrelated")
             files.undo_last()
             self.assertEqual(target.read_text(), "before")
-        finally:
-            target.unlink(missing_ok=True)
+            self.assertEqual(sibling.read_text(), "unrelated")
 
     def test_host_shell_always_asks_sandbox_does_not(self):
         DaemonTest.asked.clear()

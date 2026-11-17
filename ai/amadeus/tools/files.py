@@ -1,5 +1,5 @@
 """Files. Every write keeps the previous version so `ama undo` can restore it."""
-import os, json, shutil, time, threading
+import os, json, shutil, time, threading, uuid
 from pathlib import Path
 from . import tool, sh, clip, ToolError
 from .. import config
@@ -116,17 +116,19 @@ def fs_write(a, ctx):
     p = expand(a["path"])
     if Path.home() not in p.parents:
         raise ToolError("fs_write only writes inside the home directory; use sys_config_write for system files")
-    remember(p)
     p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_name(p.name + ".amadeus-tmp")
+    tmp = p.with_name(f".amadeus-{uuid.uuid4().hex}.tmp")
     keep = p.stat().st_mode & 0o7777 if p.is_file() else None
-    tmp.unlink(missing_ok=True)
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666 if keep is None else 0o600)
-    with os.fdopen(fd, "w") as f:
-        if keep is not None:
-            os.fchmod(fd, keep)     # a private or executable file stays one, and is never briefly readable
-        f.write(a["content"])
-    os.replace(tmp, p)       # atomic
+    try:
+        with os.fdopen(fd, "w") as f:
+            if keep is not None:
+                os.fchmod(fd, keep)
+            f.write(a["content"])
+        remember(p)
+        os.replace(tmp, p)
+    finally:
+        tmp.unlink(missing_ok=True)
     return f"wrote {len(a['content'])} bytes to {p}"
 
 
