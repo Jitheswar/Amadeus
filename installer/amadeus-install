@@ -35,6 +35,7 @@ ask USERNAME "Your user name"
 [[ $USERNAME =~ ^[a-z_][a-z0-9_-]{0,30}$ ]] || die "invalid user name"
 ask_secret PASSWORD "Password for $USERNAME"
 ask ENCRYPT "Encrypt the disk (yes/no)" yes
+[[ $ENCRYPT == yes || $ENCRYPT == no ]] || die "encryption must be yes or no; nothing was changed"
 [[ $ENCRYPT == yes ]] && LUKS_PASS=${LUKS_PASS:-$PASSWORD}
 ask TIMEZONE "Time zone" "$(curl -fsm5 https://ipapi.co/timezone 2>/dev/null || echo UTC)"
 [[ -f /usr/share/zoneinfo/$TIMEZONE ]] || die "unknown time zone $TIMEZONE"
