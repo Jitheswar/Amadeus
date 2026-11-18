@@ -45,7 +45,7 @@ class NativeOS(unittest.TestCase):
             self.assertTrue(failed); self.assertEqual(self.calls, [])
             out, failed = self.daemon.execute("desktop_settings", {"area":"brightness"})
             self.assertFalse(failed)
-            self.assertEqual(self.calls, [["brightnessctl", "-m"]])
+            self.assertEqual(self.calls, [["amadeus-brightness-display", "--no-osd"]])
 
     def test_bad_settings_are_rejected_before_any_write_command(self):
         with mock.patch.object(controls, "sh", side_effect=self.fake_command):
@@ -55,12 +55,17 @@ class NativeOS(unittest.TestCase):
                 with self.assertRaises(tools.ToolError): controls.desktop_settings(args, self.ctx)
             self.assertFalse(any("set" in call for call in self.calls))
 
-    def test_protected_symlink_cannot_be_read_as_a_theme(self):
-        secret = config.CONFIG / "secrets" / "private"
-        secret.write_text('{"token":"do not expose"}')
-        theme = self.root / "user-config/amadeus/theme.json"
-        theme.parent.mkdir(parents=True); theme.symlink_to(secret)
-        with self.assertRaises(tools.ToolError): controls.desktop_settings({"area":"theme"}, self.ctx)
+    def test_unknown_theme_is_refused_before_any_change(self):
+        def response(argv, **kwargs):
+            self.calls.append(argv)
+            return SimpleNamespace(stdout="Tokyo Night\nKanagawa" if argv[0] == "amadeus-theme-list" else "Kanagawa", stderr="", returncode=0)
+        with mock.patch.object(controls, "sh", side_effect=response):
+            with self.assertRaises(tools.ToolError):
+                controls.desktop_settings({"area":"theme", "action":"set", "value":"no; such"}, self.ctx)
+            self.assertNotIn("amadeus-theme-set", [c[0] for c in self.calls])
+            out = controls.desktop_settings({"area":"theme", "action":"set", "value":"Tokyo Night"}, self.ctx)
+        self.assertIn(["amadeus-theme-set", "Tokyo Night"], self.calls)
+        self.assertEqual(out["previous"], "Kanagawa")
 
     def test_screen_pixels_are_not_returned_as_plain_tool_text(self):
         image = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"private-pixels").decode()
@@ -177,16 +182,16 @@ class NativeOS(unittest.TestCase):
             with self.assertRaises(tools.ToolError): interaction.desktop_observe({}, self.ctx)
             command.assert_not_called()
 
-    def test_text_undo_restores_exact_gtk_factor_and_absent_theme(self):
-        files.current.session = "text-undo"
+    def test_text_size_uses_the_system_command_and_reports_the_previous_size(self):
         def response(argv, **kwargs):
-            return SimpleNamespace(stdout="1.2727" if argv[0] == "gsettings" else "14 px", stderr="", returncode=0)
+            self.calls.append(argv)
+            return SimpleNamespace(stdout="14", stderr="", returncode=0)
         with mock.patch.object(controls, "sh", side_effect=response):
-            controls.desktop_settings({"area":"text", "action":"set", "value":16}, self.ctx)
-        with mock.patch.object(files, "sh", side_effect=self.fake_command):
-            files.undo_session("text-undo")
-        self.assertIn(["gsettings", "set", "org.gnome.desktop.interface", "text-scaling-factor", "1.2727"], self.calls)
-        self.assertFalse((self.root/"user-config/amadeus/theme.json").exists())
+            out = controls.desktop_settings({"area":"text", "action":"set", "value":16}, self.ctx)
+            with self.assertRaises(tools.ToolError):
+                controls.desktop_settings({"area":"text", "action":"set", "value":16.5}, self.ctx)
+        self.assertIn(["amadeus-display-text-size", "16"], self.calls)
+        self.assertEqual(out["previous"], "14")
 
     def test_event_limit_counts_characters_without_rejecting_unicode(self):
         conn = SimpleNamespace(interactive=False)

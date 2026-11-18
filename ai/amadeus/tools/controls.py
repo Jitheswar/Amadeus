@@ -6,6 +6,12 @@ from . import files
 from .. import config
 
 AREAS = ("text", "gpu", "scale", "brightness", "audio", "defaults", "agent", "theme", "stay_awake")
+# Applications chosen by the desktop system's own default commands (amadeus-default-KEY).
+DEFAULT_APPS = ("terminal", "editor", "browser", "agent")
+# Kinds of file or link, and the types that decide which application opens them.
+FILE_TYPES = {"files": "inode/directory", "images": "image/png image/jpeg image/webp image/gif",
+              "video": "video/mp4 video/x-matroska video/webm", "music": "audio/mpeg audio/flac audio/ogg",
+              "documents": "application/pdf", "mail": "x-scheme-handler/mailto"}
 
 
 def setting_risk(a):
@@ -64,7 +70,7 @@ def os_menu(a, ctx):
 @tool("desktop_settings", "Inspect or change native settings without navigating menus: text size, GPU mode, focused-monitor scale, "
       "brightness, audio, defaults, panel agent, theme or stay-awake. Use get before set; results report the previous setting. "
       "GPU changes need another login; no logout is performed. Audio target is sink/source, key is volume/mute/device. "
-      "Defaults key is terminal/editor/harness or a file type from get; omit key to discover choices. Theme value is a JSON object of palette, font and timing overrides.",
+      "Defaults key is terminal/editor/browser/agent or a file type from get; omit key to discover choices. Theme value is a theme name from its choices.",
       {"area": {"type": "string", "enum": list(AREAS)}, "action": {"type": "string", "enum": ["get", "set"]},
        "key": {"type": "string"}, "value": {}, "target": {"type": "string", "enum": ["sink", "source"]}},
       required=("area",), cap=setting_cap, risk=setting_risk)
@@ -82,32 +88,18 @@ def desktop_settings(a, ctx):
             config.set_default_provider(value); ctx.daemon.reload()
         return {"value": config.load()["ai"]["provider"], "previous": before}
     if area == "theme":
-        path = root / "amadeus/theme.json"
-        if ctx.policy.path_denied(str(path)): raise ToolError("that setting points to a protected path")
-        before = json.loads(path.read_text()) if path.exists() else {}
+        before = checked(["amadeus-theme-current"])
+        choices = checked(["amadeus-theme-list"]).splitlines()
         if action == "set":
-            if not isinstance(value, dict): raise ToolError("theme value must be an object")
-            palette = json.loads((config.SHARE.parent / "amadeus-os/theme.json").read_text())
-            for k, v in value.items():
-                if k not in palette: raise ToolError(f"unknown theme field: {k}")
-                if k in ("font", "mono"):
-                    if not isinstance(v, str) or not 1 <= len(v) <= 100 or any(ord(c) < 32 for c in v): raise ToolError("invalid font")
-                elif isinstance(palette[k], str):
-                    if not isinstance(v, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", v): raise ToolError("colours must be #RRGGBB")
-                else:
-                    number(v, 9 if k == "font_size" else 0, 20 if k == "font_size" else 1000)
-            if "font_size" in value:
-                raise ToolError("use the text setting to keep shell, GTK and terminal sizes consistent")
-            remember(ctx, path)
-            config._atomic_config(path, json.dumps(dict(before, **value), indent=2))
-        return {"value": json.loads(path.read_text()) if path.exists() else {}, "previous": before, "undo": "journalled file change"}
+            if value not in choices: raise ToolError("choose a theme name from choices")
+            checked(["amadeus-theme-set", value])
+        return {"value": checked(["amadeus-theme-current"]), "previous": before, "choices": choices}
     if area == "stay_awake":
-        cmd = ["quickshell", "ipc", "-p", "/usr/share/amadeus-os/shell", "call", "shell"]
-        before = json.loads(checked(cmd + ["state"]))["awake"]
+        before = checked(["amadeus-toggle-idle", "status"])
         if action == "set":
             if not isinstance(value, bool): raise ToolError("stay_awake requires true or false")
-            checked(cmd + ["awake", str(value).lower()])
-        return {"value": before if action == "get" else value, "previous": before}
+            checked(["amadeus-toggle-idle", "stay-awake" if value else "allow-idle"])
+        return {"value": checked(["amadeus-toggle-idle", "status"]), "previous": before}
     if area == "audio":
         target = a.get("target", "sink")
         if target not in ("sink", "source"): raise ToolError("audio target must be sink or source")
@@ -127,11 +119,10 @@ def desktop_settings(a, ctx):
             checked(argv)
         return {"value": checked(["wpctl", "get-volume", node]), "previous": before, "devices": audio_devices()}
     if area == "defaults":
-        types = {name.lower(): mime for line in checked(["amadeus-menu", "--default-types"]).splitlines() if "\t" in line for name, mime in [line.split("\t", 1)]}
         if not key and action == "get":
-            return {"wrappers": checked(["amadeus-default"]), "file_types": types}
-        if key in types:
-            mime_types = types[key].split()
+            return {"apps": {k: checked([f"amadeus-default-{k}"]) for k in DEFAULT_APPS}, "file_types": FILE_TYPES}
+        if key in FILE_TYPES:
+            mime_types = FILE_TYPES[key].split()
             before = checked(["xdg-mime", "query", "default", mime_types[0]])
             apps = json.loads(checked(["amadeus-launcher", "--json"]))
             choices = [{"id": e["id"] + ".desktop", "name": e["label"]} for e in apps if mime_types[0] in e.get("mimeTypes", [])]
@@ -139,35 +130,29 @@ def desktop_settings(a, ctx):
                 if value not in {e["id"] for e in choices}: raise ToolError("choose a desktop id from the installed handlers")
                 remember(ctx, root / "mimeapps.list")
                 checked(["xdg-mime", "default", value, *mime_types])
-                if key == "browser": checked(["xdg-settings", "set", "default-web-browser", value])
             return {"value": checked(["xdg-mime", "query", "default", mime_types[0]]), "previous": before, "choices": choices}
-        if key not in ("terminal", "editor", "harness"): raise ToolError("unknown default; get without key to discover choices")
-        before = checked(["amadeus-default", key])
+        key = "agent" if key == "harness" else key
+        if key not in DEFAULT_APPS: raise ToolError("unknown default; get without key to discover choices")
+        before = checked([f"amadeus-default-{key}"])
         if action == "set":
-            if not isinstance(value, str) or not value or value.startswith("-"): raise ToolError("invalid default name")
-            remember(ctx, root / "amadeus/defaults")
-            checked(["amadeus-default", key, value])
-        return {"value": checked(["amadeus-default", key]), "previous": before,
-                "choices": checked(["amadeus-default", key, "--choices"])}
-    commands = {"text": ["amadeus-display", "text"], "gpu": ["amadeus-gpu"],
-                "scale": ["amadeus-display", "scale"], "brightness": ["brightnessctl", "-m"]}
+            if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_.+-]+", value): raise ToolError("invalid default name")
+            checked([f"amadeus-default-{key}", value])
+        return {"value": checked([f"amadeus-default-{key}"]), "previous": before}
+    commands = {"text": ["amadeus-display-text-size"], "gpu": ["amadeus-gpu"],
+                "scale": ["amadeus-hyprland-monitor-scaling"], "brightness": ["amadeus-brightness-display", "--no-osd"]}
     before = checked(commands[area])
     if action == "set":
         if area == "text":
             val = number(value, 9, 20)
             if not float(val).is_integer(): raise ToolError("text size must be a whole number")
-            factor = checked(["gsettings", "get", "org.gnome.desktop.interface", "text-scaling-factor"])
-            for rel in ("amadeus/theme.json", "foot/foot.ini", "kitty/kitty.conf", "alacritty/alacritty.toml", "ghostty/config"):
-                remember(ctx, root / rel, recovery={"kind": "text", "factor": factor} if rel == "amadeus/theme.json" else None)
             argv = commands[area] + [val]
         elif area == "gpu":
             if value not in ("auto", "integrated", "dedicated", "intel", "nvidia"): raise ToolError("GPU mode must be auto, integrated or dedicated")
             for rel in ("amadeus/gpu", "uwsm/env-hyprland"): remember(ctx, root / rel)
             argv = ["amadeus-gpu", "set", value]
         elif area == "scale":
-            remember(ctx, root / "hypr/display.lua")
             argv = commands[area] + [number(value, 0.5, 3)]
-        else: argv = ["brightnessctl", "set", number(value, 1, 100) + "%"]
+        else: argv = commands[area] + [number(value, 1, 100) + "%"]
         result = checked(argv)
     else: result = before
     return {"value": result, "previous": before, "next_login": area == "gpu" and action == "set"}
