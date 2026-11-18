@@ -2,11 +2,7 @@
 # Test-only: runs at the end of an unattended install. Adds a self-test that executes on
 # first boot, logs the test user straight into the desktop, and reports over the serial port.
 T=$1 USER_NAME=$2
-cat >>$T/etc/greetd/config.toml <<G
-[initial_session]
-command = "uwsm start hyprland-uwsm.desktop"
-user = "$USER_NAME"
-G
+printf '[Autologin]\nUser=%s\nSession=amadeus\n' "$USER_NAME" >$T/etc/sddm.conf.d/zz-selftest.conf
 install -m755 /run/amadeus-auto/selftest.sh $T/usr/local/bin/amadeus-selftest
 install -m755 /run/amadeus-auto/ui-check.py $T/usr/local/bin/amadeus-ui-check
 install -m755 /run/amadeus-auto/e2e.py $T/usr/local/bin/amadeus-e2e
@@ -15,7 +11,7 @@ cat >$T/etc/systemd/system/amadeus-selftest.service <<U
 [Unit]
 Description=Amadeus OS first-boot self-test
 DefaultDependencies=no
-After=graphical.target greetd.service
+After=graphical.target sddm.service
 Before=shutdown.target
 Conflicts=shutdown.target
 [Service]

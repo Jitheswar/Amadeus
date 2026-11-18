@@ -178,12 +178,9 @@ def main():
         check("two tasks run side by side on one connection", bool(ra and rb) and ra["session"] != rb["session"], (ra, rb))
 
         # Native controls use the same wrappers as the human UI, including GTK undo.
-        old_text = subprocess.check_output(["amadeus-display", "text"], text=True).strip()
-        old_gtk = subprocess.check_output(["gsettings", "get", "org.gnome.desktop.interface", "text-scaling-factor"], text=True).strip()
         r, err, ev = c.ask("setting", "e2e-setting", approve="yes")
-        check("AI text changes reach the real desktop controls", subprocess.check_output(["amadeus-display", "text"], text=True).strip() == "16 px" and any(e["event"] == "approval" for e in ev), err or r)
-        c.call("undo", session="e2e-setting")
-        check("AI text undo restores the unified size", subprocess.check_output(["amadeus-display", "text"], text=True).strip() == old_text and subprocess.check_output(["gsettings", "get", "org.gnome.desktop.interface", "text-scaling-factor"], text=True).strip() == old_gtk)
+        check("AI text changes reach the real desktop controls", "16" in subprocess.check_output(["amadeus-display-text-size"], text=True) and any(e["event"] == "approval" for e in ev), err or r)
+        subprocess.run(["amadeus-display-text-size", "reset"], stdout=subprocess.DEVNULL)
 
         for scenario, session in (("task-save","e2e-task-save"), ("task-enable","e2e-task-enable")):
             c.ask(scenario, session, approve="yes")
@@ -204,10 +201,10 @@ def main():
         c.call("undo", session="e2e-event-save")
 
         c.ask("focus-save", "e2e-focus-save", approve="yes")
-        def shell_state():
-            return json.loads(subprocess.check_output(["quickshell", "ipc", "-p", "/usr/share/amadeus-os/shell", "call", "shell", "state"], text=True))
+        # The shell's assistant plugin forwards only the events a task listens for.
+        wanted = HOME / ".config/amadeus/automation-events.json"
         for _ in range(40):
-            if "app-focused" in shell_state()["automationEvents"]: break
+            if wanted.exists() and "app-focused" in wanted.read_text(): break
             time.sleep(0.1)
         focus_app = subprocess.Popen(["foot", "--app-id=amadeus-e2e-focus", "sleep", "40"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:

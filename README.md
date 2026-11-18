@@ -244,7 +244,7 @@ installed on your computer.
 ./build.sh check     # quick checks, no container
 ./build.sh iso       # build the install image into out/
 ./build.sh test      # install it in a VM and run the self-test
-./build.sh preview   # render the shell and menus to images in out/preview/
+./build.sh preview   # render the assistant panel and login screen to images in out/preview/
 ```
 
 If an Arch package update gets ahead of CachyOS and the build stops with

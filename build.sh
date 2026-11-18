@@ -3,7 +3,7 @@
 #   ./build.sh iso     build out/amadeus-os-<date>-x86_64.iso (optional ARCH_SNAPSHOT=YYYY-MM-DD)
 #   ./build.sh test    install the ISO in a VM, boot it, run the self-test and both rollback paths
 #   ./build.sh shell   a shell in the build container
-#   ./build.sh preview draw the shell, picker, notifications and panel headless; pictures land in out/preview/
+#   ./build.sh preview draw the Amadeus panel and login screen headless; pictures land in out/preview/
 #   ./build.sh usb /dev/sdX   install onto a USB drive: the guided installer runs in a window, the VM sees only that drive
 #   ./build.sh check   fast checks without a container: syntax, unit tests, guides match the repo
 set -euo pipefail

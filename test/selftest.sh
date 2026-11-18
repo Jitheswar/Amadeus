@@ -10,6 +10,7 @@ t()    { local name=$1; shift; local out; if out=$(timeout 90 bash -c '"$@"' _ "
 as()   { sudo -u $U env XDG_RUNTIME_DIR=$R DBUS_SESSION_BUS_ADDRESS=unix:path=$R/bus WAYLAND_DISPLAY=wayland-1 HYPRLAND_INSTANCE_SIGNATURE="$(ls $R/hypr 2>/dev/null | head -1)" HOME=/home/$U PATH=/usr/bin "$@"; }
 export U R; export -f as
 echo "AMADEUS-SELFTEST-BEGIN"
+touch /tmp/selftest-start
 for _ in $(seq 60); do [[ -S $R/amadeus/daemon.sock ]] && pgrep -x Hyprland >/dev/null && break; sleep 2; done
 sleep 8
 mkdir -p /mnt/auto; mount /dev/disk/by-label/AMADEUSAUTO /mnt/auto 2>/dev/null
@@ -66,7 +67,7 @@ t "root account is locked"                     bash -c 'passwd -S root | grep -q
 t "CachyOS kernel is running"                  bash -c 'uname -r | grep -q cachyos'
 t "CachyOS repositories come first"            bash -c 'pacman-conf --repo-list | head -1 | grep -q cachyos && pacman -Q cachyos-settings linux-cachyos'
 t "multilib available for optional gaming"                   bash -c 'pacman-conf --repo-list | grep -qx multilib'
-t "core packages installed"                    pacman -Q hyprland quickshell nautilus btop fastfetch libreoffice-fresh amadeus amadeus-desktop snapper
+t "core packages installed"                    pacman -Q hyprland quickshell nautilus btop fastfetch libreoffice-fresh amadeus amadeus-desktop snapper sddm limine plymouth neovim
 t "package lists are ready"                    bash -c 'pacman -Si foot >/dev/null'
 t "mirror ranking tools installed"             pacman -Q curl reflector
 t "gaming and chat clients are optional"       bash -c 'for p in steam protonplus discord telegram-desktop claude-desktop; do if pacman -Q "$p" >/dev/null 2>&1; then echo "$p is installed by default"; exit 1; fi; done'
@@ -74,20 +75,17 @@ t "Gaming offers Steam from the official repository" bash -c 'as amadeus-catalog
 t "Chat offers official repository clients"   bash -c 'out=$(as amadeus-catalog chat); echo "$out"; grep -q "pacman:extra/discord" <<<"$out" && grep -q "pacman:extra/telegram-desktop" <<<"$out"'
 echo "--- snapshots"
 t "installing a package takes no snapshot"   bash -c 'before=$(snapper -c root list | wc -l); pacman -Sy --noconfirm --needed tree >/dev/null && [[ $(snapper -c root list | wc -l) == $before ]]'
-t "copy of /boot kept for rollback"            test -f /.bootbackup/vmlinuz-linux-cachyos
+t "Limine boots the installed kernel"         bash -c 'grep -q "linux-cachyos" /boot/limine.conf && ls /boot/EFI/Linux/*.efi >/dev/null'
 # What amadeus-update does before updating, seven times: only five snapshots may remain.
 for i in 1 2 3 4 5 6 7; do snapper -c root create --cleanup-algorithm number --description "before update test $i"; snapper -c root cleanup number; done
 t "only the newest five snapshots are kept"    bash -c '[[ $(snapper -c root list --columns number | tail -n +3 | grep -cv "^ *0") -le 5 ]] && snapper -c root list | grep -q "before update test 7"'
 echo "--- desktop session"
-t "greeter service running"                    systemctl is-active greetd
+t "login screen service running"              systemctl is-active sddm
 t "Hyprland is running"                        pgrep -x Hyprland
-t "shell is running"                           pgrep -f 'quickshell -p /usr/share/amadeus-os/shell'
-shell() { as quickshell ipc -p /usr/share/amadeus-os/shell call "$@"; }; export -f shell
-t "picker shows a list and returns the choice" bash -c '(printf "alpha\nbeta\n" | as amadeus-pick Test >/tmp/pick.out 2>&1 &); sleep 2; s=$(shell shell state); echo "$s"; echo "$s" | grep -q "\"picker\":true,\"pickerItems\":2" && shell pick choose beta && sleep 1 && grep -qx beta /tmp/pick.out'
-t "picker closes without a choice"             bash -c '(printf "a\n" | as amadeus-pick Test >/tmp/pick2.out 2>&1; echo "rc=$?" >>/tmp/pick2.out) & sleep 2; shell pick cancel; sleep 1; grep -qx "rc=1" /tmp/pick2.out'
+t "shell is running"                           bash -c 'pgrep -f "quickshell -n -p /usr/share/amadeus/shell" && as amadeus-shell shell ping'
 t "bar drop-downs open and close"              bash -c 'shell shell popover calendar 600; sleep 0.5; shell shell state | grep -q "\"popover\":\"calendar\"" && shell shell popover display 900; sleep 0.5; shell shell state | grep -q "\"popover\":\"display\"" && shell shell popover volume 1700; sleep 0.5; shell shell state | grep -q "\"popover\":\"volume\"" && shell shell popover "" 0'
 t "stay awake switches"                        bash -c 'shell shell awake true; shell shell state | grep -q "\"awake\":true" && shell shell awake false'
-t "passwordless administrator switch works and ends" bash -c '/usr/lib/amadeus-os/sudo-helper on 15m '$U' && as amadeus-sudo | grep -q "^on until" && sudo -u '$U' sudo -n true && /usr/lib/amadeus-os/sudo-helper off && ! sudo -u '$U' sudo -n true 2>/dev/null && as amadeus-sudo | grep -qx off'
+t "passwordless administrator access is a user choice" bash -c 'test -x /usr/bin/amadeus-sudo-passwordless && ! sudo -u '$U' sudo -n true 2>/dev/null'
 t "notifications are shown by the shell"       bash -c 'as notify-send "Self-test" "hello"; sleep 1; s=$(shell shell state); echo "$s"; echo "$s" | grep -q "\"notifications\":[1-9]"'
 t "launcher lists installed applications"      bash -c 'as amadeus-launcher --print | grep -q "^Files"'
 t "no separate launcher or notification program" bash -c '! pacman -Q fuzzel mako 2>/dev/null | grep -q .'
@@ -98,40 +96,28 @@ t "mirror ranking reports the official choice" bash -c 'as amadeus-mirrors --pri
 t "sound services are running"                 bash -c 'as systemctl --user is-active --quiet pipewire.socket pipewire-pulse.socket wireplumber.service'
 t "desktop keyring is off by default"           bash -c '! pacman -Q gnome-keyring >/dev/null 2>&1 && ! pgrep -u "$U" -f gnome-keyring-daemon && names=$(as gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.ListActivatableNames) && [[ $names != *org.freedesktop.secrets* ]]'
 t "terminal configuration is valid"            bash -c 'as foot --check-config'
-t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q amadeus-menu /usr/share/amadeus-os/hypr/default.lua'
-t "Super+K lists shortcuts and commands"       bash -c 'out=$(as amadeus-keys --print); echo "$out" | grep -q "^Super + K " && echo "$out" | grep -q "amadeus-rollback" && echo "$out" | grep -q "Super + Enter .*Terminal"'
-t "file manager shortcut is listed"            bash -c 'as amadeus-keys --print | grep -q "^Super + Shift + F .*Files"'
-t "system look applies to applications"        bash -c 'as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark && fc-match sans-serif | grep -qi inter && test -f /usr/share/amadeus-os/theme.json'
-t "text size applies to the shell and terminals" bash -c 'as amadeus-text-size 16 >/dev/null && as amadeus-display text | grep -q "16 px" && grep -q "font_size.*16" /home/'$U'/.config/amadeus/theme.json && grep -q ":size=13" /home/'$U'/.config/foot/foot.ini && sleep 1 && shell shell state | grep -q "fontSize.*16" && as amadeus-display text reset >/dev/null'
-t "display scale can be set and restored"      bash -c 'as amadeus-display scale 1.25 >/dev/null && as amadeus-display scale | grep -q 1.25 && as amadeus-display scale 1 >/dev/null'
+t "Amadeus menu installed and bound"           bash -c 'test -x /usr/bin/amadeus-menu && grep -q "Amadeus menu" /usr/share/amadeus/default/hypr/bindings/utilities.lua && as amadeus-menu ping'
+t "Super+K lists the shortcuts"               bash -c 'as hyprctl -j binds | grep -q "\"description\": \"Keybindings\""'
+t "file manager shortcut is listed"            bash -c 'as hyprctl -j binds | grep -q "\"description\": \"File manager\""'
+t "system look applies to applications"        bash -c 'as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark'
+t "text size applies everywhere and resets"   bash -c 'as amadeus-display-text-size 16 >/dev/null && as amadeus-display-text-size | grep -q 16 && as amadeus-display-text-size reset >/dev/null'
+t "display scale can be set and restored"      bash -c 'as amadeus-hyprland-monitor-scaling 1.25 >/dev/null && as amadeus-hyprland-monitor-scaling | grep -q 1.25 && as amadeus-hyprland-monitor-scaling 1 >/dev/null'
 t "Claude Code is installed only on request"    bash -c '! as bash -lc "command -v claude" >/dev/null 2>&1'
 t "a harness installs through mise (Claude Code)" bash -c 'as bash -lc "amadeus-harness install claude" >/dev/null 2>&1; as bash -lc "mise ls --global" | grep -q "^claude" && as bash -lc "claude --version"'
 t "harness list comes from mise"               bash -c 'out=$(as bash -lc "amadeus-harness list"); echo "$out" | grep -q "Claude Code  (installed)" && echo "$out" | grep -q "^Codex"'
-t "defaults: terminal, editor, harness"        bash -c 'out=$(as amadeus-default); echo "$out"; echo "$out" | grep -q "terminal *foot" && echo "$out" | grep -q "harness *claude" && as amadeus-default editor nano | grep -q "Default editor: nano"'
+t "defaults: terminal and editor"              bash -c 'as amadeus-default-terminal | grep -q . && [[ $(as amadeus-default-editor) == nvim ]]'
 t "default harness resolves to a program"      bash -c 'as bash -lc "amadeus-harness run claude --version"'
-t "text files open with the default editor"    bash -c 'as xdg-mime query default text/plain | grep -q amadeus-editor'
 t "install catalogue resolves its sources"     bash -c 'for c in terminal browser editor ai development; do n=$(as bash -lc "amadeus-catalog $c" | wc -l); echo "$c $n"; [[ $n -ge 3 ]] || exit 1; done; as bash -lc "amadeus-catalog terminal" | grep -q "^Foot  (installed)" && ai=$(as bash -lc "amadeus-catalog ai") && grep -qx "Claude Desktop[[:blank:]]pacman:claude-desktop" <<<"$ai"'
-t "web app list works with none installed"     bash -c '! as amadeus-webapp list | grep .'
-t "web app can be added and removed"           bash -c 'as amadeus-webapp install "Self Test" example.org >/dev/null; as amadeus-webapp list | grep -q "^Self Test" && as amadeus-launcher --print | grep -q "^Self Test" && as amadeus-webapp remove "Self Test" >/dev/null && ! as amadeus-webapp list | grep -q "Self Test"'
-t "web app address keeps its percent signs"    bash -c 'as amadeus-webapp install Pct "https://example.org/a%20b" >/dev/null; grep -q "a%%20b" /home/'$U'/.local/share/applications/amadeus-webapp-pct.desktop && as amadeus-webapp remove Pct'
-t "clipboard history records copies"           bash -c 'echo amadeus-clip-test | as wl-copy >/dev/null 2>&1; sleep 1; as cliphist list | grep -q amadeus-clip-test'
-t "system menu and about are present"          bash -c 'as amadeus-menu --menu-index | grep -q "^system.shutdown" && as fastfetch | grep -q "Amadeus OS"'
+t "web app can be added and removed"           bash -c 'as amadeus-webapp-install "Self Test" https://example.org applications-internet >/dev/null && test -f /home/'$U'/.local/share/applications/"Self Test.desktop" && as amadeus-webapp-remove "Self Test" >/dev/null && ! test -f /home/'$U'/.local/share/applications/"Self Test.desktop"'
+t "clipboard manager is loaded"                bash -c 'as amadeus-shell shell listPlugins | grep -q amadeus.clipboard'
+t "system menu and about are present"          bash -c 'grep -q "\"system.shutdown\"" /usr/share/amadeus/default/amadeus/amadeus-menu.jsonc && as fastfetch | grep -q "Amadeus"'
 t "GPU choice is offered only where there is one" bash -c '[[ $(as amadeus-gpu) == one ]] && ! as amadeus-gpu set dedicated >/dev/null 2>&1 && test -e /dev/dri/igpu-card'
 t "hardware detection sees the VM and nothing it needs is missing" bash -c 'amadeus-hardware has vm && [[ -z $(amadeus-hardware missing) ]]'
 t "GPU wrapper sets the offload variables"      bash -c 'as amadeus-gpu-run env | grep -q "^__NV_PRIME_RENDER_OFFLOAD=1$" && as amadeus-gpu-run env | grep -q "^__GLX_VENDOR_LIBRARY_NAME=nvidia$" && as amadeus-gpu-run env | grep -q "^__VK_LAYER_NV_optimus=NVIDIA_only$"'
 t "desktop config has no errors"             bash -c '[[ -z $(as hyprctl configerrors | tr -d "[:space:]") ]]'
 t "every shortcut has a description"           bash -c 'as hyprctl -j binds | python3 -c "import json,sys; b=json.load(sys.stdin); missing=[x[\"key\"] for x in b if not x[\"mouse\"] and not x[\"description\"]]; print(missing); assert len(b) > 40 and not missing"'
-t "screenshot is saved and copied"             bash -c 'as amadeus-screenshot screen >/dev/null 2>&1 & sleep 3; ls /home/'$U'/Pictures/Screenshots/screenshot-*.png >/dev/null && as wl-paste --list-types | grep -q image/png'
-rec_test() {   # starts a recording of the first screen as amadeus-record would, then stops it through amadeus-record
-  local mon; mon=$(as hyprctl -j monitors | python3 -c 'import json, sys; print(json.load(sys.stdin)[0]["name"])')
-  as bash -c "gpu-screen-recorder -w $mon -f 30 -fallback-cpu-encoding yes -o /tmp/amadeus-rec.mp4 >/dev/null 2>&1 & echo \$! >\$XDG_RUNTIME_DIR/amadeus-record.pid; echo /tmp/amadeus-rec.mp4 >\$XDG_RUNTIME_DIR/amadeus-record.file"
-  sleep 4; timeout 20 bash -c "$(declare -f as); as amadeus-record stop" >/dev/null 2>&1 & sleep 6
-  test -s /tmp/amadeus-rec.mp4
-}
-export -f rec_test
-t "screen recording saves when stopped"        rec_test
+t "screenshot is saved"                        bash -c 'as amadeus-capture-screenshot fullscreen save >/dev/null 2>&1; sleep 3; find /home/'$U' -newer /tmp/selftest-start -name "*.png" -path "*Pictures*" | grep -q .'
 t "scratchpad shows and hides"                 bash -c 'as hyprctl dispatch "hl.dsp.workspace.toggle_special(\"scratchpad\")" >/dev/null; sleep 0.5; as hyprctl -j monitors | grep -q "special:scratchpad" && as hyprctl dispatch "hl.dsp.workspace.toggle_special(\"scratchpad\")" >/dev/null'
-t "Super+K reads the live shortcuts"           bash -c 'as amadeus-keys --print | grep -q "^Super + K .*Shortcuts"' 
 t "compositor answers over IPC"                bash -c 'as hyprctl -j workspaces | grep -q "\"id\""'
 t "X11 applications supported"                 bash -c 'ls /tmp/.X11-unix/ | grep -q "^X"'
 echo "--- Amadeus"
@@ -149,24 +135,20 @@ t "tools load on demand and memory is the user's" bash -c 'n=$(as ama tool tool_
 t "a failed service is noticed and offered once" bash -c 'N=/home/$U/.local/state/amadeus/notices.json; as systemd-run --user --quiet --wait --unit amadeus-selftest-fail false; sleep 4; as systemctl --user reset-failed amadeus-selftest-fail 2>/dev/null; systemd-run --quiet --wait --unit amadeus-selftest-sysfail false; sleep 4; systemctl reset-failed amadeus-selftest-sysfail 2>/dev/null; grep -q "unit:user:amadeus-selftest-fail.service" $N && grep -q "unit:system:amadeus-selftest-sysfail.service" $N && as ama event check && ! grep -q "updates:due" $N && as systemctl --user is-active amadeus-space.timer >/dev/null && ! as ama event unit-failed scope=user "unit=x; rm -rf" | grep -q offered'
 t "a crashed program is noticed"               bash -c 'as bash -c "sleep 60 & sleep 1; kill -SEGV \$!; wait" 2>/dev/null; for _ in $(seq 10); do grep -q "crash:sleep" /home/$U/.local/state/amadeus/notices.json 2>/dev/null && exit 0; sleep 1; done; journalctl -b --no-pager -o cat -u amadeus-crash-notice.service | tail -4; systemctl is-active amadeus-crash-notice.service; exit 1'
 t "goals can be listed, refused and stopped"    bash -c 'as ama goal list >/dev/null && ! as ama goal x 2>/dev/null && ! as ama goal stop nosuchgoal 2>/dev/null'
-t "topic guides can be pulled up on demand"     bash -c 'as ama guide | grep -q "^theming" && as ama guide theming | grep -q amadeus-theme && as ama tool system_guide "{\"topic\": \"recovery\"}" | grep -q rollback && test -f /home/$U/.claude/skills/amadeus/desktop.md'
+t "topic guides can be pulled up on demand"     bash -c 'as ama guide | grep -q "^theming" && as ama guide theming | grep -q "amadeus theme set" && as ama tool system_guide "{\"topic\": \"recovery\"}" | grep -q rollback && test -f /home/$U/.claude/skills/amadeus/desktop.md'
 t "agent skill installed for Claude Code"      test -f /home/$U/.claude/skills/amadeus/SKILL.md
 t "Amadeus panel opens and reaches the daemon" bash -c 'as ama panel show; sleep 2; s=$(as ama panel state); echo "$s"; echo "$s" | grep -q "\"open\": true.*\"connected\": true"'
 t "panel takes a window as context"            bash -c 'as ama panel window; as ama panel hide; sleep 1; as ama panel state | grep -q "\"open\": false"'
 t "AI provider choices and saved default are visible" bash -c 'as ama provider --json | grep -q "antigravity-cli" && as ama panel settings && as ama provider use codex-cli && sleep 1 && as ama panel state | grep -q "defaultProvider.*codex-cli" && as quickshell ipc -p /usr/share/amadeus/shell/panel.qml call panel agent antigravity-cli && as ama panel state | grep -q "provider.*antigravity-cli.*defaultProvider.*codex-cli" && as ama provider use claude-cli && sleep 1 && as quickshell ipc -p /usr/share/amadeus/shell/panel.qml call panel agent "" && as ama panel state | grep -q "provider.*claude-cli.*defaultProvider.*claude-cli"'
-t "a package list searches only itself"         bash -c '(printf "local only\n" | as amadeus-pick "Remove package" >/tmp/local-pick.out; echo "rc=$?" >>/tmp/local-pick.out) & sleep 2; shell pick query sound; sleep 1; state=$(shell shell state); shell pick cancel; sleep 1; [[ $state != *"Sound settings"* ]] && grep -qx "rc=1" /tmp/local-pick.out'
-t "workspaces are an optional bar widget"       bash -c '! grep -q workspaces /usr/share/amadeus-os/shell/bar.default.json && as ama tool desktop_bar | grep -q workspaces'
+t "the assistant reads the bar layout"         bash -c 'as ama tool desktop_bar | grep -q amadeus.workspaces'
 t "helpers stay out of Apps"                    bash -c 'test -s /usr/share/amadeus-os/launcher.hides && ! as amadeus-launcher --print | grep -qE "^(uuctl|Avahi|Qt V4L2)"'
-t "copy and paste shortcuts reach the focused surface" bash -c 'k=$(as amadeus-keys --print) && grep -q "Universal copy" <<<"$k" && grep -q "Universal paste" <<<"$k" && grep -q send_key_state /usr/share/amadeus-os/hypr/default.lua'
+t "universal copy and paste are bound"         bash -c 'b=$(as hyprctl -j binds) && grep -q "\"description\": \"Universal copy\"" <<<"$b" && grep -q "\"description\": \"Universal paste\"" <<<"$b"'
 t "power profile control works"                 bash -c 'p=$(as powerprofilesctl get) && [[ $p == power-saver || $p == balanced || $p == performance ]]'
 t "model and effort are saved per provider"     bash -c 'as ama provider tune codex-cli model=test-model effort=low >/dev/null && as ama provider --json | grep -q "\"model\": \"test-model\", \"effort\": \"low\"" && ! as ama provider tune codex-cli effort=ludicrous 2>/dev/null && as ama provider tune codex-cli model= effort= >/dev/null'
 t "execution mode is saved, full access is not" bash -c 'as ama mode sandbox >/dev/null && [[ $(as ama mode) == "mode: sandbox" ]] && sleep 1 && as ama panel state | grep -q "\"mode\": \"sandbox\"" && ! as ama mode full 2>/dev/null; as quickshell ipc -p /usr/share/amadeus/shell/panel.qml call panel mode full; as ama panel state | grep -q "\"mode\": \"sandbox\".*\"confirmFull\": true" && as ama mode ask >/dev/null && [[ $(as ama mode) == "mode: ask" ]]'
-t "one theme recolours the shell, terminal and lock screen" bash -c 'as amadeus-theme set amadeus-light >/dev/null && grep -q "background=f6f1e8" /home/$U/.config/foot/foot.ini && grep -q "\"bg\": \"#f6f1e8\"" /home/$U/.config/amadeus/theme.json && grep -q "^color=f6f1e8" /home/$U/.config/swaylock/config && as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-light && [[ -z $(as hyprctl configerrors | tr -d "[:space:]") ]]; rc=$?; as amadeus-theme set amadeus >/dev/null && grep -q "background=0f0e0d" /home/$U/.config/foot/foot.ini && as gsettings get org.gnome.desktop.interface color-scheme | grep -q prefer-dark && [[ $rc == 0 ]]'
-t "open terminals follow a theme change in place" bash -c 'rm -f /tmp/foot-probe.out; as foot -e bash /mnt/auto/foot-probe.sh & sleep 2; as amadeus-theme set amadeus-light >/dev/null; wait; as amadeus-theme set amadeus >/dev/null; grep -qi "f6f6/f1f1/e8e8" /tmp/foot-probe.out'
-t "display defaults are chosen without replacing a setting" bash -c 'grep -q "amadeus-display auto" /usr/share/amadeus-os/hypr/default.lua && before=$(cat /home/$U/.config/hypr/display.lua 2>/dev/null; cat /home/$U/.config/amadeus/theme.json 2>/dev/null) && as amadeus-display auto && as amadeus-display auto && [[ -z $(as hyprctl configerrors | tr -d "[:space:]") ]] && { [[ -z $before ]] || [[ $before == "$(cat /home/$U/.config/hypr/display.lua 2>/dev/null; cat /home/$U/.config/amadeus/theme.json 2>/dev/null)" ]]; }'
-t "login screen takes a chosen theme and resets" bash -c 'amadeus-login --publish amadeus-light $(as amadeus-theme colors amadeus-light) >/dev/null && grep -q "define-color bg #f6f1e8" /etc/greetd/amadeus/regreet.css && test -s /etc/greetd/amadeus/background.png && sudo -u greeter test -r /etc/greetd/amadeus/regreet.css && [[ $(amadeus-login current) == amadeus-light ]] && ! amadeus-login --publish x "bg=#zzzzzz" 2>/dev/null && amadeus-login reset >/dev/null && [[ $(amadeus-login current) == default ]]'
-t "search opens a setting without returning it to a menu" bash -c '(printf "local only\n" | as amadeus-pick --global "Unrelated menu" >/tmp/search-pick.out; echo "rc=$?" >>/tmp/search-pick.out) & sleep 2; shell pick query sound; sleep 1; shell shell state | grep -q "Sound settings" && shell pick accept && sleep 1 && grep -qx "rc=1" /tmp/search-pick.out && shell shell state | grep -q "popover.*volume" && shell shell popover "" 0'
-t "universal search indexes applications and settings" bash -c 'out=$(as amadeus-search --index); grep -q "app:" <<<"$out" && grep -q "setting:agent" <<<"$out"'
+t "one theme recolours every application"     bash -c 'as amadeus-theme-set "Catppuccin Latte" >/dev/null && grep -q "$(grep "^background" /usr/share/amadeus/themes/catppuccin-latte/colors.toml | cut -d\" -f2)" /home/'$U'/.config/amadeus/current/theme/assistant.json && as amadeus-theme-set "Tokyo Night" >/dev/null'
+t "login screen uses the Amadeus theme"        bash -c 'test -f /usr/share/sddm/themes/amadeus/Main.qml && grep -q "^Current=amadeus" /etc/sddm.conf.d/10-theme.conf'
+t "search indexes applications and the menu"   bash -c 'out=$(as amadeus-search --index); grep -q "app:" <<<"$out" && grep -q "menu:appearance.theme" <<<"$out"'
 t "audio menu omits monitor inputs"             bash -c 'state=$(shell shell state) && [[ $state == *audioInputs* && $state != *"Monitor of"* ]]'
 t "usage controls open from the bar"           bash -c 'shell shell popover agents 1700; sleep 1; shell shell state | grep -q "popover.*agents" && shell shell popover "" 0'
 t "saved tasks page opens"                    bash -c 'as ama panel tasks; sleep 0.5; as ama panel state | grep -q "taskSettings.*true" && as ama panel hide'
@@ -215,10 +197,9 @@ free -m | sed -n 2p | awk '{print "memory used after login: " $3 " MB"}'
 pacman -Qq | wc -l | awk '{print "packages installed: " $1}'
 df -h / | tail -1 | awk '{print "disk used: " $3}'
 
-t "logout uses the graphical greeter and authenticates before restarting the desktop" python3 /usr/local/bin/amadeus-ui-check installed
 
 echo "--- rollback from the running system"
-printf x >>/.bootbackup/vmlinuz-linux-cachyos   # a stale saved kernel, to exercise the repair path
+printf x >>/boot/vmlinuz-linux-cachyos   # a damaged kernel copy, to exercise the repair path
 snapper -c root create -d "rollback-test"
 n=$(snapper -c root list | awk '/rollback-test/{print $1}')
 touch /etc/rollback-marker

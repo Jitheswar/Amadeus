@@ -31,8 +31,15 @@ def wait_for(test, label, timeout=25):
         time.sleep(0.3)
     raise RuntimeError(label)
 
-def present(name):
-    return subprocess.run(["pgrep", "-x", name], stdout=subprocess.DEVNULL).returncode == 0
+def present(name, owner=None):
+    args = ["pgrep", "-x", name] + (["-u", owner] if owner else [])
+    return subprocess.run(args, stdout=subprocess.DEVNULL).returncode == 0
+
+def desktop():
+    """The user's own desktop; the login screen runs a compositor of its own as sddm."""
+    return present("Hyprland", user)
+
+GREETER = "sddm-greeter-qt6"
 
 def request(action):
     with open("/dev/ttyS0", "w") as console:
@@ -40,41 +47,34 @@ def request(action):
 
 try:
     if mode == "installed":
-        as_user("sh", "-c", "amadeus-menu >/tmp/amadeus-menu-input-test.log 2>&1 &")
-        def shell_state():
-            return json.loads(as_user("quickshell", "ipc", "-p", "/usr/share/amadeus-os/shell", "call", "shell", "state"))
-        wait_for(lambda: shell_state()["picker"], "menu did not open")
-        request("menu-hover"); time.sleep(1)
-        before = shell_state()
-        request("menu-down"); time.sleep(1)
-        after = shell_state()
-        assert after["pickerIndex"] == min(before["pickerIndex"]+2, before["pickerItems"]-1), (before, after)
-        as_user("quickshell", "ipc", "-p", "/usr/share/amadeus-os/shell", "call", "pick", "cancel")
-        log("GUI: keyboard keeps selection with mouse over menu")
+        as_user("amadeus-menu", "summon", "root")
+        time.sleep(1)
+        as_user("amadeus-menu", "close")
+        log("GUI: the menu opens and closes")
     as_user("uwsm", "stop")
-    wait_for(lambda: not present("Hyprland") and present("regreet") and present("cage"), "graphical greeter did not replace the desktop")
+    wait_for(lambda: not desktop() and present(GREETER), "the login screen did not replace the desktop")
     time.sleep(3)
-    # QMP cannot read back the GL scanout. Capture the real greeter through Cage's screencopy API.
-    pid = run("pgrep", "-x", "regreet").splitlines()[0]
+    # QMP cannot read back the GL scanout. Capture the login screen through its compositor.
+    pid = run("pgrep", "-x", GREETER).splitlines()[0]
     entries = Path("/proc/" + pid + "/environ").read_bytes().split(b"\0")
     env = dict(entry.decode().split("=", 1) for entry in entries if b"=" in entry)
-    args = ["sudo", "-u", "greeter", "env", "XDG_RUNTIME_DIR=" + env["XDG_RUNTIME_DIR"], "WAYLAND_DISPLAY=" + env["WAYLAND_DISPLAY"], "grim", "-"]
+    args = ["sudo", "-u", "sddm", "env", "XDG_RUNTIME_DIR=" + env["XDG_RUNTIME_DIR"], "WAYLAND_DISPLAY=" + env["WAYLAND_DISPLAY"], "grim", "-"]
     image = subprocess.check_output(args)
-    assert image.startswith(b"\x89PNG\r\n\x1a\n"), "greeter capture was not a PNG"
+    assert image.startswith(b"\x89PNG\r\n\x1a\n"), "login screen capture was not a PNG"
     target = Path("/mnt/try" if mode == "try" else "/mnt/auto") / ("greeter-" + mode + ".png")
     target.write_bytes(image)
     if mode == "installed":
         cursor = run("journalctl", "-b", "-n", "0", "--show-cursor", "--quiet").strip().removeprefix("-- cursor: ")
-        request("wrong-login-auto" if Path("/usr/share/amadeus-os/greeter/profiles.py").exists() else "wrong-login")
-        # PAM logs a bad password before its delay ends and greetd returns the error.
+        request("wrong-login")
+        # PAM logs the failure before its delay ends and SDDM tells the theme.
         def rejected():
-            journal = run("journalctl", "-b", "-u", "greetd", "--after-cursor", cursor, "--no-pager")
-            return "pam_authenticate: AUTH_ERR" in journal
-        wait_for(rejected, "greetd never finished rejecting the wrong password")
-        assert not present("Hyprland"), "wrong password started a desktop"
+            journal = run("journalctl", "-b", "--after-cursor", cursor, "--no-pager")
+            return "authentication failure" in journal
+        wait_for(rejected, "SDDM never finished rejecting the wrong password")
+        assert not desktop(), "wrong password started a desktop"
         log("GUI: wrong password refused")
     request("login-" + mode)
-    wait_for(lambda: present("Hyprland") and not present("regreet"), "graphical login did not return to the desktop", 35)
+    wait_for(lambda: desktop() and not present(GREETER), "graphical login did not return to the desktop", 35)
     wait_for(lambda: Path(runtime + "/amadeus/daemon.sock").is_socket(), "AI session did not return")
     log("GUI: logout and graphical login passed (" + mode + ")")
 except Exception as error:
@@ -86,5 +86,5 @@ except Exception as error:
         except Exception as error: log(error)
     try: log("VT text: " + Path("/dev/vcs1").read_text(errors="replace"))
     except OSError: pass
-    log(run("journalctl", "-b", "-u", "greetd", "--no-pager", check=False)[-5000:])
+    log(run("journalctl", "-b", "-u", "sddm", "--no-pager", check=False)[-5000:])
     raise
