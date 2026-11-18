@@ -12,7 +12,7 @@ AUR=${AMADEUS_AUR:-https://aur.archlinux.org}
 cache=${XDG_CACHE_HOME:-$HOME/.cache}/amadeus-aur
 mkdir -p "$cache"
 (( EUID != 0 )) || { echo "Run amadeus-aur as your user; it asks for the password when needed."; exit 1; }
-declare -A seen=()
+declare -A build_state=()
 
 # The system repositories come first: never build a package they carry.
 from_repos() { pacman -Si "$1" >/dev/null 2>&1; }
@@ -46,9 +46,23 @@ fetch() {  # NAME -> clones the recipe into $cache/NAME
 }
 
 build() {  # NAME: build and install, AUR dependencies first
+  local name=$1
+  case ${build_state[$name]:-} in
+    installed) return 0 ;;
+    failed) return 1 ;;
+    building) echo "  Circular AUR dependency at $name." >&2; return 1 ;;
+  esac
+  build_state[$name]=building
+  if build_recipe "$name"; then
+    build_state[$name]=installed
+  else
+    build_state[$name]=failed
+    return 1
+  fi
+}
+
+build_recipe() {
   local name=$1 dep
-  [[ -z ${seen[$name]:-} ]] || return 0
-  seen[$name]=1
   echo; echo "==> $name"
   if from_repos "$name"; then
     echo "  $name is in the system repositories; they come first. Install it with: sudo pacman -S $name"

@@ -707,6 +707,22 @@ esac""")
         self.assertIn("git", " ".join(self.calls_of("git")[0]))
         self.assertEqual(self.calls_of("makepkg"), [["-sif", "--needed", "--noconfirm"]])
 
+    def test_failed_shared_aur_dependency_skips_both_apps(self):
+        self.stub("git", body='''dest="${@: -1}"
+mkdir -p "$dest"
+touch "$dest/PKGBUILD" "$dest/.SRCINFO"
+case ${dest##*/} in
+  first|second) echo "depends = shared" > "$dest/.SRCINFO" ;;
+esac''')
+        self.stub("pacman", rc=1)
+        builds = self.tmp / "builds"
+        self.stub("makepkg", body=f'basename "$PWD" >> {builds}; [[ ${{PWD##*/}} != shared ]] || exit 1')
+        p = self.run_cmd("amadeus-aur", "install", "first", "second", "independent",
+                         env={"AMADEUS_AUR_YES": "1"})
+        self.assertNotEqual(p.returncode, 0)
+        self.assertEqual(builds.read_text().splitlines(), ["shared", "independent"])
+        self.assertIn("second was skipped", p.stdout)
+
     def test_aur_install_shows_the_recipe_and_can_be_declined(self):
         body = "\n".join([
             'dest="${@: -1}"',
