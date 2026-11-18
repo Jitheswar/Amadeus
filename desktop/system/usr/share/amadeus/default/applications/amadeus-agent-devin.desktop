@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Devin CLI
+Comment=Start Devin CLI in a terminal
+Exec=amadeus-agent --agent devin --app-id=org.amadeus.devin
+Icon=amadeus-agent-devin
+StartupWMClass=org.amadeus.devin
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

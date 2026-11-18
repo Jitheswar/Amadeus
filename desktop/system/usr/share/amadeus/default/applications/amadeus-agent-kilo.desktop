@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Kilo
+Comment=Start Kilo in a terminal
+Exec=amadeus-agent --agent kilo --app-id=org.amadeus.kilo
+Icon=amadeus-agent-kilo
+StartupWMClass=org.amadeus.kilo
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

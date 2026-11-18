@@ -74,13 +74,14 @@
   "dock": {
     "position": "bottom",
     "pinned": [
-      "org.gnome.Nautilus",
-      "chromium",
-      "foot",
+      "folio",
+      "amadeus-browser",
+      "amadeus-terminal",
       "omacalc",
       "omawrite",
-      "X",
-      "YouTube"
+      "hype",
+      "monologue",
+      "cliamp"
     ]
   },
   "plugins": []

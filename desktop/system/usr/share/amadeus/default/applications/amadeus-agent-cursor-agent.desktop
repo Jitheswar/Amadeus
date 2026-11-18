@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Cursor CLI
+Comment=Start Cursor CLI in a terminal
+Exec=amadeus-agent --agent cursor-agent --app-id=org.amadeus.cursor-agent
+Icon=amadeus-agent-cursor-agent
+StartupWMClass=org.amadeus.cursor-agent
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

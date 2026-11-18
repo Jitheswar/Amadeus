@@ -2,7 +2,7 @@
 
 # amadeus:summary=Print debugging information
 # amadeus:args=[--no-sudo] [--print]
-# amadeus:examples=amadeus debug --print --no-sudo
+# amadeus:examples=amadeus-debug --print --no-sudo
 # amadeus:requires-sudo=true
 
 NO_SUDO=false

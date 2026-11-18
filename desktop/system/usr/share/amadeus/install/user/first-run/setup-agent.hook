@@ -7,5 +7,5 @@ set -e
 if [[ -z $(amadeus-default-agent) ]] && amadeus-done ensure agent-setup-invitation; then
   amadeus-notification-send -u critical -g 󰚩 "$(amadeus-i18n firstRun.agentTitle)" \
     "$(amadeus-i18n firstRun.agentBody)" \
-    --exec amadeus menu summon setup.default.agent
+    --exec amadeus menu summon agent.harness
 fi

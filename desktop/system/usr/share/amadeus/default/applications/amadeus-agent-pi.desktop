@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Pi
+Comment=Start Pi in a terminal
+Exec=amadeus-agent --agent pi --app-id=org.amadeus.pi
+Icon=amadeus-agent-pi
+StartupWMClass=org.amadeus.pi
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

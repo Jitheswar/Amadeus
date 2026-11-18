@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Crush
+Comment=Start Crush in a terminal
+Exec=amadeus-agent --agent crush --app-id=org.amadeus.crush
+Icon=amadeus-agent-crush
+StartupWMClass=org.amadeus.crush
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

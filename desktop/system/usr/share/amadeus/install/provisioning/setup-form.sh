@@ -1,6 +1,6 @@
 # The setup form: every question Amadeus asks a human to describe their machine
-# — keyboard, account, hostname, timezone — plus the rules those answers are
-# checked against. Shared by the two places that ask them: the ISO
+# — language, keyboard, account, hostname, timezone — the table they are reviewed
+# in, plus the rules those answers are checked against. Shared by the two places that ask them: the ISO
 # configurator's user step and this package's first-boot owner setup
 # (amadeus-provision-owner). Sourced by both, so the copies cannot drift the way
 # the keyboard list already did.
@@ -18,7 +18,7 @@
 # so it never reaches the shell as SIGINT. Act on the status, never on a trap.
 #
 # Callers supply `notice <message> <seconds>` for validation feedback, and set
-# the variables these prompts write: keyboard, keyboard_label,
+# the variables these prompts write: language, keyboard, keyboard_label,
 # keyboard_input_method, keyboard_xkb_layout, username,
 # password, password_confirmation, full_name, email_address, hostname, timezone.
 #
@@ -26,9 +26,31 @@
 # form's text), AMADEUS_FORM_KEYBOARD_DEFAULT (a layout label to preselect),
 # AMADEUS_FORM_TIMEZONE_DEFAULT (a timezone that beats the network's guess) and
 # AMADEUS_FORM_TIMEZONE_FALLBACK (one used only when that guess fails).
+# amadeus_prompt_language sets the first and, from the language picked, the
+# second and fourth.
+
+# The form is drawn on the Linux console, whose font (console-font.sh) covers
+# Latin, Cyrillic and Greek. These are the languages it can be read in there;
+# any other is listed under its English name and leaves the form in English.
+AMADEUS_FORM_CONSOLE_LANGUAGES='bg ca cs da de el en es-MX et fi fil fr ga hr hu id is it lt lv ms nl no pl pt pt-BR ro ru sk sl sr sv sw tr uk uz'
 
 AMADEUS_FORM_BACK=1
 AMADEUS_FORM_SIGNAL=130
+
+# How every screen of the form looks. gum's key hints ("enter submit") are
+# hardcoded English and add nothing to prompts that already say what to do.
+export GUM_CHOOSE_SHOW_HELP=false GUM_CONFIRM_SHOW_HELP=false GUM_FILTER_SHOW_HELP=false GUM_INPUT_SHOW_HELP=false
+export GUM_CONFIRM_PROMPT_FOREGROUND="6"
+export GUM_CONFIRM_SELECTED_FOREGROUND="0"
+export GUM_CONFIRM_SELECTED_BACKGROUND="2"
+export GUM_CONFIRM_UNSELECTED_FOREGROUND="7"
+export GUM_CONFIRM_UNSELECTED_BACKGROUND="0"
+# gum asks COLORTERM how many colours the console has. The installer's login
+# shell says truecolor, so gum sends its colours as they are and the kernel
+# settles each on the nearest of the console's sixteen: the palette's purple
+# for prompts and selections. First-boot setup is a systemd unit with no
+# COLORTERM, where gum picks from sixteen itself and lands on blue and red.
+export COLORTERM=${COLORTERM:-yes}
 
 # The English layouts lead, then everything else alphabetically. gum choose
 # paginates in --height-sized pages and jumps to the page holding --selected,
@@ -114,18 +136,80 @@ if [[ -r $amadeus_form_defaults ]]; then
   done <"$amadeus_form_defaults"
   unset amadeus_form_key amadeus_form_value
 fi
+# A layout the caller or the install media named: the one a language's own
+# layout does not replace.
+amadeus_form_keyboard_preset=${AMADEUS_FORM_KEYBOARD_DEFAULT:-}
 
 # The form's strings live in Amadeus's CLI catalogs, which the live ISO carries
 # too. The caller names the language in AMADEUS_FORM_LANGUAGE; English fills in.
 amadeus_form_i18n=${AMADEUS_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/default/i18n
 
+# amadeus_form_text <key> [args...]: the string, %1.. filled from the arguments.
 amadeus_form_text() {
-  local language=${AMADEUS_FORM_LANGUAGE:-en} text
+  local language=${AMADEUS_FORM_LANGUAGE:-en} text key=$1 arg i=1
   local -a catalogs=("$amadeus_form_i18n/en/cli.json")
   [[ $language =~ ^[a-z]{2,3}(-[A-Z]{2})?$ && -r $amadeus_form_i18n/$language/cli.json ]] &&
     catalogs=("$amadeus_form_i18n/$language/cli.json" "${catalogs[@]}")
   text=$(jq -rn --arg key "$1" 'first(inputs | .[$key] // empty) // empty' "${catalogs[@]}" 2>/dev/null) || text=""
-  printf '%s' "${text:-$1}"
+  text=${text:-$key}
+  shift
+  for arg in "$@"; do
+    text=${text//"%$i"/"$arg"}
+    i=$((i + 1))
+  done
+  printf '%s' "$text"
+}
+
+# Beside this file in the runtime, and beside the copy the ISO vendors.
+amadeus_form_language_defaults=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/language-defaults.json
+
+amadeus_form_language_drawn() {
+  [[ " $AMADEUS_FORM_CONSOLE_LANGUAGES " == *" $1 "* ]]
+}
+
+amadeus_form_language_label() {
+  local field=englishName
+  amadeus_form_language_drawn "$1" && field=name
+  jq -r --arg code "$1" --arg field "$field" '.[$code][$field] // $code' "$amadeus_form_i18n/locales.json" 2>/dev/null || printf '%s' "$1"
+}
+
+# What follows from the language: the form's own text, the layout preselected
+# in the keyboard step and, for when the network cannot guess one, its
+# country's timezone. A layout the install media preset wins. A language with
+# no single country (English, Arabic, Swahili, Tamil) falls back to UTC: with
+# no fallback the timezone step opens on a search, where Enter takes the first
+# zone, Africa/Abidjan.
+amadeus_form_use_language() {
+  local defaults=$amadeus_form_language_defaults keyboard_default="" timezone_default=""
+  language=$1
+  AMADEUS_FORM_LANGUAGE=en
+  amadeus_form_language_drawn "$language" && AMADEUS_FORM_LANGUAGE=$language
+
+  if [[ -r $defaults ]]; then
+    keyboard_default=$(jq -r --arg code "$language" '.[$code].keyboard // empty' "$defaults" 2>/dev/null) || keyboard_default=""
+    timezone_default=$(jq -r --arg code "$language" '.[$code].timezone // empty' "$defaults" 2>/dev/null) || timezone_default=""
+  fi
+  AMADEUS_FORM_KEYBOARD_DEFAULT=${amadeus_form_keyboard_preset:-${keyboard_default:-English (US)}}
+  AMADEUS_FORM_TIMEZONE_FALLBACK=${timezone_default:-UTC}
+}
+
+# Every Amadeus language, English first and the rest alphabetical by what is
+# shown, with the current one selected.
+amadeus_prompt_language() {
+  local choice status drawn
+  drawn=$(printf '%s\n' $AMADEUS_FORM_CONSOLE_LANGUAGES | jq -R . | jq -sc .)
+  choice=$(jq -r --argjson drawn "$drawn" '
+      to_entries
+      | map({code: .key, label: (if (.key | IN($drawn[])) then .value.name else .value.englishName end)})
+      | sort_by(.code != "en", (.label | sub("^Í"; "I") | sub("^Č"; "C") | ascii_downcase))
+      | .[] | "\(.label)\t\(.code)"
+    ' "$amadeus_form_i18n/locales.json" |
+    gum choose --height 10 --label-delimiter $'\t' --selected "$(amadeus_form_language_label "${language:-en}")" \
+      --header "$(amadeus_form_text setupForm.languageHeader)") && status=0 || status=$?
+  ((status == 0)) || return $status
+  [[ -n $choice ]] || return 1
+
+  amadeus_form_use_language "$choice"
 }
 
 amadeus_prompt_keyboard() {
@@ -245,4 +329,24 @@ amadeus_prompt_timezone() {
   ((status == 0)) || return $status
 
   [[ -n $timezone ]] || timezone="UTC"
+}
+
+# The answers in one table, and the question that ends the form: 0 they are
+# right, 1 they are to be changed (or Esc), 130 Ctrl+C. gum table ignores gum's
+# padding, so the caller passes the indent its other widgets get.
+amadeus_form_review() {
+  local indent=${1:-}
+  printf '%s\t%s\n' \
+    "$(amadeus_form_text setupForm.reviewField)" "$(amadeus_form_text setupForm.reviewValue)" \
+    "$(amadeus_form_text setupForm.reviewLanguage)" "$(amadeus_form_language_label "${language:-en}")" \
+    "$(amadeus_form_text setupForm.reviewKeyboard)" "${keyboard_label:-$keyboard}" \
+    "$(amadeus_form_text setupForm.reviewTimezone)" "$timezone" \
+    "$(amadeus_form_text setupForm.reviewUsername)" "$username" \
+    "$(amadeus_form_text setupForm.reviewPassword)" "$(printf "%${#password}s" | tr ' ' '*')" \
+    "$(amadeus_form_text setupForm.reviewHostname)" "$hostname" |
+    gum table -s $'\t' -p | sed "s/^/$indent/"
+
+  echo
+  gum confirm --affirmative "$(amadeus_form_text setupForm.reviewYes)" --negative "$(amadeus_form_text setupForm.reviewChange)" \
+    "$(amadeus_form_text setupForm.reviewPrompt)"
 }

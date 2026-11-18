@@ -38,4 +38,6 @@ for mode in sharp rounded; do
 done
 
 amadeus-restart-hyprctl
+# T3 Code reads the new rounding from Hyprland, so it follows after the reload.
+amadeus-theme-set-t3code || true
 amadeus-notification-send -g 󰘇 "$LABEL"

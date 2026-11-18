@@ -42,8 +42,9 @@ plymouth set and amadeus refresh plymouth republish them from the checkout,
 reading this link's authorization out of the root-owned /etc/amadeus.conf.
 
 Also writes $sudoers_file so sudo resolves amadeus-*
-from the checkout instead of the packaged copies. That part takes effect
-immediately, no reboot needed.
+from the checkout instead of the packaged copies, and links every agent
+harness's Amadeus skills to the checkout's. Those take effect immediately,
+no reboot needed.
 
 Use --no-reboot when another command will handle the reboot prompt.
 USAGE
@@ -116,6 +117,14 @@ sudo install -Dm440 -o root -g root "$staged_sudoers" "$sudoers_file"
 
 echo "Pointed Amadeus at $target"
 echo "sudo now resolves amadeus-* from $target/bin"
+
+# Agents read the skills of the code they run. The checkout's own command
+# does it, since the package's may predate it; a checkout older than the
+# command keeps the links it has.
+if [[ -x $target/bin/amadeus-agent-skills-link ]]; then
+  "$target/bin/amadeus-agent-skills-link" "$target"
+  echo "Agent skills now link to $target/default/agents/skills"
+fi
 echo
 
 if (( prompt_reboot )) && gum confirm "Reboot now to activate?"; then

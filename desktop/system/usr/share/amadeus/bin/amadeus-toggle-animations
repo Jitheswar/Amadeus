@@ -4,18 +4,39 @@
 # amadeus:args=[toggle|on|off]
 # amadeus:examples=amadeus toggle animations | amadeus toggle animations off | amadeus toggle animations on
 
-# The flag records animations being off, so on and off swap on the way through.
 case ${1:-toggle} in
-toggle) amadeus-hyprland-toggle no-animations toggle ;;
-on) amadeus-hyprland-toggle no-animations off ;;
-off) amadeus-hyprland-toggle no-animations on ;;
+toggle)
+  if amadeus-hyprland-animations-off; then
+    animations=on
+  else
+    animations=off
+  fi
+  ;;
+on | off) animations=$1 ;;
 *)
   echo "Usage: amadeus-toggle-animations [toggle|on|off]" >&2
   exit 1
   ;;
 esac
 
-if amadeus-hyprland-toggle-enabled no-animations; then
+# A session that renders on the CPU turns animations off by itself
+# (default/hypr/software-rendering.lua). Turning them on there is remembered for
+# later sessions too, and has to be in place before the toggle reloads Hyprland.
+without_gpu="$HOME/.local/state/amadeus/toggles/animations-without-gpu"
+
+# The flag records animations being off, so on and off swap on the way through.
+if [[ $animations == "on" ]]; then
+  if [[ -e $XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/amadeus-software-rendering ]]; then
+    mkdir -p "${without_gpu%/*}"
+    touch "$without_gpu"
+  fi
+  amadeus-hyprland-toggle no-animations off
+else
+  rm -f "$without_gpu"
+  amadeus-hyprland-toggle no-animations on
+fi
+
+if amadeus-hyprland-animations-off; then
   amadeus-notification-send -g 󰗘 "$(amadeus-i18n animations.disabled)"
 else
   amadeus-notification-send -g 󰗘 "$(amadeus-i18n animations.enabled)"

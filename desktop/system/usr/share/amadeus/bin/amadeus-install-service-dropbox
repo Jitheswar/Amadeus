@@ -4,7 +4,7 @@
 # amadeus:requires-sudo=true
 
 echo "Installing all dependencies..."
-amadeus-pkg-add dropbox dropbox-cli libappindicator python-gpgme nautilus-dropbox
+amadeus-pkg-add dropbox dropbox-cli libappindicator python-gpgme
 
 echo "Adding Dropbox to the bar..."
 amadeus-plugin-enable amadeus.dropbox

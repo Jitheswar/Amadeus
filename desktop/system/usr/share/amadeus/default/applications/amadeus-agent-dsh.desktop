@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=DeepSeek Harness
+Comment=Start DeepSeek Harness in a terminal
+Exec=amadeus-agent --agent dsh --app-id=org.amadeus.dsh
+Icon=amadeus-agent-dsh
+StartupWMClass=org.amadeus.dsh
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

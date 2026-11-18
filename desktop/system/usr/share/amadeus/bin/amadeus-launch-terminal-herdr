@@ -1,5 +1,7 @@
 #!/bin/bash
 
-# amadeus:summary=Launch or attach to the persistent herdr session in a terminal
+# amadeus:summary=Focus the herdr terminal, or launch one attached to the persistent session
 
-exec amadeus-launch-terminal herdr
+# Its own app id, so the dock matches the window to the Herdr launcher, and a
+# second launch focuses that window instead of attaching another terminal.
+exec amadeus-launch-or-focus org.amadeus.herdr "amadeus-launch-terminal --app-id=org.amadeus.herdr herdr"

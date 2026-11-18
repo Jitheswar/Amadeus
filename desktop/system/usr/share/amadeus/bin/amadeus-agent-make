@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# amadeus:summary=Have an agent make a new theme, plugin, app, or game
+# amadeus:args=[--default] <theme|plugin|app|game>
+# amadeus:examples=amadeus agent make theme | amadeus agent make --default app
+
+# A few ways into making Amadeus your own, shared by the agents panel's starter
+# tiles and the menu's Agent > Make something. The task goes to the local
+# model when one is running and to the default agent otherwise; --default
+# always takes the default agent.
+
+prefer_local=(--prefer-local)
+if [[ ${1:-} == "--default" ]]; then
+  prefer_local=()
+  shift
+fi
+
+case "${1:-}" in
+theme) prompt="Make me a new Amadeus theme. Ask me what look or inspiration I have in mind, then build it following the Amadeus skill's theming guide and switch to it." ;;
+plugin) prompt="Make me a new Amadeus shell plugin. Ask me what I'd like it to do, then build it following the Amadeus skill's plugin guide and enable it." ;;
+app) prompt="Make me a new app for my Amadeus desktop. Ask me what it should do, then build it following the amadeus-app skill and install it so it shows up in the app launcher." ;;
+game) prompt="Make me a new game for my Amadeus desktop. Ask me what kind of game I'd like, or which game in Game Vibes to keep working on, then build it following the web-game skill and open it in Game Vibes." ;;
+*)
+  echo "Usage: amadeus-agent-make [--default] <theme|plugin|app|game>" >&2
+  exit 1
+  ;;
+esac
+
+exec amadeus-agent "${prefer_local[@]}" --pick --prompt "$prompt"

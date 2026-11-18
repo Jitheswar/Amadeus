@@ -1,3 +1,4 @@
+run_logged "$AMADEUS_INSTALL/config/pacman-keyring.sh"
 run_logged "$AMADEUS_INSTALL/config/theme-system.sh"
 run_logged "$AMADEUS_INSTALL/config/browser-policy.sh"
 run_logged "$AMADEUS_INSTALL/config/increase-lockout-limit.sh"

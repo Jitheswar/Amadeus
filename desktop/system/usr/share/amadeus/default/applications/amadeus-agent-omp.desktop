@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Oh My Pi
+Comment=Start Oh My Pi in a terminal
+Exec=amadeus-agent --agent omp --app-id=org.amadeus.omp
+Icon=amadeus-agent-omp
+StartupWMClass=org.amadeus.omp
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

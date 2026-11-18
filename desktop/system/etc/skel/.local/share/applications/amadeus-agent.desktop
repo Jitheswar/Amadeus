@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Agent
+Comment=Start a coding agent in a terminal
+Exec=amadeus-agent --pick
+Icon=amadeus-agent
+StartupWMClass=org.amadeus.agent
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

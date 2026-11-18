@@ -1,5 +1,6 @@
 #!/bin/bash
 
-# amadeus:summary=Launch Files in the active terminal's current directory
+# amadeus:summary=Launch Files in the terminal's directory (the old name, kept for personal bindings)
+# amadeus:hidden=true
 
-exec setsid uwsm-app -- nautilus --new-window "$(amadeus-cmd-terminal-cwd)"
+exec amadeus-launch-files-cwd "$@"

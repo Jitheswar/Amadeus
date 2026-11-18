@@ -253,14 +253,13 @@ ch limine-mkinitcpio >/dev/null 2>&1 || ch limine-mkinitcpio
 # ---- snapshots and services --------------------------------------------------
 say "Snapshots and services"
 # The desktop system's own setup: snapshot retention (the newest five; amadeus-update takes
-# them), firewall, services, sign-in limits, SSH, locale, the login screen, device rules and
-# the file index. Its package-channel step is not run: the repositories set up above stay.
+# them), firewall, services, sign-in limits, SSH, locale, the login screen and device rules.
+# Its package-channel steps (keyring and pacman.conf) are not run: the repositories set up above stay.
 ch env AMADEUS_PATH=/usr/share/amadeus AMADEUS_INSTALL=/usr/share/amadeus/install AMADEUS_LOG_TO_STDOUT=1 bash -c '
   source "$AMADEUS_INSTALL/helpers/logging.sh"
-  source "$AMADEUS_INSTALL/config/all.sh"
+  source <(grep -v pacman-keyring "$AMADEUS_INSTALL/config/all.sh")
   source "$AMADEUS_INSTALL/login/all.sh"
-  run_logged "$AMADEUS_INSTALL/post-install/udev.sh"
-  run_logged "$AMADEUS_INSTALL/post-install/localdb.sh"' || die "the system setup steps failed; see the messages above"
+  run_logged "$AMADEUS_INSTALL/post-install/udev.sh"' || die "the system setup steps failed; see the messages above"
 for s in bluetooth ananicy-cpp systemd-timesyncd fstrim.timer; do
   ch systemctl enable "$s" >/dev/null 2>&1 || echo "  (could not enable $s)"
 done

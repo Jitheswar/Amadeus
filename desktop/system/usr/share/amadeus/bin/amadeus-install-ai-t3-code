@@ -57,7 +57,7 @@ done
 if [[ -z $channel ]]; then
   stable=$(amadeus-i18n t3code.stable)
   nightly=$(amadeus-i18n t3code.nightly)
-  choice=$(gum choose --header "$(amadeus-i18n t3code.selectChannel)" "$stable" "$nightly")
+  choice=$(gum choose --header "$(amadeus-i18n t3code.selectChannel)" "$stable" "$nightly") || exit 130
   if [[ $choice == "$nightly" ]]; then
     channel="nightly"
   else

@@ -7,5 +7,5 @@
 # have it.
 
 if amadeus-hw-match "H7407BA"; then
-  amadeus-pkg-add asus-proart-p14-speaker-firmware
+  amadeus-pkg-add asus-proart-p14-audio
 fi

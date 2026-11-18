@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# amadeus:summary=Log out, reboot, or shut down after closing applications
-# amadeus:args=<logout|reboot|shutdown>
-# amadeus:examples=amadeus system logout | amadeus system reboot | amadeus system shutdown
+# amadeus:summary=Log out, reboot, reboot to the BIOS, or shut down after closing applications
+# amadeus:args=<logout|reboot|firmware|shutdown>
+# amadeus:examples=amadeus system logout | amadeus system reboot | amadeus system firmware | amadeus system shutdown
 # amadeus:aliases=amadeus logout | amadeus reboot | amadeus shutdown
 
-usage="Usage: amadeus-system <logout|reboot|shutdown>"
+usage="Usage: amadeus-system <logout|reboot|firmware|shutdown>"
 for arg in "$@"; do
   case $arg in
     -h | --help) echo "$usage"; exit 0 ;;
@@ -20,6 +20,7 @@ action=${1:-}
 case $action in
   logout) command=(uwsm stop) ;;
   reboot) command=(systemctl reboot --no-wall) ;;
+  firmware) command=(systemctl reboot --firmware-setup --no-wall) ;;
   shutdown) command=(systemctl poweroff --no-wall) ;;
   *) echo "$usage" >&2; exit 2 ;;
 esac
@@ -36,6 +37,11 @@ case $action in
     failed_title=$(amadeus-i18n system.rebootFailed)
     failed_body=$(amadeus-i18n system.rebootRetry)
     ;;
+  firmware)
+    message=$(amadeus-i18n system.rebootingToFirmware)
+    failed_title=$(amadeus-i18n system.firmwareFailed)
+    failed_body=$(amadeus-i18n system.firmwareRetry)
+    ;;
   shutdown)
     message=$(amadeus-i18n system.shuttingDown)
     failed_title=$(amadeus-i18n system.shutdownFailed)
@@ -44,14 +50,34 @@ case $action in
 esac
 
 exit_session() {
-  amadeus-osd -i "$action" -m "$message" -d 5000
+  # systemctl only finds out the firmware can't do it after the apps are gone.
+  if [[ $action == "firmware" ]]; then
+    local answer
+    answer=$(busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanRebootToFirmwareSetup 2>/dev/null)
+    if [[ $answer != 's "yes"' ]]; then
+      return 1
+    fi
+  fi
+
+  # Only show the OSD once the exit has taken 2 seconds, so a quick one doesn't flash it.
+  { sleep 2; amadeus-osd -i "${action/firmware/reboot}" -m "$message" -d 0; } &
+  local osd_pid=$!
+
   if [[ $action != "logout" ]]; then
     amadeus-state clear re*-required
   fi
 
   # Proceed as soon as apps exit, with a bound for unresponsive windows.
   timeout 2s amadeus-hyprland-window-close-all --wait
-  "${command[@]}"
+  if "${command[@]}"; then
+    # The unit kills the delayed OSD when this script exits, so stay until the session goes down.
+    wait "$osd_pid"
+  else
+    local status=$?
+    kill "$osd_pid" 2>/dev/null
+    amadeus-shell -q osd close
+    return "$status"
+  fi
 }
 
 if [[ ${2:-} == "--inhibited" ]]; then

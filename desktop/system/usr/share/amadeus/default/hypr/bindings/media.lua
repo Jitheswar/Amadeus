@@ -15,9 +15,9 @@ o.bind("XF86KbdBrightnessDown", "Keyboard brightness down", "amadeus-brightness-
 o.bind("CTRL + XF86MonBrightnessDown", "Keyboard brightness down", "amadeus-brightness-keyboard down", { locked = true, repeating = true })
 o.bind("CTRL + XF86MonBrightnessUp", "Keyboard brightness up", "amadeus-brightness-keyboard up", { locked = true, repeating = true })
 o.bind("XF86KbdLightOnOff", "Keyboard backlight cycle", "amadeus-brightness-keyboard cycle", { locked = true })
-o.bind_toggle("XF86TouchpadToggle", "Toggle touchpad", "touchpad", { locked = true })
-o.bind("XF86TouchpadOn", "Enable touchpad", "amadeus-toggle-touchpad on", { locked = true })
-o.bind("XF86TouchpadOff", "Disable touchpad", "amadeus-toggle-touchpad off", { locked = true })
+o.bind("XF86TouchpadToggle", "Toggle touchpad", "amadeus-device-touchpad", { locked = true })
+o.bind("XF86TouchpadOn", "Enable touchpad", "amadeus-device-touchpad on", { locked = true })
+o.bind("XF86TouchpadOff", "Disable touchpad", "amadeus-device-touchpad off", { locked = true })
 
 -- Precise volume and brightness controls.
 o.bind("ALT + XF86AudioRaiseVolume", "Volume up precise", "amadeus-audio-output-volume +1", { locked = true, repeating = true })

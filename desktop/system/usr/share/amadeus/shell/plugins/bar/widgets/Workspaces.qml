@@ -37,7 +37,7 @@ BarWidget {
   }
 
   FileView {
-    path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/amadeus/monitor-workspaces"
+    path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/amadeus/monitors/workspaces"
     watchChanges: true
     printErrors: false
     onFileChanged: reload()

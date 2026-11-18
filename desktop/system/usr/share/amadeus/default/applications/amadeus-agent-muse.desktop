@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Muse Code
+Comment=Start Muse Code in a terminal
+Exec=amadeus-agent --agent muse --app-id=org.amadeus.muse
+Icon=amadeus-agent-muse
+StartupWMClass=org.amadeus.muse
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

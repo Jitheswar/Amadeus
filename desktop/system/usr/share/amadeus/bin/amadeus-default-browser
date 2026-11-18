@@ -45,6 +45,15 @@ if amadeus-cmd-missing "$command"; then
   else
     amadeus-install-browser "$browser" || exit 1
   fi
+elif [[ $browser != "firefox" && $browser != "zen" ]] && ! amadeus-install-browser-extensions --check "$browser"; then
+  # The bundled extensions reach each browser through copies taken at setup,
+  # which go stale when an extension or its id changes. Chrome's copy is a
+  # root-owned policy, so repair it where a sudo prompt can be answered.
+  if [[ $installing == "false" && $browser == "chrome" ]]; then
+    exec amadeus-launch-floating-terminal-with-presentation amadeus-default-browser --install "$browser"
+  else
+    amadeus-install-browser-extensions "$browser" || exit 1
+  fi
 fi
 
 # xdg-settings checks what it set by reading the handler back, which the

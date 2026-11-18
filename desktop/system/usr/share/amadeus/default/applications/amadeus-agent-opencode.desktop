@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=OpenCode
+Comment=Start OpenCode in a terminal
+Exec=amadeus-agent --agent opencode --app-id=org.amadeus.opencode
+Icon=amadeus-agent-opencode
+StartupWMClass=org.amadeus.opencode
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

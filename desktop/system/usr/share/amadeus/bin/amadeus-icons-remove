@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# amadeus:summary=Remove a user-installed icon set
+# amadeus:args=[icon-set-name]
+# amadeus:examples=amadeus icons remove "Example"
+
+SETS_DIR="$HOME/.config/amadeus/icons"
+
+if [[ -z $1 ]]; then
+  mapfile -t extra_sets < <(find "$SETS_DIR" -mindepth 1 -maxdepth 1 -type d ! -xtype l -printf '%f\n' 2>/dev/null)
+
+  if (( ${#extra_sets[@]} > 0 )); then
+    mapfile -t extra_sets < <(printf '%s\n' "${extra_sets[@]}" | sort)
+    SET_NAME=$(amadeus-menu-select "$(amadeus-i18n icons.removeExtraTitle)" "${extra_sets[@]}" -- --width 520 --maxheight 520)
+  else
+    echo "No extra icon sets installed."
+    exit 1
+  fi
+else
+  SET_NAME=$(tr '[:upper:]' '[:lower:]' <<<"$1" | tr ' ' '-')
+fi
+
+SET_PATH="$SETS_DIR/$SET_NAME"
+
+# Ensure a set was named, and that the name cannot climb out of SETS_DIR on
+# its way into the rm below.
+if [[ -z $SET_NAME || $SET_NAME == .* || $SET_NAME == */* ]]; then
+  exit 1
+fi
+
+if [[ ! -d $SET_PATH ]]; then
+  echo "Error: Icon set '$SET_NAME' not found."
+  exit 1
+fi
+
+# The set goes, and the selection is checked and cleared, under the lock
+# amadeus-icons-set picks under and amadeus-theme-set-icons draws under. A pick
+# made at the same moment then lands before this or after it, never between
+# the check and the clear, where it would be wiped. The lock is let go before
+# the draw below takes it.
+CURRENT="$HOME/.local/state/amadeus/current"
+mkdir -p "$CURRENT"
+exec 7>"$CURRENT/.icons.lock"
+flock 7
+
+rm -rf "$SET_PATH"
+
+# The set in use is drawn again without what was removed. A set of the user's
+# own is gone, so the default takes over; one laid over a built-in set leaves
+# that set as Amadeus ships it.
+redraw=false
+if [[ $(amadeus-icons-current --id) == "$SET_NAME" ]]; then
+  [[ -d $AMADEUS_PATH/icons/$SET_NAME ]] || rm -f "$CURRENT/icons.name"
+  redraw=true
+fi
+
+exec 7>&-
+
+if [[ $redraw == "true" ]]; then
+  amadeus-theme-set-icons
+fi
+
+amadeus-notification-send "$(amadeus-i18n icons.removed)" "$SET_NAME" || true
+echo "Removed $SET_NAME"

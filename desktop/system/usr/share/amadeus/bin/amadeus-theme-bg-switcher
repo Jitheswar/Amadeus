@@ -12,3 +12,10 @@ amadeus-menu-images \
   --selected "$current_background" \
   "$HOME/.local/state/amadeus/current/theme/backgrounds" \
   "$HOME/.config/amadeus/backgrounds/$theme_name"
+status=$?
+
+if (( status == 3 )); then
+  amadeus-notification-send "$(amadeus-i18n theme.noBackground)" -t 2000
+fi
+
+exit "$status"

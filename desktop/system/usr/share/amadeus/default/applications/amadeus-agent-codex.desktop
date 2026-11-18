@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Codex
+Comment=Start Codex in a terminal
+Exec=amadeus-agent --agent codex --app-id=org.amadeus.codex
+Icon=amadeus-agent-codex
+StartupWMClass=org.amadeus.codex
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

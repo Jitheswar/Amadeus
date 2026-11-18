@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Claude Code
+Comment=Start Claude Code in a terminal
+Exec=amadeus-agent --agent claude --app-id=org.amadeus.claude
+Icon=amadeus-agent-claude
+StartupWMClass=org.amadeus.claude
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

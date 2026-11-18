@@ -35,7 +35,8 @@ after reboot. This intentionally does not rewrite the running Hyprland,
 systemd, shell, or app-launcher environment; reboot to make every layer agree.
 
 Removes $sudoers_file, the drop-in that pointed sudo
-at the checkout, so sudo goes back to the packaged amadeus-* immediately.
+at the checkout, so sudo goes back to the packaged amadeus-* immediately,
+and links every agent harness's Amadeus skills back to the package's.
 
 Use --no-reboot when another command will handle the reboot prompt.
 USAGE
@@ -56,7 +57,13 @@ printf 'export AMADEUS_PATH="%s"\n' "$default_target" | sudo tee /etc/amadeus.co
 # points at — and keeps trusting a user-writable directory for root's commands.
 sudo rm -f "$sudoers_file"
 
+# The command beside this one links the agent skills back to the package:
+# the package's may predate it, and this session's AMADEUS_PATH may name a
+# tree older still.
+"$(dirname "$(realpath "${BASH_SOURCE[0]}")")/amadeus-agent-skills-link" "$default_target"
+
 echo "Pointed Amadeus at $default_target"
+echo "Agent skills now link to $default_target/default/agents/skills"
 echo
 
 if (( prompt_reboot )) && gum confirm "Reboot now to activate?"; then

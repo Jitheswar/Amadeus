@@ -3,7 +3,7 @@
 # amadeus:summary=Configure the dock shown on floating workspaces
 # amadeus:group=dock
 # amadeus:args=position [top|bottom|left|right] | autohide [on|off|toggle] | pinned [<desktop-id>...] | pin <desktop-id> | unpin <desktop-id>
-# amadeus:examples=amadeus dock position left | amadeus dock pin org.gnome.Nautilus
+# amadeus:examples=amadeus dock position left | amadeus dock pin folio
 
 set -euo pipefail
 

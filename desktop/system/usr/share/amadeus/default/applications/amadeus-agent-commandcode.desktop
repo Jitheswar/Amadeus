@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Command Code
+Comment=Start Command Code in a terminal
+Exec=amadeus-agent --agent commandcode --app-id=org.amadeus.commandcode
+Icon=amadeus-agent-commandcode
+StartupWMClass=org.amadeus.commandcode
+Terminal=false
+Type=Application
+Categories=Development;
+X-Amadeus-Dock-Click=new

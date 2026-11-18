@@ -17,16 +17,16 @@ start_install_log() {
     chmod 666 "$AMADEUS_INSTALL_LOG_FILE" 2>/dev/null || true
   fi
 
-  export AMADEUS_START_TIME="${AMADEUS_START_TIME:-$(printf "%(%Y-%m-%d %H:%M:%S)T" -1)}"
-  export AMADEUS_START_EPOCH="${AMADEUS_START_EPOCH:-$EPOCHSECONDS}"
+  export AMADEUS_START_TIME="${AMADEUS_START_TIME:-$(date '+%Y-%m-%d %H:%M:%S')}"
+  export AMADEUS_START_EPOCH="${AMADEUS_START_EPOCH:-$(date +%s)}"
 
   amadeus_log_line "=== Amadeus Setup Started: $AMADEUS_START_TIME ==="
 }
 
 stop_install_log() {
   local end_time end_epoch duration mins secs
-  end_time=$(printf "%(%Y-%m-%d %H:%M:%S)T" -1)
-  end_epoch=$EPOCHSECONDS
+  end_time=$(date '+%Y-%m-%d %H:%M:%S')
+  end_epoch=$(date +%s)
 
   amadeus_log_line "=== Amadeus Setup Completed: $end_time ==="
 
@@ -42,7 +42,7 @@ run_logged() {
   local script="$1"
   local exit_code errexit_was_set=0
 
-  amadeus_log_line "[$(printf "%(%Y-%m-%d %H:%M:%S)T" -1)] Starting: $script"
+  amadeus_log_line "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: $script"
 
   case $- in
     *e*)
@@ -68,9 +68,9 @@ run_logged() {
   (( errexit_was_set )) && set -e
 
   if (( exit_code == 0 )); then
-    amadeus_log_line "[$(printf "%(%Y-%m-%d %H:%M:%S)T" -1)] Completed: $script"
+    amadeus_log_line "[$(date '+%Y-%m-%d %H:%M:%S')] Completed: $script"
   else
-    amadeus_log_line "[$(printf "%(%Y-%m-%d %H:%M:%S)T" -1)] Failed: $script (exit code: $exit_code)"
+    amadeus_log_line "[$(date '+%Y-%m-%d %H:%M:%S')] Failed: $script (exit code: $exit_code)"
   fi
 
   return $exit_code

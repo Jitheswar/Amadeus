@@ -26,6 +26,7 @@ panel amadeus.clock
 panel amadeus.elsewhen
 panel amadeus.network
 panel amadeus.power
+panel amadeus.agents
 audio raise
 audio lower
 audio mute-toggle

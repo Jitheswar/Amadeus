@@ -87,6 +87,12 @@ browser_policy_install_defaults() {
   local policies=${2:-$AMADEUS_PATH/default/chromium/policies/amadeus.json}
 
   as_root install -m 644 -o root -g root -T "$policies" "$policy_dir/amadeus.json"
+
+  # Google Chrome ignores --load-extension, so its policy installs the bundled
+  # extensions from the CRXs Amadeus ships instead.
+  if [[ $policy_dir == "/etc/opt/chrome/policies/managed" ]]; then
+    as_root install -m 644 -o root -g root -T "$AMADEUS_PATH/default/chromium/policies/chrome-extensions.json" "$policy_dir/amadeus-extensions.json"
+  fi
 }
 
 browser_policy_setup_dir() {

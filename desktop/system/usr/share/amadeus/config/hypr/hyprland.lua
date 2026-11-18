@@ -5,7 +5,13 @@ dofile((os.getenv("AMADEUS_PATH") or "/usr/share/amadeus") .. "/default/hypr/boo
 
 -- Disable all Amadeus default bindings. Add your own in hypr/bindings.lua.
 -- amadeus_default_bindings = false
-
+--
+-- Or disable only bindings for Amadeus's preinstalled apps/web apps while
+-- keeping core window-manager bindings:
+-- amadeus_preinstalled_bindings = false
+--
+-- Disable Amadeus's default touchpad gestures. Add your own in hypr/input.lua.
+-- amadeus_default_gestures = false
 
 -- Load Amadeus defaults.
 require("default.hypr.amadeus")

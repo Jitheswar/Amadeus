@@ -6,8 +6,9 @@
 linux-cachyos
 linux-cachyos-headers
 # Release firmware (1.0 and later) drives the panel from the GPU.
-nvidia-open-dkms
+linux-cachyos-nvidia-open
 nvidia-utils
 libva-nvidia-driver
+nvidia-container-toolkit
 # amadeus-n1x-probe uses lspci.
 pciutils
