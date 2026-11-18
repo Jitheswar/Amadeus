@@ -282,15 +282,12 @@ E
   return 0
 }
 
-# Kernel options on an installed system live in the boot entries; add what is missing.
+# Kernel options on an installed system live in /etc/default/limine; add what is missing.
 apply_cmdline() {
-  local want e o
-  want=$(cmdline); [[ -n $want ]] || return 0
-  for e in /boot/loader/entries/*.conf; do
-    [[ -f $e ]] || continue
-    for o in $want; do
-      grep -qE "^options(.* )?${o//./\\.}( |$)" "$e" || sed -i "s|^options .*|& $o|" "$e"
-    done
+  local want o conf=/etc/default/limine
+  want=$(cmdline); [[ -n $want && -f $conf ]] || return 0
+  for o in $want; do
+    grep -qE "(\"| )${o//./\\.}( |\")" "$conf" || echo "KERNEL_CMDLINE[default]+=\" $o\"" >>"$conf"
   done
 }
 
@@ -316,7 +313,8 @@ setup() {
   apply /
   after=$(cat /etc/mkinitcpio.conf.d/* /etc/modprobe.d/* 2>/dev/null | md5sum)
   apply_cmdline
-  [[ $before == "$after" && -z $missing_pkgs ]] || mkinitcpio -P
+  # The boot images (and their kernel options) are rebuilt by Limine's own tool.
+  [[ $before == "$after" && -z $missing_pkgs && -z $(cmdline) ]] || limine-mkinitcpio
   echo "Hardware set up. Restart for new drivers and kernel options to take effect."
 }
 

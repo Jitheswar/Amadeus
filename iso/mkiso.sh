@@ -137,8 +137,10 @@ cp $SRC/iso/live/motd $A/etc/motd
 cp -a $SRC/iso/live/try/. $A/
 install -Dm644 $SRC/desktop/hardware/nvidia.conf $A/etc/modprobe.d/nvidia.conf
 install -Dm644 $SRC/desktop/hardware/80-nvidia-pm.rules $A/etc/udev/rules.d/80-nvidia-pm.rules
-{ grep -hv '^#' $SRC/iso/live/packages.try $SRC/installer/packages.apps; grep -hv '^#' $SRC/installer/packages.desktop | tr ' ' '\n' | grep -v '^lib32-'; } | tr ' ' '\n' | grep . | sort -u >>$P/packages.x86_64
+{ grep -hv '^#' $SRC/iso/live/packages.try $SRC/installer/packages.apps $SRC/installer/packages.system; grep -hv '^#' $SRC/installer/packages.desktop | tr ' ' '\n' | grep -v '^lib32-'; } | tr ' ' '\n' | grep . | sort -u >>$P/packages.x86_64
 printf '\n[amadeus]\nSigLevel = Optional TrustAll\nServer = file://%s\n' "$REPO" >>$P/pacman.conf
+# The desktop system's own packages that only the hardware repository builds (its key is trusted above).
+AMADEUS_HARDWARE_SHARE=$SRC/desktop/hardware bash $SRC/desktop/bin/amadeus-hardware repos >>$P/pacman.conf
 echo amadeus-live >$A/etc/hostname
 printf 'pciutils\nrsync\ngum\n' >>$P/packages.x86_64
 # The guided installer starts by itself on the first screen, unless an unattended install is under way.

@@ -219,7 +219,11 @@ mkdir -p $T/etc/systemd/journald.conf.d $T/etc/NetworkManager/conf.d
 printf '[Journal]\nSystemMaxUse=200M\n' >$T/etc/systemd/journald.conf.d/size.conf
 printf '[connection]\nwifi.powersave = 3\n' >$T/etc/NetworkManager/conf.d/wifi-powersave.conf
 
-install -m644 $T/usr/share/amadeus-os/greeter/greetd.toml $T/etc/greetd/config.toml
+# The login screen. On an encrypted disk the passphrase typed at boot already proved who is
+# there, so the desktop starts straight away; otherwise the Amadeus login screen asks.
+if [[ $ENCRYPT == yes ]]; then
+  printf '[Autologin]\nUser=%s\nSession=amadeus\n' "$USERNAME" >$T/etc/sddm.conf.d/autologin.conf
+fi
 
 # Driver settings, services and model-specific fixes for the detected hardware (before the
 # boot image is built, since some add modules to it).
@@ -227,54 +231,33 @@ AMADEUS_HARDWARE_SHARE=$T/usr/share/amadeus-os/hardware hw apply $T
 
 # ---- boot --------------------------------------------------------------------
 say "Boot loader"
-ROOT_UUID=$(blkid -s UUID -o value "$ROOTPART")
+# Limine, with a unified kernel image per kernel and a Snapshots submenu that boots any system
+# snapshot read-only (btrfs-overlayfs); the look and the splash options come from the shipped
+# /etc/limine-entry-tool.d drop-ins and /usr/share/amadeus/default/limine.
 if [[ $ENCRYPT == yes ]]; then
-  sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)/' $T/etc/mkinitcpio.conf
-  CMD="rd.luks.name=$ROOT_UUID=root rd.luks.options=discard root=/dev/mapper/root"
+  CMD="cryptdevice=UUID=$(blkid -s UUID -o value "$ROOTPART"):root:allow-discards root=/dev/mapper/root"
 else
-  sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)/' $T/etc/mkinitcpio.conf
-  CMD="root=UUID=$ROOT_UUID"
+  CMD="root=UUID=$(blkid -s UUID -o value "$ROOTDEV")"
 fi
+CMD+=" rootflags=subvol=@ rw rootfstype=btrfs $(hw cmdline) ${EXTRA_CMDLINE:-}"
+sed "s|@@CMDLINE@@|${CMD% }|" $T/usr/share/amadeus/default/limine/default.conf >$T/etc/default/limine
 # autodetect keeps only the drivers this computer needs; a portable system needs them all.
-[[ $PORTABLE == yes ]] && sed -i 's/^HOOKS=(\(.*\) autodetect /HOOKS=(\1 /' $T/etc/mkinitcpio.conf
-CMD+=" rootflags=subvol=@ rw quiet loglevel=3 nowatchdog $(hw cmdline) ${EXTRA_CMDLINE:-}"
-ch mkinitcpio -P >/dev/null 2>&1 || ch mkinitcpio -P
-ch bootctl install --no-variables >/dev/null 2>&1 || ch bootctl install
-printf 'default amadeus.conf\ntimeout 2\nconsole-mode keep\neditor no\n' >$T/boot/loader/loader.conf
+[[ $PORTABLE == yes ]] && printf '%s\n' '# A portable system starts on any computer, so its boot image keeps every driver.' \
+  'HOOKS=("${HOOKS[@]/autodetect}")' >$T/etc/mkinitcpio.conf.d/zz-amadeus-portable.conf
 K=linux-cachyos
-# Intel Macs with a T2 chip start the T2 kernel: their keyboard, trackpad and audio need its drivers.
-[[ -f $T/boot/vmlinuz-linux-t2 ]] && K=linux-t2
-printf 'title Amadeus OS\nlinux /vmlinuz-%s\ninitrd /initramfs-%s.img\noptions %s\n' $K $K "$CMD" >$T/boot/loader/entries/amadeus.conf
-printf 'title Amadeus OS (fallback)\nlinux /vmlinuz-%s\ninitrd /initramfs-%s-fallback.img\noptions %s\n' $K $K "${CMD/ quiet loglevel=3/}" >$T/boot/loader/entries/amadeus-fallback.conf
-[[ -f $T/boot/initramfs-$K-fallback.img ]] || rm $T/boot/loader/entries/amadeus-fallback.conf
-# Register the loader with the firmware too (bootctl --no-variables is used so this also works in a chroot).
-efibootmgr -q -c -d "$DISK" -p 1 -L "Amadeus OS" -l '\EFI\systemd\systemd-bootx64.efi' 2>/dev/null || true
-
-# Keep a copy of /boot inside the root filesystem before every package change, so a
-# snapshot always contains the kernel that matches its modules.
-mkdir -p $T/etc/pacman.d/hooks
-cat >$T/etc/pacman.d/hooks/04-boot-backup.hook <<'H'
-[Trigger]
-Operation = Upgrade
-Operation = Install
-Operation = Remove
-Type = Path
-Target = usr/lib/modules/*/vmlinuz
-[Action]
-Description = Saving a copy of /boot for snapshot rollback
-When = PreTransaction
-Exec = /usr/bin/rsync -a --delete /boot/ /.bootbackup/
-H
-# And again after the change, before the "post" snapshot is taken.
-sed 's/^When = PreTransaction/When = PostTransaction/' $T/etc/pacman.d/hooks/04-boot-backup.hook >$T/etc/pacman.d/hooks/95-boot-backup.hook
-rsync -a --delete $T/boot/ $T/.bootbackup/
+[[ -f $T/boot/vmlinuz-$K ]] || die "the kernel $K was not installed; see the package messages above"
+install -m644 $T/usr/share/amadeus/default/limine/limine.conf $T/boot/limine.conf
+# The boot splash (and the disk passphrase prompt) in the Amadeus look; the boot images built next carry it.
+ch plymouth-set-default-theme amadeus
+ch limine-install >/dev/null 2>&1 || ch limine-install
+ch limine-mkinitcpio >/dev/null 2>&1 || ch limine-mkinitcpio
 
 # ---- snapshots and services --------------------------------------------------
 say "Snapshots and services"
 ch snapper --no-dbus -c root create-config /
 # Snapshots are taken by amadeus-update, once before each update, and only the newest five are kept.
 sed -i 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE="no"/; s/^NUMBER_LIMIT=.*/NUMBER_LIMIT="5"/; s/^NUMBER_LIMIT_IMPORTANT=.*/NUMBER_LIMIT_IMPORTANT="0"/; s/^NUMBER_MIN_AGE=.*/NUMBER_MIN_AGE="0"/' $T/etc/snapper/configs/root
-for s in NetworkManager greetd bluetooth power-profiles-daemon ananicy-cpp systemd-timesyncd systemd-resolved fstrim.timer snapper-cleanup.timer; do
+for s in NetworkManager sddm bluetooth power-profiles-daemon ananicy-cpp systemd-timesyncd systemd-resolved fstrim.timer snapper-cleanup.timer limine-snapper-sync.service; do
   ch systemctl enable "$s" >/dev/null 2>&1 || echo "  (could not enable $s)"
 done
 ln -sf ../run/systemd/resolve/stub-resolv.conf $T/etc/resolv.conf

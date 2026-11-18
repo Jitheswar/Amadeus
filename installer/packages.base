@@ -6,6 +6,8 @@ cachyos-settings ananicy-cpp cachyos-ananicy-rules
 # chip is left without its firmware. Microcode and drivers come from desktop/hardware/packages.list.
 linux-firmware
 btrfs-progs cryptsetup dosfstools efibootmgr sudo nano less bash-completion man-db
+# Limine boots unified kernel images and lists system snapshots in its menu.
+limine limine-mkinitcpio-hook limine-snapper-sync
 networkmanager wpa_supplicant openssh
 snapper zram-generator pacman-contrib rsync arch-install-scripts
 # The first update ranks the official mirrors; the desktop commands use curl for AUR lookups and weather.

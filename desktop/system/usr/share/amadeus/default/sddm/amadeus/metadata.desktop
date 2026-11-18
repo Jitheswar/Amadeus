@@ -1,0 +1,9 @@
+[SddmGreeterTheme]
+Name=Amadeus
+Description=The Amadeus OS login screen, coloured by the active desktop theme
+Author=Amadeus OS
+Type=sddm-theme
+Version=1.0
+MainScript=Main.qml
+ConfigFile=theme.conf
+QtVersion=6

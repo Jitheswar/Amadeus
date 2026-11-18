@@ -2,7 +2,7 @@
 Description=Amadeus OS: prepare the try session
 ConditionKernelCommandLine=amadeus.try
 ConditionPathExists=!/dev/disk/by-label/AMADEUSAUTO
-Before=greetd.service
+Before=sddm.service
 
 [Service]
 Type=oneshot

@@ -5,6 +5,7 @@
 #   amadeus-rollback N          make snapshot N the system that starts next
 #   amadeus-rollback clean      delete the old systems kept by earlier rollbacks
 #   amadeus-rollback shell      open a root shell inside the installed system (USB stick)
+# The Limine menu can also start any snapshot read-only, to try it before rolling back.
 # Add --yes to skip the confirmation. Nothing is deleted by a rollback: the system
 # being replaced is kept as @.before-rollback-<date> until "clean" removes it.
 set -euo pipefail
@@ -127,7 +128,6 @@ case $CMD in
 
     say "Restoring the matching kernel"
     mount_new
-    [[ -f $NEW/.bootbackup/loader/loader.conf ]] && rsync -a --delete $NEW/.bootbackup/ $NEW/boot/
     rebuild=no
     for k in $NEW/usr/lib/modules/*/vmlinuz; do
       [[ -f $k ]] || continue
@@ -135,9 +135,8 @@ case $CMD in
       if ! cmp -s "$k" "$NEW/boot/vmlinuz-$name"; then install -m644 "$k" "$NEW/boot/vmlinuz-$name"; rebuild=yes; fi
     done
     if [[ $rebuild == yes ]]; then
-      echo "The saved kernel did not match this snapshot; rebuilding the boot image."
-      arch-chroot $NEW mkinitcpio -P >/dev/null 2>&1 || die "the boot image could not be rebuilt. Undo with: mount the disk, then rename $keep back to @"
-      rsync -a --delete $NEW/boot/ $NEW/.bootbackup/
+      echo "The kernel in /boot did not match this snapshot; rebuilding the boot images."
+      arch-chroot $NEW limine-mkinitcpio >/dev/null 2>&1 || die "the boot images could not be rebuilt. Undo with: mount the disk, then rename $keep back to @"
     fi
     sync
     say "Done. Restart to use the system from snapshot $N."

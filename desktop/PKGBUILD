@@ -4,7 +4,7 @@ pkgrel=1
 pkgdesc="Amadeus OS desktop: the desktop system (shell, Hyprland modules, themes, commands), hardware support and user skeleton"
 arch=(any)
 license=(MIT)
-depends=(python-gobject greetd-regreet cage librsvg hyprland uwsm quickshell foot grim slurp hyprpicker gpu-screen-recorder ffmpeg wl-clipboard wtype fastfetch brightnessctl networkmanager wireplumber upower power-profiles-daemon bluez polkit xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
+depends=(python-gobject sddm plymouth limine limine-mkinitcpio-hook librsvg hyprland uwsm quickshell foot grim slurp hyprpicker gpu-screen-recorder ffmpeg wl-clipboard wtype fastfetch brightnessctl networkmanager wireplumber upower power-profiles-daemon bluez polkit xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
 options=(!debug)
 install=amadeus-desktop.install
 # System configuration under /etc is the administrator's to change: an update keeps local edits.
@@ -28,11 +28,6 @@ package() {
   for f in "$pkgdir"/usr/share/amadeus/bin/*; do
     ln -sfn "/usr/share/amadeus/bin/${f##*/}" "$pkgdir/usr/bin/${f##*/}"
   done
-  python3 "$src/greeter/render-theme.py" "$src/theme/theme.json" "$pkgdir/usr/share/amadeus-os/greeter"
-  install -Dm644 "$src/greeter/profiles.py" "$src/greeter/render-theme.py" "$src"/greeter/*.in -t "$pkgdir/usr/share/amadeus-os/greeter/"
-  install -Dm644 "$src/greeter/greetd.toml" -t "$pkgdir/usr/share/amadeus-os/greeter/"
-  install -Dm644 "$src"/greeter/wayland-sessions/*.desktop -t "$pkgdir/usr/share/amadeus-os/greeter/wayland-sessions/"
-  install -Dm755 "$src/lib/amadeus-greeter" -t "$pkgdir/usr/lib/amadeus-os/"
   install -Dm755 "$src/lib/amadeus-file-context" "$pkgdir/usr/share/amadeus-os/nautilus/Ask Amadeus"
   install -d "$pkgdir/etc/skel/.local/share/nautilus/scripts"
   ln -s "/usr/share/amadeus-os/nautilus/Ask Amadeus" "$pkgdir/etc/skel/.local/share/nautilus/scripts/Ask Amadeus"
