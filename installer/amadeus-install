@@ -43,13 +43,16 @@ ask LOCALE "Locale" en_US.UTF-8
 ask KEYMAP "Console keymap" us
 echo "The base desktop and default apps are installed either way."
 ask EXTRAS "Add optional extras (Brave Origin, herdr, LocalSend) (yes/no)" yes
+[[ $EXTRAS == yes || $EXTRAS == no ]] || die "EXTRAS must be yes or no; nothing was changed"
 # A system on a USB drive is portable: it may start on a different computer from the one
 # installing it, so the boot image covers any hardware and the NVIDIA driver is included.
 PORTABLE=${PORTABLE:-auto}
+case $PORTABLE in yes|no|auto) ;; *) die "PORTABLE must be yes, no or auto; nothing was changed" ;; esac
 if [[ $PORTABLE == auto ]]; then
   [[ $(lsblk -dno TRAN "$DISK") == usb || $(lsblk -dno RM "$DISK") == 1 ]] && PORTABLE=yes || PORTABLE=no
 fi
 NVIDIA=${NVIDIA:-auto}
+case $NVIDIA in yes|no|auto) ;; *) die "NVIDIA must be yes, no or auto; nothing was changed" ;; esac
 [[ $PORTABLE == yes && $NVIDIA == auto ]] && NVIDIA=yes
 if [[ $NVIDIA == auto ]]; then lspci -n | grep -E ' 03[0-9a-f]{2}: 10de:' >/dev/null && NVIDIA=yes || NVIDIA=no; fi
 
