@@ -26,6 +26,16 @@ lists them and `ama guide TOPIC` prints one; over MCP the `system_guide` tool do
 - [`files.md`](files.md): the user's files, the sandbox, the host shell
 - [`screen.md`](screen.md): seeing and operating an application's window
 - [`troubleshooting.md`](troubleshooting.md): failed services, crashes, a full disk, overdue updates
+- [`hyprland.md`](hyprland.md): Hyprland modules, keybindings, monitors, window rules
+- [`plugins.md`](plugins.md): writing and changing shell plugins safely
+- [`bar.md`](bar.md): the bar layout, built-in widgets, idle and lock
+- [`translations.md`](translations.md): translating a shell plugin
+- [`hooks.md`](hooks.md): scripts that run after updates, at login, on theme or font changes
+- [`capture.md`](capture.md): screenshots, recordings, text capture and sharing
+- [`contributing.md`](contributing.md): reporting an Amadeus bug and submitting a fix
+
+When a program crashed, follow the separate `diagnose-crash` guide (`ama guide diagnose-crash`):
+it reads the core dump and explains the cause.
 
 A guide tells you how to work in its area. What exists right now still comes from the map.
 
@@ -103,3 +113,18 @@ These are properties of the design, not details that drift.
 
 If the map and this skill disagree, the map is right: it is the system describing
 itself, and this file may be older than the system it is installed on.
+
+## The desktop system
+
+- **Shipped files are read-only.** `/usr/share/amadeus/` (the desktop system: commands, shell,
+  Hyprland modules, themes, defaults) and `/usr/share/amadeus-ai/` (the assistant) belong to
+  their packages and are replaced on update. Read them freely; never edit them.
+- **Changes go in the user's files:** `~/.config/hypr/`, `~/.config/amadeus/shell.json`,
+  `~/.config/amadeus/themes/<name>/`, `~/.config/amadeus/hooks/`,
+  `~/.config/amadeus/extensions/amadeus-menu.jsonc`, and each application's own folder.
+- **Find commands by asking:** `amadeus commands` lists every command with its summary, and
+  `amadeus GROUP --help` shows one group (`amadeus theme --help`). The `amadeus-*` programs on
+  PATH are the same commands; read their source to see what they do.
+- **Reset with consent.** `amadeus refresh NAME` puts a shipped configuration back (with a
+  backup). Ask the user before running it.
+

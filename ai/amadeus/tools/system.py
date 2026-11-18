@@ -71,7 +71,7 @@ def system_discover(a, ctx):
     return discover.build()
 
 
-@tool("system_guide", "The rules, method and pitfalls for one area of this system: desktop, theming, software, ai, recovery, hardware, apps, files, screen, troubleshooting. "
+@tool("system_guide", "The rules, method and pitfalls for one area of this system: desktop, hyprland, plugins, bar, translations, theming, hooks, capture, software, ai, recovery, hardware, apps, files, screen, troubleshooting, diagnose-crash, contributing. "
       "Read the matching guide before working in that area instead of searching for how it is done. Without a topic, lists the guides.",
       {"topic": {"type": "string"}})
 def system_guide(a, ctx):

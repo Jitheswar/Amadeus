@@ -166,7 +166,7 @@ class GuideTest(unittest.TestCase):
         skill = (config.SHARE / "skill/amadeus/SKILL.md").read_text()
         self.assertGreaterEqual(len(guides), 5)
         for name, about in guides.items():
-            self.assertIn(f"({name}.md)", skill)
+            self.assertIn(f"({name}.md)" if (self.root / "ai/skill/amadeus" / f"{name}.md").exists() else name, skill)
             self.assertTrue(about)
             self.assertLess(len(self.discover.guide(name).splitlines()), 80, f"{name} is too long to pull up on demand")
             self.assertIn(name, self.tools.REGISTRY["system_guide"]["description"])
@@ -181,11 +181,11 @@ class GuideTest(unittest.TestCase):
         commands = {p.name for d in ("desktop/bin", "desktop/system/usr/share/amadeus/bin") for p in (self.root / d).iterdir()}
         for name in self.discover.guides():
             text = self.discover.guide(name)
-            for token in set(re.findall(r"`([a-z_-]+(?: [a-z]+)?)[^`]*`", text)):
+            for token, rest in set(re.findall(r"`([a-z_-]+(?: [a-z]+)?)([^`]*)`", text)):
                 first = token.split()[0]
                 if first.startswith("amadeus-"):
                     self.assertIn(first, commands, f"{name}.md names {first}")
-                elif "_" in first and first.islower():
+                elif "_" in first and first.islower() and not rest.startswith("."):  # gum_env.lua is a file
                     self.assertIn(first, [*self.tools.REGISTRY, "tool_call"], f"{name}.md names tool {first}")
                 elif first == "ama" and " " in token:
                     self.assertIn("ama " + token.split()[1], cli.HELP, f"{name}.md names `{token}`")

@@ -53,25 +53,7 @@ that it is actually implicated.
 
 ## Symbolize when you can
 
-This is Arch, which runs a public debuginfod server:
-
-```bash
-core=$(mktemp -t crash-XXXXXX.core)
-trap 'rm -f "$core"' EXIT
-coredumpctl dump <pid> --output="$core"
-DEBUGINFOD_URLS="https://debuginfod.archlinux.org" \
-  gdb -q <executable> "$core" \
-  -batch -ex 'set debuginfod enabled on' -ex 'bt'
-```
-
-A core is a verbatim copy of the process's memory and can hold passwords, tokens,
-and private documents. Write it to a fresh `mktemp` path rather than a predictable
-shared one, and delete it when you are done — never leave it lying in `/tmp`.
-
-Many packages publish no debug symbols. When frames stay unresolved, say so —
-never invent function names to fill the gap. An unsymbolized stack still has
-shape: which library each frame belongs to, and whether the crash came from a
-signal handler, a main loop, or a worker thread.
+How to get function names and source lines for the frames is in [`symbolize.md`](symbolize.md).
 
 ## Report
 
@@ -90,39 +72,8 @@ reconfigure. The one thing to clean up is your own: delete the core you extracte
 above, which is a copy of the crashed process's memory. The single change a
 diagnosis may make is the mute below, and only when the user asks for it.
 
-## Offer to stop the notifications for this program
+## Afterwards
 
-A crash you have explained often keeps happening anyway. Finish by offering to
-silence notifications for **that one program**, and never run it unprompted. Say
-how to lift it in the same breath, so it is not a one-way door.
-
-```bash
-amadeus-crash-mute '<program>'        # silence it
-amadeus-crash-mute '<program>' off    # let it speak again
-amadeus-crash-mute                    # list what is muted
-```
-
-Pass the `binary:` path from the crash facts, or the `process:` name where no
-binary was recorded; the command reduces either to the name the watcher keys on.
-A diagnosis run by hand from `amadeus agent crash <pid>` has neither, so take
-them from `coredumpctl info`. Prefer the binary: a process name is truncated to
-15 characters and a basename is not, so muting the truncated form matches
-nothing, forever, while looking like it worked.
-
-Quote it. The name is whatever the crashed program's author called a file, and a
-single quote inside one closes yours and runs the rest as your shell.
-
-The key is a bare name, so anything run through an interpreter is keyed as the
-interpreter: muting `python3.13` silences every Python program on the machine.
-Say so rather than quietly doing it.
-
-None of this fixes anything, and a mute offered in place of a fix that was within
-reach is the wrong answer. For every program rather than one, the switch is
-_Trigger > Toggle > Crash Capture_.
-
-## If it is an Amadeus bug
-
-Most application crashes are upstream bugs in those applications, not Amadeus's
-doing. In the minority of cases where the cause really does sit within Amadeus's
-sphere of control, read [`reporting.md`](reporting.md) before offering to file
-anything.
+If the user wants no more crash notices for this program, see [`notifications.md`](notifications.md).
+Most crashes are bugs in the application itself, not Amadeus's doing; when the cause really sits
+within Amadeus, read [`reporting.md`](reporting.md) before offering to file anything.

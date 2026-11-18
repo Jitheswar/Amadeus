@@ -1,7 +1,7 @@
 """A live map of this system, built by looking at it. Nothing here is a stored description:
 commands, files, tools and settings are read from the installed packages and the running
 configuration each time, so the map cannot go out of date."""
-import json, os, subprocess
+import json, os, re, subprocess
 from pathlib import Path
 from . import config, __version__
 
@@ -39,19 +39,33 @@ def _os_release():
         return {}
 
 
-def guides():
-    """Topic guides shipped beside the skill: name -> the line that says what it covers."""
-    found = {}
-    for f in sorted((config.SHARE / "skill" / "amadeus").glob("*.md")):
-        if f.name != "SKILL.md":
-            found[f.stem] = f.read_text().splitlines()[0].lstrip("# ").strip()
+def _skill_summary(text):
+    """A separate skill's description, from its front matter."""
+    m = re.search(r"^description:\s*>?\s*\n?(.*?)(?:\n\S|\n---)", text, re.S | re.M)
+    words = " ".join((m.group(1) if m else "").split())
+    return words.split(". ")[0][:120]
+
+
+def _guide_files():
+    skills = config.SHARE / "skill"
+    found = {f.stem: f for f in sorted((skills / "amadeus").glob("*.md")) if f.name != "SKILL.md"}
+    # Other built-in skills (diagnose-crash) are guides too, by their folder name.
+    for d in sorted(p for p in skills.glob("*") if p.is_dir() and p.name != "amadeus" and (p / "SKILL.md").exists()):
+        found[d.name] = d / "SKILL.md"
     return found
 
 
+def guides():
+    """Topic guides shipped beside the skill: name -> the line that says what it covers."""
+    return {name: (_skill_summary(f.read_text()) if f.name == "SKILL.md" else f.read_text().splitlines()[0].lstrip("# ").strip())
+            for name, f in _guide_files().items()}
+
+
 def guide(topic):
-    if topic not in guides():
-        raise ValueError(f"no guide called {topic}; guides: {', '.join(guides())}")
-    return (config.SHARE / "skill" / "amadeus" / (topic + ".md")).read_text()
+    files = _guide_files()
+    if topic not in files:
+        raise ValueError(f"no guide called {topic}; guides: {', '.join(files)}")
+    return files[topic].read_text()
 
 
 def build():
