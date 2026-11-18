@@ -14,18 +14,18 @@ SETTINGS = {
     "brightness": ("Brightness settings", "display backlight screen brightness", []),
     "admin": ("Administrator password settings", "sudo passwordless administrator privilege timeout", []),
     "calendar": ("Calendar", "date time calendar", []),
-    "text": ("Text size", "font text sizing typography", ["amadeus-menu", "setup", "Text size"]),
-    "gpu": ("Graphics settings", "gpu graphics nvidia amd intel dedicated integrated battery performance", ["amadeus-menu", "setup", "GPU"]),
-    "defaults": ("Default applications", "default agent terminal editor browser", ["amadeus-menu", "setup", "Defaults"]),
-    "config": ("Configuration", "settings configuration shortcuts theme", ["amadeus-menu", "setup", "Config"]),
+    "text": ("Text size", "font text sizing typography", ["amadeus-menu", "appearance.text"]),
+    "gpu": ("Graphics settings", "gpu graphics nvidia amd intel dedicated integrated battery performance", ["amadeus-menu", "setup.gpu"]),
+    "defaults": ("Default applications", "default agent terminal editor browser", ["amadeus-menu", "setup.default"]),
+    "config": ("Configuration", "settings configuration shortcuts theme", ["amadeus-menu", "setup.config"]),
     "agent": ("AI agent settings", "claude codex antigravity subscription api provider default", ["ama", "panel", "settings"]),
-    "harness": ("Install harness", "claude code codex antigravity agent install", ["amadeus-menu", "install", "Harness"]),
+    "harness": ("Install harness", "claude code codex antigravity agent install", ["amadeus-menu", "install.harness"]),
     "install": ("Install software", "applications packages aur browser editor development", ["amadeus-menu", "install"]),
     "update": ("Update system", "software packages upgrade", ["amadeus-menu", "update"]),
-    "capture": ("Screen capture", "screenshot recording screen microphone", ["amadeus-menu", "trigger"]),
+    "capture": ("Screen capture", "screenshot recording screen microphone", ["amadeus-menu", "trigger.capture"]),
     "system": ("System actions", "lock logout restart shutdown suspend hibernate", ["amadeus-menu", "system"]),
-    "gaming": ("Gaming", "steam install games", ["amadeus-menu", "gaming"]),
-    "chat": ("Chat", "discord telegram install", ["amadeus-menu", "chat"]),
+    "gaming": ("Gaming", "steam install games", ["amadeus-menu", "install.gaming"]),
+    "chat": ("Chat", "discord telegram install", ["amadeus-menu", "install.chat"]),
     "wifi": ("Wi-Fi settings", "network internet wireless", []),
     "volume": ("Sound settings", "audio microphone speakers headphones volume", []),
     "bluetooth": ("Bluetooth settings", "headphones pairing devices", []),
@@ -44,14 +44,11 @@ def menu_routes():
     if p.returncode == 0:
         for line in p.stdout.splitlines():
             fields = line.split("\t")
-            if len(fields) != 3 or ":" not in fields[0]:
+            if len(fields) < 3:
                 continue
-            key, label, path = fields
-            group, choice = key.split(":", 1)
-            if group not in {"root", "install", "remove", "setup", "update", "trigger"}:
-                continue
-            command = ["amadeus-menu", choice] if group == "root" else ["amadeus-menu", group, choice]
-            routes[key] = {"label": label, "path": path, "command": command}
+            key, label, path = fields[:3]
+            routes["menu:" + key] = {"label": label, "path": path, "command": ["amadeus-menu", key],
+                                     "keywords": fields[3] if len(fields) > 3 else ""}
     detail = subprocess.run(["amadeus-menu", "--settings-index"], capture_output=True, text=True, timeout=5)
     words = {parts[0]: parts[2] for line in detail.stdout.splitlines() if len(parts := line.split("\t")) >= 3}
     for line in detail.stdout.splitlines():

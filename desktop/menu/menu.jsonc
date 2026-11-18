@@ -1,0 +1,107 @@
+{
+  // The Amadeus menu (Super+Space). Each key is an entry's id; dots make the tree, so
+  // "setup.default.browser" sits under "setup.default", which sits under "setup".
+  // Entries appear in the order written here.
+  //   label       what the menu shows
+  //   action      a shell command run when the entry is chosen
+  //   provider    a list built when opened (see /usr/lib/amadeus-os/amadeus-menu-providers);
+  //               it receives the entry's "args"
+  //   neither     a submenu: its children are listed
+  //   guard       a provider run before a submenu opens; the submenu stays closed when it fails
+  //   terminal    run the action in a terminal window that stays open until a key is pressed
+  //   when        a shell condition; the entry is hidden when it fails
+  //   checked     a shell condition; the entry is marked ✓ when it succeeds
+  //   aliases     other names that open the entry: `amadeus-menu NAME`
+  //   keywords    extra words the menu search matches
+  // Add or override entries in ~/.config/amadeus/menu.jsonc; "hidden": true removes one.
+  // Plugins add theirs in their own menu.jsonc.
+
+  // ---- root
+  "apps": {"label": "Apps", "aliases": ["app", "applications"], "action": "amadeus-launcher"},
+  "learn": {"label": "Learn", "aliases": ["help"]},
+  "appearance": {"label": "Appearance", "aliases": ["style", "look"]},
+  "trigger": {"label": "Trigger"},
+  "setup": {"label": "Setup", "aliases": ["settings"]},
+  "install": {"label": "Install", "guard": "lists-ready"},
+  "remove": {"label": "Remove", "aliases": ["uninstall"]},
+  "update": {"label": "Update", "aliases": ["restart", "refresh"]},
+  "about": {"label": "About", "action": "amadeus-terminal --title About -e bash -c 'fastfetch; read -rsn1'"},
+  "system": {"label": "System", "aliases": ["power", "power-menu"]},
+
+  // ---- System
+  "system.lock": {"label": "Lock", "action": "swaylock -f"},
+  "system.suspend": {"label": "Suspend", "action": "systemctl suspend"},
+  "system.hibernate": {"label": "Hibernate", "when": "[[ $(busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanHibernate 2>/dev/null) == 's \"yes\"' ]]", "action": "systemctl hibernate"},
+  "system.logout": {"label": "Log out", "action": "uwsm stop"},
+  "system.reboot": {"label": "Restart", "action": "systemctl reboot"},
+  "system.shutdown": {"label": "Shut down", "action": "systemctl poweroff"},
+
+  // ---- Learn
+  "learn.keybindings": {"label": "Keyboard shortcuts", "aliases": ["keys", "shortcuts"], "action": "amadeus-keys"},
+  "learn.amadeus": {"label": "Amadeus OS", "action": "xdg-open https://github.com/Jitheswar/Amadeus#readme"},
+  "learn.assistant": {"label": "The assistant's guides", "action": "amadeus-terminal --title Guides -e bash -c 'ama guide; read -rsn1'"},
+  "learn.hyprland": {"label": "Hyprland", "action": "xdg-open https://wiki.hypr.land/"},
+  "learn.arch": {"label": "Arch Wiki", "action": "xdg-open https://wiki.archlinux.org/title/Main_page"},
+  "learn.bash": {"label": "Bash", "action": "xdg-open https://devhints.io/bash"},
+
+  // ---- Appearance
+  "appearance.theme": {"label": "Theme", "aliases": ["theme", "themes"], "action": "amadeus-theme"},
+  "appearance.login": {"label": "Login screen", "action": "amadeus-login"},
+  "appearance.text": {"label": "Text size", "keywords": "font text sizing typography", "provider": "text-size"},
+
+  // ---- Trigger
+  "trigger.capture": {"label": "Capture", "aliases": ["capture"]},
+  "trigger.capture.screenshot": {"label": "Screenshot", "action": "sleep 0.2; amadeus-screenshot area"},
+  "trigger.capture.record": {"label": "Record the screen", "when": "! amadeus-record active", "action": "amadeus-record toggle"},
+  "trigger.capture.stop": {"label": "Stop recording", "when": "amadeus-record active", "action": "amadeus-record stop"},
+  "trigger.capture.color": {"label": "Color", "action": "pkill hyprpicker || hyprpicker -a"},
+  "trigger.clipboard": {"label": "Clipboard history", "action": "amadeus-clipboard"},
+  "trigger.ask": {"label": "Ask Amadeus", "action": "ama panel"},
+
+  // ---- Setup
+  "setup.display": {"label": "Display", "aliases": ["monitors", "display"], "action": "amadeus-display"},
+  "setup.gpu": {"label": "GPU", "aliases": ["gpu", "graphics"], "when": "[[ $(amadeus-gpu) != one ]]", "provider": "gpu"},
+  "setup.network": {"label": "Network", "aliases": ["wifi", "network"], "action": "amadeus-terminal --title Network -e nmtui"},
+  "setup.default": {"label": "Defaults", "aliases": ["defaults"], "provider": "defaults"},
+  "setup.config": {"label": "Config", "aliases": ["config"], "provider": "config"},
+  "setup.tasks": {"label": "Tasks", "action": "ama panel tasks"},
+  "setup.hardware": {"label": "Hardware drivers", "keywords": "drivers firmware nvidia amd intel", "action": "amadeus-terminal --title Hardware -e bash -c 'amadeus-hardware; echo; amadeus-hardware setup; read -rsn1'"},
+
+  // ---- Install
+  "install.package": {"label": "Package", "aliases": ["packages"], "provider": "install-packages"},
+  "install.aur": {"label": "AUR", "provider": "install-aur"},
+  "install.ai": {"label": "AI", "provider": "catalog", "args": ["ai", "AI app"]},
+  "install.harness": {"label": "Harness", "aliases": ["harness"], "keywords": "claude code codex agent", "provider": "install-harness"},
+  "install.development": {"label": "Development", "provider": "catalog", "args": ["development", "development tool"]},
+  "install.editor": {"label": "Editor", "provider": "catalog", "args": ["editor", "editor"]},
+  "install.gaming": {"label": "Gaming", "aliases": ["gaming", "games"], "provider": "catalog", "args": ["gaming", "game"]},
+  "install.chat": {"label": "Chat", "aliases": ["chat"], "provider": "catalog", "args": ["chat", "chat client"]},
+  "install.browser": {"label": "Browser", "provider": "catalog", "args": ["browser", "browser"]},
+  "install.webapp": {"label": "Web app", "provider": "install-webapp"},
+  "install.terminal": {"label": "Terminal", "provider": "catalog", "args": ["terminal", "terminal"]},
+
+  // ---- Remove
+  "remove.package": {"label": "Package", "aliases": ["packages"], "provider": "remove-packages"},
+  "remove.harness": {"label": "Harness", "provider": "remove-harness"},
+  "remove.webapp": {"label": "Web app", "when": "[[ -n $(amadeus-webapp list) ]]", "provider": "remove-webapp"},
+
+  // ---- Update
+  "update.system": {"label": "Everything", "aliases": ["everything"], "terminal": true, "action": "amadeus-update"},
+  "update.tools": {"label": "Harnesses and tools only", "terminal": true, "action": "amadeus-harness update"},
+  "update.config": {"label": "Reset settings", "aliases": ["reset"]},
+  "update.config.desktop": {"label": "Desktop settings (with backups)", "terminal": true, "action": "amadeus-reset desktop"},
+  "update.config.packages": {"label": "Reinstall all packages", "terminal": true, "action": "amadeus-reset packages"},
+  "update.process": {"label": "Process"},
+  "update.process.shell": {"label": "Shell", "action": "amadeus-restart shell"},
+  "update.process.desktop": {"label": "Desktop settings", "action": "amadeus-restart desktop"},
+  "update.process.terminal": {"label": "Terminals", "action": "amadeus-restart terminal"},
+  "update.hardware": {"label": "Hardware", "aliases": ["restart-a-part"]},
+  "update.hardware.audio": {"label": "Audio", "terminal": true, "action": "amadeus-restart audio"},
+  "update.hardware.wifi": {"label": "Wi-Fi", "terminal": true, "action": "amadeus-restart wifi"},
+  "update.hardware.bluetooth": {"label": "Bluetooth", "terminal": true, "action": "amadeus-restart bluetooth"},
+  "update.hardware.trackpad": {"label": "Trackpad", "terminal": true, "action": "amadeus-restart trackpad"},
+  "update.firmware": {"label": "Firmware", "terminal": true, "action": "amadeus-update firmware"},
+  "update.password": {"label": "Password"},
+  "update.password.user": {"label": "User", "terminal": true, "action": "passwd"},
+  "update.time": {"label": "Time", "terminal": true, "action": "sudo systemctl restart systemd-timesyncd && timedatectl"}
+}

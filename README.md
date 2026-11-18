@@ -92,10 +92,14 @@ that need a Secret Service password store need one installed first.
 
 ## Using the desktop
 
-**Super+Space** opens the Amadeus menu. Start typing to find any app or setting. Lists
+**Super+Space** opens the Amadeus menu: **Apps, Learn, Appearance, Trigger, Setup,
+Install, Remove, Update, About** and **System** (Super+Escape opens System directly).
+Start typing to find any app or setting. Lists
 of things to pick, like packages, only search their own entries. Arrow keys keep their
 place while the mouse is still, and each result shows where it lives. To hide an app
-from the list, add it to `~/.config/amadeus/launcher.hides`.
+from the list, add it to `~/.config/amadeus/launcher.hides`. The menu itself is one file,
+`/usr/share/amadeus-os/menu.jsonc`; add, change or hide entries in
+`~/.config/amadeus/menu.jsonc` using the same format.
 
 **Super+K** (or `amadeus-keys --print`) lists every shortcut. The shipped shortcuts are
 in the [desktop defaults](desktop/hypr/default.lua); your own go in

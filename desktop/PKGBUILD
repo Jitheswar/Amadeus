@@ -21,6 +21,8 @@ package() {
     install -Dm644 "$theme/colors.toml" -t "$pkgdir/usr/share/amadeus-os/themes/$(basename "$theme")/"
   done
   install -Dm644 "$src"/migrations/*.sh -t "$pkgdir/usr/share/amadeus-os/migrations/"
+  install -Dm644 "$src/menu/menu.jsonc" -t "$pkgdir/usr/share/amadeus-os/"
+  install -Dm755 "$src/lib/amadeus-menu-providers" -t "$pkgdir/usr/lib/amadeus-os/"
   install -Dm644 "$src/mise/amadeus.toml" -t "$pkgdir/etc/mise/conf.d/"
   install -d "$pkgdir/usr/bin"
   # Only files: a test run can leave a __pycache__ directory beside the programs.

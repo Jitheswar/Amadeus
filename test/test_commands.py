@@ -242,6 +242,7 @@ esac''')
             "HOME": str(self.home), "XDG_CONFIG_HOME": str(self.config), "XDG_DATA_HOME": str(self.data),
             "XDG_STATE_HOME": str(self.state), "XDG_RUNTIME_DIR": str(self.run_dir),
             "PATH": f"{self.bin}:{BIN}:{ROOT / 'ai/bin'}:/usr/bin:/bin", "LANG": "C.UTF-8",
+            "AMADEUS_MENU": str(ROOT / "desktop/menu/menu.jsonc"),
             "AMADEUS_TEST_CALLS": str(self.calls), "AMADEUS_TRY_MARKER": str(self.tmp / "not-a-live-session"),
         }
         for name in DANGEROUS:
@@ -967,17 +968,17 @@ esac""")
         self.assert_ok(self.run_cmd("amadeus-wifi", "connect", "Office"))
         self.assertEqual(self.calls_of("nmcli")[-1], ["device", "wifi", "connect", "Office", "password", "secret"])
 
-    # ---- power menu ---------------------------------------------------------
+    # ---- the System menu ---------------------------------------------------------
     def test_power_menu_offers_what_the_machine_can_do(self):
         self.stub("busctl", output='s "yes"')
         self.stub("amadeus-pick", output="Suspend", body="cat >/dev/null")
         self.stub("systemctl")
         self.stub("swaylock")
-        self.assert_ok(self.run_cmd("amadeus-power-menu"))
+        self.assert_ok(self.run_cmd("amadeus-menu", "system"))
         self.assertEqual(self.calls_of("systemctl"), [["suspend"]])
 
         self.stub("amadeus-pick", output="Hibernate", body="cat >/dev/null")
-        self.assert_ok(self.run_cmd("amadeus-power-menu"))
+        self.assert_ok(self.run_cmd("amadeus-menu", "system"))
         self.assertEqual(self.calls_of("systemctl")[-1], ["hibernate"])
 
     def test_power_menu_does_not_offer_hibernate_when_it_cannot(self):
@@ -986,7 +987,7 @@ esac""")
         self.stub("swaylock")
         sent = self.tmp / "picker.in"
         self.stub("amadeus-pick", body=f'cat >{sent}')
-        self.assert_ok(self.run_cmd("amadeus-power-menu"))
+        self.assert_ok(self.run_cmd("amadeus-menu", "system"))
         self.assertNotIn("Hibernate", sent.read_text())
 
     # ---- the update command -------------------------------------------------
@@ -1016,9 +1017,9 @@ esac""")
         self.stub("fastfetch", output="Amadeus OS")
         self.assert_ok(self.run_cmd("amadeus-menu", "about"))
         self.assertEqual(self.calls_of("amadeus-terminal")[0][0], "--title")
-        self.stub("amadeus-power-menu")
-        self.assert_ok(self.run_cmd("amadeus-menu", "system"))
-        self.assertEqual(self.calls_of("amadeus-power-menu"), [[]])
+        self.stub("swaylock")
+        self.assert_ok(self.run_cmd("amadeus-menu", "system", "Lock"))
+        self.assertEqual(self.calls_of("swaylock"), [["-f"]])
         self.stub("amadeus-pick", output="Harnesses and tools only", body="cat >/dev/null")
         self.assert_ok(self.run_cmd("amadeus-menu", "update"))
         self.assertIn("amadeus-harness update", self.calls_of("amadeus-terminal")[-1][-1])
@@ -1045,7 +1046,7 @@ printf '%s' "${{10}}" > {seen}.options
         self.assert_ok(self.run_cmd("amadeus-pick", "--global", "Menu", input="alpha\n"))
         self.assertTrue(json.loads(Path(str(seen) + ".options").read_text())["globalSearch"])
         # Lists of packages and catalogue entries search only themselves.
-        for line in (BIN / "amadeus-menu").read_text().splitlines():
+        for line in (ROOT / "desktop/lib/amadeus-menu-providers").read_text().splitlines():
             if "--multi" in line:
                 self.assertNotIn("--global", line)
         for name in ("amadeus-catalog", "amadeus-aur", "amadeus-clipboard", "amadeus-wifi"):
@@ -1066,7 +1067,7 @@ printf '%s' "${{10}}" > {seen}.options
         self.assertIn("desktop shell is not running", p.stderr)
 
     def test_menu_routes_capture_to_the_screenshot_tool(self):
-        self.picker("Capture", "Screenshot\tarea")
+        self.picker("Capture", "Screenshot")
         self.stub("amadeus-screenshot")
         p = self.run_cmd("amadeus-menu", "trigger")
         self.assert_ok(p)

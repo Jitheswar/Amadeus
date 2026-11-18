@@ -3,6 +3,7 @@
 #   amadeus-record [screen | desktop-audio | all]   start: no sound · the computer's sound · its sound and your microphone
 #   amadeus-record stop                             stop and save
 #   amadeus-record toggle                           stop if recording, otherwise choose a kind from a menu
+#   amadeus-record active                           succeed while a recording runs
 # When starting, drag an area, click a window, or click empty space for the whole screen; Escape cancels.
 # The Intel GPU encodes the video; the processor takes over where it cannot.
 set -uo pipefail
@@ -29,6 +30,7 @@ stop() {
 }
 
 mode=${1:-toggle}
+[[ $mode == active ]] && { running; exit; }
 if running; then [[ $mode == stop || $mode == toggle ]] && stop; exit 0; fi
 case $mode in
   stop) exit 0 ;;
@@ -39,7 +41,7 @@ case $mode in
   screen) audio=() ;;
   desktop-audio) audio=(-a default_output) ;;
   all) audio=(-a "default_output|default_input") ;;
-  *) sed -n 2,8p "$0"; exit 1 ;;
+  *) sed -n 2,9p "$0"; exit 1 ;;
 esac
 
 geometry=$(amadeus-area) || exit 0

@@ -129,7 +129,7 @@ o.bind("SUPER + SHIFT + ESCAPE", "Stop all Amadeus tasks", "ama stop")
 o.bind("SUPER + B", "Browser", "xdg-open https://")
 o.bind("SUPER + E", "Files", "nautilus --new-window")
 o.bind("SUPER + SHIFT + F", "Files (your default application)", "xdg-open ~")
-o.bind("SUPER + ESCAPE", "System: lock, suspend, restart, shut down", "amadeus-power-menu")
+o.bind("SUPER + ESCAPE", "System: lock, suspend, restart, shut down", "amadeus-menu system")
 o.bind("SUPER + CTRL + L", "Lock", "swaylock -f")
 
 -- Clipboard dispatch adapted from Omarchy (MIT; see the packaged OMARCHY-LICENSE).
