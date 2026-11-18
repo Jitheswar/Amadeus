@@ -6,7 +6,7 @@ import Quickshell.Io
 // One look for every Amadeus surface and every generated app. Values come from the
 // system theme (passed in by the launcher), so everything matches and follows a theme change.
 QtObject {
-    // The personal theme file wins and is followed live, so a theme change reaches an open panel.
+    // The active theme's colours win and are followed live, so a theme change reaches an open panel.
     function pick(name, fallback) { const own = personal[name.slice(4).toLowerCase()]; const v = Quickshell.env(name); return own ? own : v ? v : fallback }
     readonly property color bg: pick("AMA_BG", "#0f0e0d")
     readonly property color surface: pick("AMA_SURFACE", "#191715")
@@ -23,7 +23,8 @@ QtObject {
     readonly property string mono: pick("AMA_MONO", "JetBrains Mono")
     property var personal: ({})
     property QtObject personalFile: FileView {
-        path: Quickshell.env("XDG_CONFIG_HOME") ? Quickshell.env("XDG_CONFIG_HOME") + "/amadeus/theme.json" : Quickshell.env("HOME") + "/.config/amadeus/theme.json"
+        // Rendered from the active theme by amadeus-theme-set (default/themed/assistant.json.tpl).
+        path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/amadeus/current/theme/assistant.json"
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
