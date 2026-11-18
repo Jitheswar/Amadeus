@@ -489,6 +489,18 @@ class GoalTest(unittest.TestCase):
         self.goals.start(self.d, "needs a provider")
         self.assertEqual(self.only()["state"], "failed")
 
+    def test_only_the_active_round_can_report_once(self):
+        with mock.patch.object(self.goals, "launch"):
+            goal = self.goals.start(self.d, "sort my downloads")
+        prefix = "goal-" + goal["id"] + "-"
+        self.goals.store(dict(goal, rounds=2, session=prefix + "2"))
+        report = {"status": "blocked", "note": "Which folder?"}
+        self.assertTrue(self.d.execute("goal_update", report, session=prefix + "1")[1])
+        self.assertFalse(self.d.execute("goal_update", report, session=prefix + "2")[1])
+        self.assertTrue(self.d.execute("goal_update", {"status": "finished", "note": "done"}, session=prefix + "2")[1])
+        saved = self.goals.load(goal["id"])
+        self.assertEqual((saved["reported"], saved["notes"]), ("blocked", ["Which folder?"]))
+
     def test_restart_honors_the_last_report_before_starting_another_round(self):
         with mock.patch.object(self.goals, "launch"):
             goal = self.goals.start(self.d, "sort my downloads")
@@ -498,7 +510,7 @@ class GoalTest(unittest.TestCase):
                                        ("progress", True, "working")):
             with self.subTest(report=report, claimed=claimed):
                 self.goals.store(dict(goal, rounds=1, session="interrupted", claimed=claimed))
-                self.goals.update(goal["id"], report, "last report")
+                self.goals.update(goal["id"], "interrupted", report, "last report")
                 with mock.patch.object(self.goals, "launch") as launch:
                     self.goals.resume(self.d)
                 saved = self.goals.load(goal["id"])

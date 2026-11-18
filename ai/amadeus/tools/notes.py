@@ -38,6 +38,6 @@ def goal_update(a, ctx):
     if not match:
         raise ToolError("there is no goal in this request")
     try:
-        return "Recorded: " + goals.update(match[1], a["status"], a["note"])
+        return "Recorded: " + goals.update(match[1], ctx.session, a["status"], a["note"])
     except ValueError as e:
         raise ToolError(str(e))

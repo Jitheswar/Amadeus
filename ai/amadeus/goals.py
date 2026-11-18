@@ -79,7 +79,7 @@ def note(goal, text):
     goal["notes"] = (goal["notes"] + [" ".join(str(text).split())[:NOTE_CHARS]])[-MAX_NOTES:]
 
 
-def update(ident, status, text):
+def update(ident, session, status, text):
     """What a round reports about its own goal, through the goal_update tool."""
     if status not in ("progress", "blocked", "finished") or not str(text).strip():
         raise ValueError("status is progress, blocked or finished, with a note")
@@ -87,6 +87,10 @@ def update(ident, status, text):
         goal = load(ident)
         if goal["state"] != "working":
             raise ValueError("this goal is not being worked on")
+        if session != goal.get("session") or not session:
+            raise ValueError("this round is no longer active")
+        if goal.get("reported"):
+            raise ValueError("this round already reported")
         note(goal, text)
         goal["reported"] = status
         return store(goal)["reported"]
