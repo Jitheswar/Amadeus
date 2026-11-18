@@ -151,6 +151,23 @@ class FilesTest(unittest.TestCase):
         self.files.undo_session(self.session)
         self.assertEqual(p.read_text(), "one and two\n")
 
+    def test_multiline_edit_preserves_surrounding_line_endings(self):
+        p = self.home_file("line-endings")
+        original = b"header\nfirst\r\nsecond\r\nfooter\r"
+        p.write_bytes(original)
+        self.files.fs_edit({"path": str(p), "old": "first\nsecond", "new": "alpha\nbeta"}, None)
+        self.assertEqual(p.read_bytes(), b"header\nalpha\r\nbeta\r\nfooter\r")
+        self.files.undo_session(self.session)
+        self.assertEqual(p.read_bytes(), original)
+
+    def test_edit_counts_matches_across_different_line_endings(self):
+        p = self.home_file("ambiguous")
+        original = b"a\r\nb\na\nb"
+        p.write_bytes(original)
+        with self.assertRaisesRegex(self.files.ToolError, "occurs 2 times"):
+            self.files.fs_edit({"path": str(p), "old": "a\nb", "new": "x"}, None)
+        self.assertEqual(p.read_bytes(), original)
+
     def test_replacing_a_file_keeps_its_mode(self):
         for mode in (0o600, 0o755):
             f = self.home_file(f"mode-{mode:o}")

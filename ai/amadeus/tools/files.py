@@ -1,5 +1,5 @@
 """Files. Every write keeps the previous version so `ama undo` can restore it."""
-import os, json, shutil, time, threading, uuid
+import os, json, re, shutil, time, threading, uuid
 from pathlib import Path
 from . import tool, sh, clip, ToolError
 from .. import config
@@ -146,11 +146,26 @@ def fs_write(a, ctx):
       {**P, "old": {"type": "string"}, "new": {"type": "string"}}, required=("path", "old", "new"), cap="fs.write", risk="modify")
 def fs_edit(a, ctx):
     p = expand(a["path"])
-    text = p.read_text()
-    n = text.count(a["old"])
-    if n != 1:
-        raise ToolError(f"old string occurs {n} times; it must occur exactly once")
-    return fs_write({"path": str(p), "content": text.replace(a["old"], a["new"])}, ctx)
+    with p.open(newline="") as source:
+        text = source.read()
+    # fs_read presents LF between lines. Match each logical newline as a unit.
+    newline = r"(?:\r\n|\r(?!\n)|(?<!\r)\n)"
+    old = a["old"]
+    pattern = re.escape(old) if "\r" in old else newline.join(re.escape(part) for part in old.split("\n"))
+    match = None
+    count = 0
+    for match in re.finditer(pattern, text):
+        count += 1
+    if count != 1:
+        raise ToolError(f"old string occurs {count} times; it must occur exactly once")
+    replacement = a["new"]
+    if "\n" in replacement and "\r" not in replacement:
+        endings = re.compile(newline)
+        local = endings.search(text, match.start()) or endings.search(text)
+        if local:
+            replacement = replacement.replace("\n", local.group())
+    content = text[:match.start()] + replacement + text[match.end():]
+    return fs_write({"path": str(p), "content": content}, ctx)
 
 
 @tool("fs_move", "Move or rename a file or directory.", {"src": {"type": "string"}, "dst": {"type": "string"}}, required=("src", "dst"),
