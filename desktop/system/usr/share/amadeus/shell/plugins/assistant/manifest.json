@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "amadeus.assistant",
+  "name": "Amadeus assistant",
+  "version": "1.0.0",
+  "author": "Amadeus",
+  "description": "The assistant in the bar (open the panel, see work in progress) and the desktop events its tasks wait for",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Amadeus",
+    "description": "Opens the assistant's panel and shows how many requests are running",
+    "category": "Assistant",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
