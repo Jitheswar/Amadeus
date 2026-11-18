@@ -3,7 +3,7 @@
 # Arch's matching nvidia-open. Everything in installer/packages.desktop is added as well,
 # except the 32-bit libraries, which only games need.
 networkmanager bluez bluez-utils power-profiles-daemon upower thermald
-pipewire pipewire-pulse pipewire-alsa wireplumber rtkit polkit bubblewrap python git
+pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber rtkit alsa-utils polkit bubblewrap python git
 curl reflector zram-generator
 # Building AUR recipes from the Install menu, as the installed system can.
 base-devel fakeroot debugedit
