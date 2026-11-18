@@ -30,9 +30,9 @@ Read this before changing how the desktop behaves or looks apart from colours
 
 ## Pitfalls
 
-- Never name a terminal, editor or agent in a shortcut. Call `amadeus-terminal`,
-  `amadeus-editor` or `amadeus-harness run`; the user chooses what those are.
-- A list the user picks from goes through `amadeus-pick`. Do not add another menu program.
+- Never name a terminal, editor or agent in a shortcut. Call `xdg-terminal-exec`,
+  `amadeus-launch-editor` or `amadeus-harness run`; the user chooses what those are.
+- Menus belong in the Amadeus menu (`amadeus-menu`). Do not add another menu program.
 - An entry missing from Apps may be hidden on purpose: the shipped hide list and the
   user's own are named in the launcher's header.
 - Changing which GPU draws the desktop needs a new login. Say so; do not restart the

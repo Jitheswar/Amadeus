@@ -152,7 +152,7 @@ def desktop_launch(a, ctx):
         raise ToolError(f"no installed application matches {a['app']!r}; see desktop_apps")
     argv = [t for t in shlex.split(e["Exec"]) if not re.fullmatch(r"%[a-zA-Z]", t)] + list(a.get("args", []))
     if e.get("Terminal") == "true":
-        argv = (["amadeus-terminal", "-e"] if shutil.which("amadeus-terminal") else ["foot", "-e"]) + argv
+        argv = ["xdg-terminal-exec"] + argv
     gpu = a.get("gpu", "auto")
     mode_file = Path.home() / ".config/amadeus/gpu"
     mode = mode_file.read_text().strip() if mode_file.exists() else "auto"     # the user's choice in Setup > GPU
@@ -248,34 +248,53 @@ def desktop_config(a, ctx):
     return "applied"
 
 
-BAR_FILE = Path.home() / ".config/amadeus/bar.json"
-BAR_WIDGETS = ["workspaces", "title", "record", "sudo", "awake", "clock", "weather", "gpu", "tray", "bluetooth", "network", "volume", "display", "agents", "battery", "power", "amadeus"]
-BAR_DEFAULT = {"left": ["title"], "center": ["clock", "weather"],
-               "right": ["record", "gpu", "tray", "sudo", "awake", "bluetooth", "network", "volume", "display", "agents", "battery", "power", "amadeus"]}
+SECTIONS = ("left", "centerBegin", "center", "centerEnd", "tray", "right")
 
 
-@tool("desktop_bar", "Read or change the top bar layout. Pass left/center/right as lists of widget ids to rearrange, add or remove widgets; "
-      "omit them to read the current layout. Widgets: " + ", ".join(BAR_WIDGETS) + ". The bar updates immediately.",
-      {"left": {"type": "array", "items": {"type": "string"}}, "center": {"type": "array", "items": {"type": "string"}}, "right": {"type": "array", "items": {"type": "string"}}},
-      cap="desktop.control", risk=lambda a: "modify" if any(k in a for k in ("left", "center", "right")) else "read")
+def bar_config():
+    """The bar layout: the user's shell.json, or the shipped one until it is changed."""
+    for f in (Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "amadeus/shell.json",
+              Path("/usr/share/amadeus/config/amadeus/shell.json")):
+        try:
+            bar = json.loads(f.read_text()).get("bar", {})
+            return {"position": bar.get("position", "top"),
+                    "layout": {k: [w["id"] if isinstance(w, dict) else w for w in bar.get("layout", {}).get(k, [])] for k in SECTIONS}}
+        except (OSError, ValueError, AttributeError):
+            continue
+    return {"position": "top", "layout": {k: [] for k in SECTIONS}}
+
+
+@tool("desktop_bar", "Read or change the bar. Without action, returns its position and layout (widget ids per section: "
+      + ", ".join(SECTIONS) + "). action put or move places a widget (with section, and optionally before/after a widget id); "
+      "enable or disable turns a widget's plugin on or off; position moves the bar (top, bottom, left, right). The bar updates immediately.",
+      {"action": {"type": "string", "enum": ["put", "move", "enable", "disable", "position"]}, "widget": {"type": "string"},
+       "section": {"type": "string", "enum": list(SECTIONS)}, "before": {"type": "string"}, "after": {"type": "string"},
+       "position": {"type": "string", "enum": ["top", "bottom", "left", "right"]}},
+      cap="desktop.control", risk=lambda a: "modify" if a.get("action") else "read")
 def desktop_bar(a, ctx):
-    try:
-        cur = json.loads(BAR_FILE.read_text())
-    except (OSError, json.JSONDecodeError):
-        cur = dict(BAR_DEFAULT)
-    # Old user layouts keep their brightness control without rewriting their file.
-    cur = {k: ["display" if w == "brightness" else w for w in cur.get(k, [])]
-           for k in ("left", "center", "right")}
-    if not any(k in a for k in ("left", "center", "right")):
-        return {"layout": cur, "available_widgets": BAR_WIDGETS}
-    new = {k: list(a.get(k, cur.get(k, []))) for k in ("left", "center", "right")}
-    bad = [w for sec in new.values() for w in sec if w not in BAR_WIDGETS]
-    if bad:
-        raise ToolError(f"unknown widgets {bad}; available: {BAR_WIDGETS}")
-    remember(BAR_FILE)
-    BAR_FILE.parent.mkdir(parents=True, exist_ok=True)
-    BAR_FILE.write_text(json.dumps(new, indent=2) + "\n")
-    return {"layout": new}
+    action = a.get("action")
+    if not action:
+        return bar_config()
+    ident = re.compile(r"[A-Za-z0-9_.-]+")
+    if action == "position":
+        if a.get("position") not in ("top", "bottom", "left", "right"): raise ToolError("position must be top, bottom, left or right")
+        argv = ["amadeus-bar", "position", a["position"]]
+    else:
+        widget = a.get("widget", "")
+        if not ident.fullmatch(widget): raise ToolError("a widget id is required, as listed in the layout")
+        if action in ("enable", "disable"):
+            argv = ["amadeus-plugin", action, widget]
+        else:
+            argv = ["amadeus-bar", action, widget]
+            if a.get("section"):
+                if a["section"] not in SECTIONS: raise ToolError("unknown section")
+                argv += ["--section", a["section"]]
+            for k in ("before", "after"):
+                if a.get(k):
+                    if not ident.fullmatch(a[k]): raise ToolError(f"{k} must be a widget id")
+                    argv += [f"--{k}", a[k]]
+    p = sh(argv, check=True)
+    return {"result": p.stdout.strip(), **bar_config()}
 
 
 @tool("desktop_notify", "Show a desktop notification.", {"title": {"type": "string"}, "body": {"type": "string"}}, required=("title",), cap="desktop.control", risk="read")

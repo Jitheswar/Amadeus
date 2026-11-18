@@ -178,7 +178,7 @@ class GuideTest(unittest.TestCase):
     def test_guides_name_only_commands_and_tools_that_exist(self):
         import re
         from amadeus import cli
-        commands = {p.name for p in (self.root / "desktop/bin").iterdir()}
+        commands = {p.name for d in ("desktop/bin", "desktop/system/usr/share/amadeus/bin") for p in (self.root / d).iterdir()}
         for name in self.discover.guides():
             text = self.discover.guide(name)
             for token in set(re.findall(r"`([a-z_-]+(?: [a-z]+)?)[^`]*`", text)):

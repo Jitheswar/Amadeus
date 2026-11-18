@@ -76,19 +76,10 @@ for g in guides + ["README.md"] + sorted(f for f in files if f.startswith("docs/
 # 5. One palette. Files that cannot read the theme file must only use its colours.
 import json
 palette = {v.lstrip("#").lower() for v in json.loads(Path("desktop/theme/theme.json").read_text()).values() if isinstance(v, str) and v.startswith("#")}
-for f, pattern in (("desktop/hypr/default.lua", r'rgba?\(([0-9a-fA-F]{6})'), ("desktop/skel/.config/swaylock/config", r"=([0-9a-fA-F]{6})\b"),
-                   ("desktop/skel/.config/foot/foot.ini", r"^(?:background|foreground|selection-\w+)=([0-9a-fA-F]{6})"),
-                   ("ai/shell/components/Theme.qml", r'"#([0-9a-fA-F]{6})"'), ("desktop/shell/shell.qml", r'"#([0-9a-fA-F]{6})"')):
+for f, pattern in (("ai/shell/components/Theme.qml", r'"#([0-9a-fA-F]{6})"'),):
     for c in set(re.findall(pattern, Path(f).read_text(), re.M)):
         if c.lower() not in palette | {"000000"}:
             bad(f"{f}: colour #{c} is not in desktop/theme/theme.json")
-
-# 5b. The shortcut list reads the shipped desktop defaults.
-p = subprocess.run([sys.executable, "desktop/bin/amadeus-keys", "--print"], capture_output=True, text=True,
-                   env=dict(os.environ, AMADEUS_HYPR_CONFIG="desktop/hypr/default.lua"))
-keys = p.stdout.splitlines()
-if p.returncode or len(keys) < 30 or not any(l.startswith("Super + K ") for l in keys) or not any("Terminal" in l for l in keys):
-    bad("desktop/bin/amadeus-keys did not list the shipped shortcuts:\n" + (p.stderr or p.stdout)[-600:])
 
 # 6. Unit tests.
 p = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests"], cwd="ai", capture_output=True, text=True)
@@ -117,12 +108,6 @@ p = subprocess.run([sys.executable, "test/test_qml.py"], capture_output=True, te
 print(p.stderr.strip().splitlines()[-1] if p.stderr.strip() else "no QML test output")
 if p.returncode:
     bad("QML syntax check failed:\n" + p.stderr[-2500:])
-
-# 10. Pointer handoff and search ranking in Qt's QML engine, when installed.
-p = subprocess.run([sys.executable, "test/test_menu.py"], capture_output=True, text=True)
-print(p.stdout.strip())
-if p.returncode:
-    bad("menu interaction tests failed:\n" + (p.stdout + p.stderr)[-2500:])
 
 print(f"\n{'FAILED: ' + str(len(fails)) + ' problem(s)' if fails else 'All checks passed.'}")
 sys.exit(1 if fails else 0)

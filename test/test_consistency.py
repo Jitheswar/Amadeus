@@ -9,7 +9,7 @@ import ast, glob, json, re, unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SHELL = ROOT / "desktop/shell/shell.qml"
+HYPR = ROOT / "desktop/system/usr/share/amadeus/default/hypr"
 THEME = ROOT / "desktop/theme/theme.json"
 BIN = ROOT / "desktop/bin"
 
@@ -23,15 +23,6 @@ def between(text, start, end=r"\n\s*\}\)"):
     return m.group(1) if m else ""
 
 
-def qml_object(text, declaration):
-    """The body of a QML property written as an object literal."""
-    m = re.search(re.escape(declaration) + r"\s*\(\{(.*?)\}\)", text, re.S)
-    return m.group(1) if m else ""
-
-
-def quoted_list(body, key):
-    m = re.search(rf"\b{key}:\s*\[([^\]]*)\]", body, re.S)
-    return re.findall(r'"([^"]*)"', m.group(1)) if m else None
 
 
 def parse_theme_qml():
@@ -41,17 +32,10 @@ def parse_theme_qml():
     return values
 
 
-def parse_shell_theme():
-    body = qml_object(read(SHELL), "property var theme:")
-    values = {}
-    for key, text, number in re.findall(r'(\w+):\s*(?:"([^"]*)"|([0-9.]+))', body):
-        values[key] = text if text else float(number) if "." in number else int(number)
-    return values
-
 
 def repo_commands():
     names = set()
-    for d in ("desktop/bin", "ai/bin", "installer", "iso/live"):
+    for d in ("desktop/bin", "ai/bin", "installer", "iso/live", "desktop/system/usr/share/amadeus/bin"):
         for f in (ROOT / d).rglob("*"):
             if f.is_file():
                 names.add(f.name)
@@ -59,50 +43,19 @@ def repo_commands():
 
 
 class BarTest(unittest.TestCase):
-    def setUp(self):
+    def test_the_assistant_knows_every_bar_section(self):
         tree = ast.parse(read(ROOT / "ai/amadeus/tools/desktop.py"))
-        values = {}
-        for node in tree.body:
-            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-                if node.targets[0].id in ("BAR_WIDGETS", "BAR_DEFAULT"):
-                    values[node.targets[0].id] = ast.literal_eval(node.value)
-        self.widgets = values["BAR_WIDGETS"]
-        self.default = values["BAR_DEFAULT"]
-        shell = read(SHELL)
-        self.qml_layout = {}
-        body = qml_object(shell, "property var layout:")
-        for key in ("left", "center", "right"):
-            self.qml_layout[key] = quoted_list(body, key)
-        self.qml_widgets = re.findall(r"(\w+):\s*w\w+", qml_object(shell, "readonly property var widgets:"))
-
-    def test_every_widget_has_a_component_and_a_name(self):
-        self.assertTrue(self.widgets)
-        self.assertEqual(sorted(self.qml_widgets), sorted(self.widgets))
-        self.assertEqual(len(self.widgets), len(set(self.widgets)))
-
-    def test_the_three_layout_copies_agree(self):
-        shipped = json.loads(read(ROOT / "desktop/shell/bar.default.json"))
-        self.assertEqual(self.qml_layout, self.default)
-        self.assertEqual(shipped, self.default)
-
-    def test_default_widgets_exist_once_and_workspaces_are_optional(self):
-        placed = [w for section in self.default.values() for w in section]
-        self.assertTrue(set(placed) <= set(self.widgets))
-        self.assertEqual(len(placed), len(set(placed)))
-        self.assertNotIn("workspaces", placed)
-        self.assertIn("workspaces", self.widgets)
+        sections = next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
+                        and getattr(n.targets[0], "id", "") == "SECTIONS")
+        shipped = json.loads(read(ROOT / "desktop/system/usr/share/amadeus/config/amadeus/shell.json"))["bar"]["layout"]
+        self.assertTrue(set(shipped) <= set(sections), f"the bar has sections {set(shipped) - set(sections)} the assistant does not know")
 
 
 class ThemeTest(unittest.TestCase):
     def setUp(self):
         self.theme = json.loads(read(THEME))
-        self.shell = parse_shell_theme()
         self.qml = parse_theme_qml()
 
-    def test_the_shell_defaults_match_the_theme_file(self):
-        for key, value in self.theme.items():
-            self.assertIn(key, self.shell, f"shell.qml has no default for {key}")
-            self.assertEqual(self.shell[key], value, f"shell.qml's {key} differs from theme.json")
 
     def test_the_shared_component_defaults_match_the_theme_file(self):
         for key, value in self.theme.items():
@@ -112,24 +65,25 @@ class ThemeTest(unittest.TestCase):
 
 class ShortcutTest(unittest.TestCase):
     def setUp(self):
-        self.lua = read(ROOT / "desktop/hypr/default.lua")
         self.binds = []
-        for line in self.lua.splitlines():
-            m = re.match(r'\s*o\.bind\("([^"]+)",\s*"([^"]*)"(?:,\s*"([^"]*)")?', line)
-            if m:
-                self.binds.append(m.groups())
+        self.files = {}
+        for path in sorted(HYPR.rglob("*.lua")):
+            for line in read(path).splitlines():
+                m = re.match(r'\s*o\.bind\(\s*"([^"]+)",\s*"([^"]*)"(?:,\s*"([^"]*)")?', line)
+                if m:
+                    self.binds.append(m.groups())
+                    self.files.setdefault(re.sub(r"\s*\+\s*", " + ", m.group(1).strip().upper()), set()).add(path.name)
 
     def test_every_shortcut_has_a_description(self):
         self.assertGreaterEqual(len(self.binds), 25)
         for keys, description, _ in self.binds:
             self.assertTrue(description.strip(), f"{keys} has no description")
 
-    def test_no_shortcut_is_bound_twice(self):
-        seen = {}
-        for keys, _, _ in self.binds:
-            normal = re.sub(r"\s*\+\s*", " + ", keys.strip().upper())
-            self.assertNotIn(normal, seen, f"{keys} is bound twice")
-            seen[normal] = keys
+    def test_no_shortcut_is_claimed_by_two_modules(self):
+        # Within one module a key may run several actions in order (Alt+Tab focuses, then
+        # raises); two modules binding the same key is a clash.
+        for keys, files in self.files.items():
+            self.assertEqual(len(files), 1, f"{keys} is bound in {sorted(files)}")
 
     def test_named_amadeus_commands_exist(self):
         names = repo_commands()
@@ -156,17 +110,6 @@ class ComponentTest(unittest.TestCase):
             self.assertTrue((directory / file).is_file(), f"qmldir's {name} points at missing {file}")
 
 
-class IconTest(unittest.TestCase):
-    def test_every_icon_used_is_drawn(self):
-        paths = set(re.findall(r'"([a-z0-9-]+)":\s*"M', read(ROOT / "desktop/shell/Icon.qml")))
-        self.assertTrue(paths)
-        files = list((ROOT / "desktop/shell").glob("*.qml")) + list((ROOT / "ai/shell").rglob("*.qml"))
-        for path in files:
-            for line in read(path).splitlines():
-                for expression in re.findall(r"\b(?:icon|name):\s*([^;\n}]+)", line):
-                    for name in re.findall(r'"([a-z][a-z0-9-]+)"', expression):
-                        self.assertIn(name, paths, f"{path.name} uses icon {name!r}, which Icon.qml does not draw")
-
 
 class UseTest(unittest.TestCase):
     def test_every_theme_property_used_exists(self):
@@ -174,7 +117,7 @@ class UseTest(unittest.TestCase):
         known = set(re.findall(r"(?:readonly\s+)?property\s+\w+\s+(\w+)\s*:", theme))
         known |= set(re.findall(r"function\s+(\w+)", theme))
         self.assertIn("accent", known)
-        for path in list((ROOT / "ai/shell").rglob("*.qml")) + list((ROOT / "desktop/shell").glob("*.qml")):
+        for path in (ROOT / "ai/shell").rglob("*.qml"):
             for name in set(re.findall(r"Theme\.(\w+)", read(path))):
                 self.assertIn(name, known, f"{path.name} uses Theme.{name}, which Theme.qml does not define")
 
@@ -183,7 +126,7 @@ class CoverageTest(unittest.TestCase):
     def test_every_shipped_command_is_exercised(self):
         tests = read(ROOT / "test/selftest.sh") + read(ROOT / "test/test_commands.py")
         commands = sorted(p.name for p in BIN.iterdir() if p.is_file())
-        self.assertGreaterEqual(len(commands), 20)
+        self.assertGreaterEqual(len(commands), 10)
         for name in commands:
             self.assertIn(name, tests, f"{name} is not exercised by the self-test or the command tests")
 

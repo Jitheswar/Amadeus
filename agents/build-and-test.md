@@ -18,8 +18,8 @@ self-test that runs inside the installed system.
   compositor, as part of `./build.sh check`. Anything only a session or hardware can
   show belongs in the VM self-test instead.
 - **QML syntax and focused interactions are checked.** `test/test_qml.py` runs `qmllint` over
-  every QML file when it is installed and fails on a real syntax error.
-  `test/test_menu.py` also exercises matching and pointer gating in Qt when available.
+  every QML file when it is installed and fails on a real syntax error; files it cannot
+  finish fall back to `qmlformat`, which still proves they parse.
   Use `./build.sh preview` and the VM self-test for complete surface behaviour.
 - **Cross-file agreements are tested too.** `test/test_consistency.py` checks that the
   bar layout, theme, shortcut list and package lists agree with every copy of

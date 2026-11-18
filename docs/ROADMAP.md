@@ -15,7 +15,7 @@ configuration) laid out as it lands on disk. Remaining steps, in order:
    (its own apps, titlebars, power-profiles build, fonts) come from that repository, added
    after all others, and are carried on the ISO for offline installs.
 2. **Swap the desktop.** The user skeleton's modular Hyprland configuration and the new
-   shell replace `desktop/hypr/default.lua` and `desktop/shell/`; Amadeus's own additions
+   shell replace the old Amadeus Hyprland file and shell (done); Amadeus's own additions
    (AI panel bindings, hardware user step, hooks) move into one Hyprland module. The menu
    becomes the shell's menu plugin, with Amadeus entries merged into its definition.
 3. **Boot and login.** Limine with snapshot entries replaces systemd-boot (installer,

@@ -102,7 +102,7 @@ from the list, add it to `~/.config/amadeus/launcher.hides`. The menu itself is 
 `~/.config/amadeus/menu.jsonc` using the same format.
 
 **Super+K** (or `amadeus-keys --print`) lists every shortcut. The shipped shortcuts are
-in the [desktop defaults](desktop/hypr/default.lua); your own go in
+in the [desktop defaults](desktop/system/usr/share/amadeus/default/hypr/); your own go in
 `~/.config/hypr/hyprland.lua`. Bar changes are kept in `~/.config/amadeus/bar.json`.
 
 **Super+C** and **Super+V** copy and paste everywhere, terminals included.

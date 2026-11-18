@@ -35,11 +35,11 @@ Item {
     function install() {
         const names = { "claude-cli": "claude", "codex-cli": "codex", "antigravity-cli": "antigravity-cli" }
         const name = names[chosen.type]
-        if (name) Quickshell.execDetached(["amadeus-terminal", "-e", "amadeus-harness", "install", name])
+        if (name) Quickshell.execDetached(["xdg-terminal-exec", "amadeus-harness", "install", name])
     }
     function signIn() {
         const commands = { "claude-cli": ["claude", "auth", "login"], "codex-cli": ["codex", "login"], "antigravity-cli": ["agy"] }
-        if (commands[chosen.type]) Quickshell.execDetached(["amadeus-terminal", "-e"].concat(commands[chosen.type]))
+        if (commands[chosen.type]) Quickshell.execDetached(["xdg-terminal-exec"].concat(commands[chosen.type]))
     }
     Flickable {
         anchors.fill: parent

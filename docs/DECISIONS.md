@@ -301,11 +301,9 @@ installer script (a different updater per tool).
 
 ## The bar and its controls
 
-- **Icons are drawn, not installed.** One family of line icons on a 24-unit grid lives in
-  `desktop/shell/Icon.qml` as vector paths (shapes after Feather Icons, MIT). They are
-  sharp at any size, take the theme's colours, and a new icon is one more path in the
-  same style. Over an icon font (a package, fixed weights, glyph numbers nobody can
-  read) and over an icon theme (mixed styles from many hands).
+- **Icons come from a Nerd Font**, as in the desktop system's menu and bar: one font
+  (`ttf-jetbrains-mono-nerd-basic`) carries every glyph, takes the theme's colours, and
+  matches the rest of the desktop. This replaced the earlier hand-drawn icon set.
 - **Controls follow events.** Battery, power profile, audio, Bluetooth, the tray and
   stay-awake come from the shell toolkit's own bindings to the system services; Wi-Fi is
   re-read only when NetworkManager reports a change. The exceptions are the weather
@@ -483,7 +481,7 @@ timeout. Native GUI actions retain the application's own recovery semantics.
 
 Colours used to be repeated by hand in the compositor, terminal and lock-screen
 configuration, with a check that they matched. A theme is now one
-`colors.toml`, and `desktop/bin/amadeus-theme` renders a template per application from
+`colors.toml`, and `amadeus-theme-set` renders a template per application from
 it. Chosen over per-application theme packages (one more thing to install and keep in
 step for each program) and over a generated palette from a wallpaper (there is no
 wallpaper). What a theme leaves out is derived from its background and foreground, so a

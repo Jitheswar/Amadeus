@@ -56,15 +56,20 @@ class PolicyTest(unittest.TestCase):
 
 
 class DesktopTest(unittest.TestCase):
-    def test_old_bar_layout_retains_the_display_control_without_a_write(self):
+    def test_bar_layout_is_read_and_changes_go_through_the_bar_command(self):
         from amadeus.tools import desktop
-        f = Path(TMP) / "old-bar.json"
-        original = '{"left": [], "center": [], "right": ["brightness", "volume"]}'
-        f.write_text(original)
-        with mock.patch.object(desktop, "BAR_FILE", f):
+        cfg = Path(TMP) / "bar-config"; (cfg / "amadeus").mkdir(parents=True, exist_ok=True)
+        (cfg / "amadeus/shell.json").write_text('{"bar": {"position": "left", "layout": {"right": [{"id": "amadeus.audio"}]}}}')
+        calls = []
+        with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": str(cfg)}), \
+             mock.patch.object(desktop, "sh", side_effect=lambda argv, **k: calls.append(argv) or mock.Mock(stdout="ok")):
             state = desktop.desktop_bar({}, None)
-        self.assertEqual(state["layout"]["right"], ["display", "volume"])
-        self.assertEqual(f.read_text(), original)
+            self.assertEqual(state["position"], "left")
+            self.assertEqual(state["layout"]["right"], ["amadeus.audio"])
+            desktop.desktop_bar({"action": "move", "widget": "amadeus.audio", "section": "left"}, None)
+            with self.assertRaises(Exception):
+                desktop.desktop_bar({"action": "put", "widget": "x; rm -rf ~"}, None)
+        self.assertEqual(calls, [["amadeus-bar", "move", "amadeus.audio", "--section", "left"]])
 
     def test_focused_window_is_mapped_for_the_panel(self):
         from amadeus.tools import desktop

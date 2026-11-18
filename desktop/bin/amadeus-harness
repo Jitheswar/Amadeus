@@ -68,7 +68,7 @@ case ${1:-} in
     done ;;
   update) MISE_MINIMUM_RELEASE_AGE=0 mise upgrade ;;
   run)
-    name=${2:-$(amadeus-default harness)}
+    name=${2:-$(amadeus-default-agent)}
     [[ -n $name ]] || { echo "No default harness is set. Choose one: Super+Space, Defaults, Harness."; exit 1; }
     exe=$(program "$name")
     [[ -n $exe ]] || { echo "$(label "$name") is not installed. Install it: Super+Space, Install, Harness."; exit 1; }

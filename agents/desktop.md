@@ -2,65 +2,52 @@
 
 Read `AGENTS.md` first, especially "Refresh pattern" and "Command naming".
 
-`desktop/` builds the `amadeus-desktop` package: compositor defaults in `desktop/hypr/`,
-the shell (bar, picker, notifications) in `desktop/shell/`, system commands in `desktop/bin/`, and the files every new
-user starts with in `desktop/skel/`.
+`desktop/` builds the `amadeus-desktop` package. Most of the desktop is the desktop
+system in `desktop/system/`, laid out as it lands on disk: its commands, the Quickshell
+shell with its plugins (bar, menu, notifications, dock, OSD, lock screen, clipboard),
+the modular Hyprland defaults, the theme templates and themes, system configuration and
+the user skeleton, all under `desktop/system/usr/share/amadeus/` and `desktop/system/etc/`.
+`desktop/bin/` holds the commands only Amadeus has: hardware detection, GPU modes,
+updates, migrations, hooks, AUR and harness management, the catalogue, mirrors,
+rollback, and the launcher and search the assistant uses.
 
 ## Rules
 
-- **Two layers.** Defaults are shipped and replaced on update. Use personal includes
-  or field-preserving updates as appropriate to the configuration format. Never put
-  something the user would want to change only in the shipped file with
-  no way to override it, and never make an update depend on editing a user's file.
-- **The compositor config must load.** Check it with `Hyprland --verify-config --config FILE`;
-  the configuration language changes between releases, so check against the installed
-  version, not memory. Every shortcut is made with `o.bind` and carries a description.
-- **Key bindings** are defined once, in the shipped defaults, each with an overlay title.
-  Before adding one, read that file for conflicts.
-- **The bar's layout is data.** A new widget is a component plus an id in the widget
-  table in the bar, and the same id in the AI layer's list of bar widgets in
-  `ai/amadeus/tools/desktop.py`. Both or neither.
-- **Colours are rendered, not repeated.** A theme is one `colors.toml` under
-  `desktop/themes/`; `desktop/bin/amadeus-theme` renders `desktop/themed/` templates for
-  each application. Theme a new application by adding a template, never by writing
-  colours into its configuration. The default theme must reproduce the shipped files.
-- **One theme.** Colours, fonts, corner radius and animation timings come from
-  `desktop/theme/theme.json`. Shell and panel code reads them; it never contains a
-  colour or a duration of its own. Files that cannot read the theme (compositor, lock
-  screen, terminal) may only repeat its colours, and `./build.sh check` enforces that.
-- **Motion has three speeds** (fast, normal, slow in the theme) and one easing. A surface
-  opens and closes from one animated value so it can reverse midway. If an animation
-  does not show where something came from or went, remove it.
-- **Look at what you changed.** `./build.sh preview` draws the shell, picker,
-  notifications and panel headless into `out/preview/`. Read the pictures before you
-  commit a visual change.
-- **Software a user can install is a catalogue line, not code.** Add it to the right file
-  in `desktop/catalog/`, system repository source first, AUR second. Read the AUR recipe
-  and list it only if it downloads the publisher's own build or builds the publisher's
-  source.
-- **Never name a terminal, editor or harness in code.** Call `amadeus-terminal`,
-  `amadeus-editor` or `amadeus-harness run`; the user chooses what they are.
-- **One picker.** Every list a user chooses from goes through `desktop/bin/amadeus-pick`,
-  which the shell draws. Do not add another menu program.
-  A cross-menu search result must cancel the originating picker before launching its
-  destination. Keep free-text prompts distinct. Respect desktop-entry visibility and
-  personal-entry precedence when filtering helpers out of Apps.
-  Only navigation menus pass `--global`; a list of things to choose searches itself.
-- **Pointer and keyboard share selection.** Ignore synthetic hover from list movement
-  under a stationary pointer. Test separate real key events and Qt pointer gating.
-- **Graphical login keeps authentication upstream.** Profile preselection stores names,
-  never passwords. Keep the greeter independent of the user compositor and session GPU
-  choice; the Try return path must remain usable without an installed-account password.
+- **Two layers.** Shipped defaults live in `usr/share/amadeus/default/` and are replaced
+  on update; the user's own files come from the skeleton and are theirs. Never make an
+  update depend on editing a user's file; a change that must reach existing users is a
+  migration in `desktop/migrations/`.
+- **Hyprland is modules.** `default/hypr/amadeus.lua` requires each module; add a module
+  rather than growing an unrelated one. The assistant's shortcuts and window rules live in
+  `default/hypr/assistant.lua`. Every shortcut is made with `o.bind` and carries a
+  description; a key may run several actions within one module, but two modules must not
+  claim the same key (`./build.sh check` enforces both).
+- **The compositor config must load.** Check it with `Hyprland --verify-config` against
+  the installed version, not memory: the configuration language changes between releases.
+- **The menu is data.** Entries live in `default/amadeus/amadeus-menu.jsonc`; add a line
+  there rather than a new menu program. Users and plugins extend it with their own files.
+- **The bar's layout is data** in `config/amadeus/shell.json`; widgets are plugins. The
+  assistant's bar tool in `ai/amadeus/tools/desktop.py` knows the sections; keep them in step.
+- **Colours are rendered, not repeated.** A theme is a folder with a `colors.toml` under
+  `usr/share/amadeus/themes/`; `amadeus-theme-set` renders `default/themed/*.tpl` for each
+  application. Theme a new application by adding a template, never by writing colours
+  into its configuration. The assistant's panel is themed the same way
+  (`default/themed/assistant.json.tpl`).
+- **Software a user can install is a menu entry or a catalogue line, not code.** Catalogue
+  lines in `desktop/catalog/` name the system repository source first, AUR second. Read
+  the AUR recipe and list it only if it downloads the publisher's own build or builds the
+  publisher's source.
+- **Never name a terminal, editor or agent in code.** Call `xdg-terminal-exec`,
+  `amadeus-launch-editor` or `amadeus-harness run`; the user chooses what they are.
 - **State comes from events.** The bar reads the compositor's event stream. Do not add a
   timer where an event exists.
-- **Commands** follow the naming rule and carry their description on line 2. A command
-  that changes the system confirms first and says how to undo.
-- **Intel is the automatic desktop GPU.** Only an explicit user GPU-mode choice may
+- **Commands** follow the naming rule. Amadeus's own carry their description on line 2;
+  the desktop system's keep their `# amadeus:summary=` header. A command that changes the
+  system confirms first and says how to undo.
+- **The integrated GPU draws the desktop.** Only an explicit user GPU-mode choice may
   change that. Do not wake NVIDIA merely to read its state.
-- **Settings have different owners.** Application defaults use their wrappers; the
-  panel's default agent uses the AI configuration. Keep them independent. Validate
-  managed text-size/configuration changes as a whole and restore on failure. Explain
-  terminal-window and GPU-login exceptions rather than promising every change is live.
+- **Settings have different owners.** Application defaults use `amadeus-default-*`; the
+  panel's default agent uses the AI configuration. Keep them independent.
 - **Usage follows intent.** Read the default-agent label without starting an idle
   daemon; collect usage only when opened or explicitly refreshed.
 

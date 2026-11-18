@@ -1,10 +1,10 @@
 pkgname=amadeus-desktop
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="Amadeus OS desktop: Hyprland defaults, shell (bar, picker, notifications), system tools and user skeleton"
+pkgdesc="Amadeus OS desktop: the desktop system (shell, Hyprland modules, themes, commands), hardware support and user skeleton"
 arch=(any)
 license=(MIT)
-depends=(python-gobject greetd-regreet cage librsvg hyprland uwsm quickshell foot swaylock swayidle polkit-gnome grim slurp hyprpicker satty gpu-screen-recorder ffmpeg wl-clipboard cliphist wtype fastfetch brightnessctl networkmanager wireplumber upower power-profiles-daemon bluez polkit xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
+depends=(python-gobject greetd-regreet cage librsvg hyprland uwsm quickshell foot grim slurp hyprpicker gpu-screen-recorder ffmpeg wl-clipboard wtype fastfetch brightnessctl networkmanager wireplumber upower power-profiles-daemon bluez polkit xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
 options=(!debug)
 install=amadeus-desktop.install
 # System configuration under /etc is the administrator's to change: an update keeps local edits.
@@ -13,17 +13,9 @@ backup=($(cd "$startdir/system" && find etc -path etc/skel -prune -o -type f -pr
 package() {
   local src="$startdir"
   install -Dm644 "$src"/hardware/* -t "$pkgdir/usr/share/amadeus-os/hardware/"
-  install -Dm644 "$src/hypr/default.lua" -t "$pkgdir/usr/share/amadeus-os/hypr/"
-  install -Dm644 "$src"/shell/*.qml "$src"/shell/*.js -t "$pkgdir/usr/share/amadeus-os/shell/"
-  install -Dm644 "$src/shell/OMARCHY-LICENSE" "$pkgdir/usr/share/licenses/$pkgname/OMARCHY-LICENSE"
-  install -Dm644 "$src/shell/launcher.hides" -t "$pkgdir/usr/share/amadeus-os/"
-  install -Dm644 "$src"/themed/*.tpl -t "$pkgdir/usr/share/amadeus-os/themed/"
-  for theme in "$src"/themes/*/; do
-    install -Dm644 "$theme/colors.toml" -t "$pkgdir/usr/share/amadeus-os/themes/$(basename "$theme")/"
-  done
+  install -Dm644 "$src/OMARCHY-LICENSE" "$pkgdir/usr/share/licenses/$pkgname/OMARCHY-LICENSE"
+  install -Dm644 "$src/launcher.hides" -t "$pkgdir/usr/share/amadeus-os/"
   install -Dm644 "$src"/migrations/*.sh -t "$pkgdir/usr/share/amadeus-os/migrations/"
-  install -Dm644 "$src/menu/menu.jsonc" -t "$pkgdir/usr/share/amadeus-os/"
-  install -Dm755 "$src/lib/amadeus-menu-providers" -t "$pkgdir/usr/lib/amadeus-os/"
   install -d "$pkgdir/usr/bin"
   # Only files: a test run can leave a __pycache__ directory beside the programs.
   find "$src/bin" -maxdepth 1 -type f -exec install -Dm755 {} -t "$pkgdir/usr/bin/" \;
@@ -44,50 +36,14 @@ package() {
   install -Dm755 "$src/lib/amadeus-file-context" "$pkgdir/usr/share/amadeus-os/nautilus/Ask Amadeus"
   install -d "$pkgdir/etc/skel/.local/share/nautilus/scripts"
   ln -s "/usr/share/amadeus-os/nautilus/Ask Amadeus" "$pkgdir/etc/skel/.local/share/nautilus/scripts/Ask Amadeus"
-  # Passwordless administrator access is a switch the user turns on from the bar; this is its root side.
-  install -Dm755 "$src/lib/sudo-helper" -t "$pkgdir/usr/lib/amadeus-os/"
-  install -Dm644 "$src/lib/org.amadeus.sudo.policy" -t "$pkgdir/usr/share/polkit-1/actions/"
-  install -Dm644 "$src/lib/amadeus-sudo-boot.service" -t "$pkgdir/usr/lib/systemd/system/"
   # Stable names for the two graphics cards, for Setup > GPU (their numbers can change between boots):
   # the one the firmware starts the screen on, and the other, whatever their makers.
   install -Dm644 /dev/stdin "$pkgdir/usr/lib/udev/rules.d/70-amadeus-gpu.rules" <<'U'
 KERNEL=="card*", SUBSYSTEM=="drm", ATTRS{boot_vga}=="1", SYMLINK+="dri/igpu-card"
 KERNEL=="card*", SUBSYSTEM=="drm", ATTRS{boot_vga}=="0", SYMLINK+="dri/dgpu-card"
 U
-  install -d "$pkgdir/usr/lib/systemd/system/multi-user.target.wants"
-  ln -s ../amadeus-sudo-boot.service "$pkgdir/usr/lib/systemd/system/multi-user.target.wants/"
   install -Dm644 "$src/theme/theme.json" "$src/harnesses.list" -t "$pkgdir/usr/share/amadeus-os/"
   install -Dm644 "$src"/catalog/*.list -t "$pkgdir/usr/share/amadeus-os/catalog/"
-  install -Dm644 "$src/theme/fastfetch.jsonc" "$pkgdir/etc/skel/.config/fastfetch/config.jsonc"
-  # Programs installed through mise are on everyone's PATH, and EDITOR follows the chosen default.
-  install -Dm644 /dev/stdin "$pkgdir/etc/profile.d/amadeus.sh" <<'P'
-export PATH="$HOME/.local/share/mise/shims:$PATH"
-export EDITOR=amadeus-editor VISUAL=amadeus-editor
-P
-  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/amadeus-editor.desktop" <<'D'
-[Desktop Entry]
-Type=Application
-Name=Text Editor
-Comment=Opens files in your default editor
-Exec=amadeus-editor %F
-Icon=accessories-text-editor
-MimeType=text/plain;text/markdown;text/x-shellscript;application/json;application/toml;application/x-yaml;
-NoDisplay=true
-D
-  install -Dm644 /dev/stdin "$pkgdir/etc/skel/.config/mimeapps.list" <<'M'
-[Default Applications]
-text/plain=amadeus-editor.desktop
-text/markdown=amadeus-editor.desktop
-M
-  printf 'TERMINAL=foot\nEDITOR=nano\nHARNESS=claude\n' | install -Dm644 /dev/stdin "$pkgdir/etc/skel/.config/amadeus/defaults"
-  # Other applications follow the same look: dark, the accent colour, the same fonts.
-  install -Dm644 "$src/theme/dconf-profile" "$pkgdir/etc/dconf/profile/user"
-  install -Dm644 "$src/theme/dconf-defaults" "$pkgdir/etc/dconf/db/local.d/00-amadeus"
-  install -Dm644 "$src/theme/fonts.conf" "$pkgdir/etc/fonts/conf.d/60-amadeus.conf"
-  # The files every new user starts with. -T copies the folder's contents, wherever other steps put files first.
-  install -d "$pkgdir/etc/skel"
-  cp -rT "$src/skel" "$pkgdir/etc/skel"
-  install -Dm644 "$src/shell/bar.default.json" "$pkgdir/etc/skel/.config/amadeus/bar.json"
   install -Dm644 /dev/stdin "$pkgdir/usr/lib/os-release.amadeus" <<'OS'
 NAME="Amadeus OS"
 PRETTY_NAME="Amadeus OS"

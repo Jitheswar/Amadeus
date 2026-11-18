@@ -20,9 +20,8 @@ Read this before touching drivers, power behaviour or devices.
 
 ## Devices
 
-- Displays: `amadeus-display`, or `desktop_settings` for scale. A display the user never
-  set up gets its scale and text size chosen automatically at session start; a setting
-  made by hand always wins, so change it rather than fighting the automatic choice.
+- Displays: `desktop_settings` for scale and text size, or `amadeus-hyprland-monitor-scaling`
+  and `amadeus-display-text-size`. Monitor layout lives in `~/.config/hypr/monitors.lua`.
 - Audio: the bar's sound control lists real inputs and outputs. For faults, check the
   user's audio services with `sys_services` (user scope).
 - Network: `net_status` reads, `net_control` changes. Bluetooth: `bluetooth_control`.

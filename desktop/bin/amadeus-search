@@ -1,64 +1,56 @@
 #!/usr/bin/python3
-# Find installed applications and desktop settings from any Amadeus menu.
+# Find installed applications and Amadeus menu entries, for the assistant and other callers.
 """amadeus-search --index | --run ID
 
-The picker reads one index when it opens, then filters locally as you type.
-Actions are resolved again on selection; menu callers never receive foreign IDs.
-"""
-import json, os, subprocess, sys
+--index prints every installed application and every entry of the Amadeus menu as JSON
+(id, label, where it is, search words). --run opens one: an application starts, a menu
+entry opens the menu there. Only IDs from the index are accepted."""
+import json, os, re, subprocess, sys
 from pathlib import Path
 
-SHELL = "/usr/share/amadeus-os/shell"
-SETTINGS = {
-    "display": ("Display settings", "resolution monitor scale", ["amadeus-display"]),
-    "brightness": ("Brightness settings", "display backlight screen brightness", []),
-    "admin": ("Administrator password settings", "sudo passwordless administrator privilege timeout", []),
-    "calendar": ("Calendar", "date time calendar", []),
-    "text": ("Text size", "font text sizing typography", ["amadeus-menu", "appearance.text"]),
-    "gpu": ("Graphics settings", "gpu graphics nvidia amd intel dedicated integrated battery performance", ["amadeus-menu", "setup.gpu"]),
-    "defaults": ("Default applications", "default agent terminal editor browser", ["amadeus-menu", "setup.default"]),
-    "config": ("Configuration", "settings configuration shortcuts theme", ["amadeus-menu", "setup.config"]),
-    "agent": ("AI agent settings", "claude codex antigravity subscription api provider default", ["ama", "panel", "settings"]),
-    "harness": ("Install harness", "claude code codex antigravity agent install", ["amadeus-menu", "install.harness"]),
-    "install": ("Install software", "applications packages aur browser editor development", ["amadeus-menu", "install"]),
-    "update": ("Update system", "software packages upgrade", ["amadeus-menu", "update"]),
-    "capture": ("Screen capture", "screenshot recording screen microphone", ["amadeus-menu", "trigger.capture"]),
-    "system": ("System actions", "lock logout restart shutdown suspend hibernate", ["amadeus-menu", "system"]),
-    "gaming": ("Gaming", "steam install games", ["amadeus-menu", "install.gaming"]),
-    "chat": ("Chat", "discord telegram install", ["amadeus-menu", "install.chat"]),
-    "wifi": ("Wi-Fi settings", "network internet wireless", []),
-    "volume": ("Sound settings", "audio microphone speakers headphones volume", []),
-    "bluetooth": ("Bluetooth settings", "headphones pairing devices", []),
-    "power": ("Power settings", "battery performance profiles", []),
-}
+HERE = Path(__file__).resolve().parent
+MENU = Path(os.environ.get("AMADEUS_MENU_FILE") or next(
+    (p for p in (Path("/usr/share/amadeus/default/amadeus/amadeus-menu.jsonc"),
+                 HERE.parent / "system/usr/share/amadeus/default/amadeus/amadeus-menu.jsonc") if p.exists()),
+    Path("/usr/share/amadeus/default/amadeus/amadeus-menu.jsonc")))
 
 
-def menu_settings():
-    p = subprocess.run(["amadeus-menu", "--settings-index"], capture_output=True, text=True, timeout=5)
-    return dict(line.split("\t")[:2] for line in p.stdout.splitlines() if "\t" in line) if p.returncode == 0 else {}
+def jsonc(text):
+    """JSON with // comments and trailing commas; comment markers inside strings are kept."""
+    out, i, n, in_str = [], 0, len(text), False
+    while i < n:
+        c = text[i]
+        if in_str:
+            out.append(c)
+            if c == "\\" and i + 1 < n:
+                out.append(text[i + 1]); i += 1
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True; out.append(c)
+        elif text.startswith("//", i):
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        else:
+            out.append(c)
+        i += 1
+    return json.loads(re.sub(r",(\s*[}\]])", r"\1", "".join(out)))
 
 
-def menu_routes():
-    routes = {}
-    p = subprocess.run(["amadeus-menu", "--menu-index"], capture_output=True, text=True, timeout=5)
-    if p.returncode == 0:
-        for line in p.stdout.splitlines():
-            fields = line.split("\t")
-            if len(fields) < 3:
-                continue
-            key, label, path = fields[:3]
-            routes["menu:" + key] = {"label": label, "path": path, "command": ["amadeus-menu", key],
-                                     "keywords": fields[3] if len(fields) > 3 else ""}
-    detail = subprocess.run(["amadeus-menu", "--settings-index"], capture_output=True, text=True, timeout=5)
-    words = {parts[0]: parts[2] for line in detail.stdout.splitlines() if len(parts := line.split("\t")) >= 3}
-    for line in detail.stdout.splitlines():
-        fields = line.split("\t")
-        if len(fields) < 2: continue
-        key, label = fields[:2]
-        category, choice = key.split(":", 1)
-        routes[key] = {"label": label, "path": "Amadeus › Setup › " + ("Defaults" if category == "default" else "Config"),
-                       "command": ["amadeus-menu", "defaults" if category == "default" else "config", choice], "keywords": words.get(key, "")}
-    return routes
+def menu_entries():
+    try:
+        tree = jsonc(MENU.read_text())
+    except (OSError, ValueError):
+        return {}
+    entries = {}
+    for key, e in tree.items():
+        names, k = [], key.rpartition(".")[0]
+        while k:
+            names.insert(0, tree.get(k, {}).get("label", k)); k = k.rpartition(".")[0]
+        entries[key] = {"label": e.get("label", key), "path": " › ".join(["Amadeus"] + names),
+                        "keywords": " ".join(e.get("aliases", []) + e.get("searchTerms", []) + [key.replace(".", " ")])}
+    return entries
 
 
 def index():
@@ -66,24 +58,10 @@ def index():
     p = subprocess.run(["amadeus-launcher", "--json"], capture_output=True, text=True, timeout=10)
     if p.returncode == 0:
         for app in json.loads(p.stdout):
-            result.append(dict(app, id="app:" + app["id"], kind=app.get("kind", "Application"), path="Apps", description=app.get("description", ""), keywords=app.get("keywords", "") + " " + app["id"]))
-    commands = {}
-    def identity(argv): return tuple(str(x).casefold() for x in argv)
-    for key, (label, words, command) in SETTINGS.items():
-        location = "Bar" if not command or key == "agent" else ("Amadeus" if len(command) == 2 else "Amadeus › Setup")
-        entry = {"id": "setting:" + key, "label": label, "keywords": words, "kind": "Setting", "path": location}
-        result.append(entry)
-        if command: commands[identity(command)] = entry
-    for key, route in menu_routes().items():
-        command = identity(route["command"])
-        if command in commands:
-            entry = commands[command]
-            entry["keywords"] += " " + entry["label"]
-            entry.update(label=route["label"], path=route["path"])
-            continue
-        entry = {"id": "menu:" + key, "label": route["label"], "keywords": route.get("keywords", "") + " " + key.split(":", 1)[1],
-                 "path": route["path"], "kind": "Menu"}
-        result.append(entry); commands[command] = entry
+            result.append(dict(app, id="app:" + app["id"], kind=app.get("kind", "Application"), path="Apps",
+                               description=app.get("description", ""), keywords=app.get("keywords", "") + " " + app["id"]))
+    for key, e in menu_entries().items():
+        result.append({"id": "menu:" + key, "kind": "Menu", **e})
     for item in result:
         item["label"] = " ".join(str(item["label"]).split())[:160]
         item["keywords"] = str(item.get("keywords", ""))[:500]
@@ -98,14 +76,8 @@ def main():
         key = sys.argv[2]
         if key.startswith("app:"):
             command = ["amadeus-launcher", "--launch", key[4:]]
-        elif key.startswith("menu:") and key[5:] in (routes := menu_routes()):
-            command = routes[key[5:]]["command"]
-        elif key.startswith("setting:") and key[8:] in SETTINGS:
-            name = key[8:]
-            command = SETTINGS[name][2]
-            if not command:
-                panel = {"brightness": "display", "admin": "sudo"}.get(name, name)
-                command = ["quickshell", "ipc", "-p", SHELL, "call", "shell", "settings", panel]
+        elif key.startswith("menu:") and key[5:] in menu_entries():
+            command = ["amadeus-menu", "summon", key[5:]]
         else:
             sys.exit("That search result is no longer available.")
         subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,

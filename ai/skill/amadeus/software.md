@@ -8,7 +8,7 @@ Read this before any package or tool change.
 2. The AUR through `amadeus-aur`. Recipes are written by users: read the recipe before
    building, and never build something the repositories already carry.
 3. Language runtimes and coding agents through mise, wrapped by `amadeus-harness`.
-4. Web apps through `amadeus-webapp`.
+4. Web apps through `amadeus-webapp-install` and `amadeus-webapp-remove`.
 
 The curated choices a person sees under Install are catalogue files;
 `amadeus-catalog` lists the categories and resolves each entry to the first source

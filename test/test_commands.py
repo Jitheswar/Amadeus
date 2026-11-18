@@ -116,12 +116,6 @@ class Commands(unittest.TestCase):
         self.assertEqual((target / "extra.db").stat().st_mtime_ns, before)
         self.assertEqual(list(target.glob(".amadeus-seed-*")), [])
 
-    def test_defaults_agent_opens_provider_settings(self):
-        self.picker("Defaults", "Agent")
-        self.stub("ama")
-        self.assert_ok(self.run_cmd("amadeus-menu", "setup"))
-        self.assertEqual(self.calls_of("ama"), [["panel", "settings"]])
-
     def test_launcher_hides_dependency_helpers_but_keeps_explicit_apps(self):
         ns = {"__name__": "launcher_validation"}
         exec(compile((BIN / "amadeus-launcher").read_text(), "launcher", "exec"), ns)
@@ -139,55 +133,25 @@ esac''')
             (user / "helper.desktop").write_text("[Desktop Entry]\nName=My helper\nExec=true\n")
             self.assertEqual(set(ns["entries"]()), {"wanted", "helper"})
 
-    def test_universal_search_returns_actions_without_running_them(self):
+    def test_search_indexes_apps_and_every_menu_entry_without_running_them(self):
         self.stub("amadeus-launcher", output='[{"id":"files","label":"Files","keywords":"folders"}]')
         result = self.run_cmd("amadeus-search", "--index")
         self.assert_ok(result)
-        data = json.loads(result.stdout)
-        self.assertIn("app:files", [x["id"] for x in data])
-        self.assertIn("files", next(x["keywords"] for x in data if x["id"] == "app:files"))
-        self.assertIn("setting:agent", [x["id"] for x in data])
+        data = {x["id"]: x for x in json.loads(result.stdout)}
+        self.assertIn("files", data["app:files"]["keywords"])
+        self.assertEqual(data["menu:appearance.theme"]["path"], "Amadeus › Appearance")
+        self.assertIn("menu:update.hardware.audio", data)
         self.assertEqual(self.calls_of("sudo"), [])
-        self.assertNotEqual(self.run_cmd("amadeus-search", "--run", "setting:unknown").returncode, 0)
+        self.assertNotEqual(self.run_cmd("amadeus-search", "--run", "menu:not.an.entry").returncode, 0)
 
-    def test_search_indexes_existing_configuration_and_default_routes(self):
-        self.stub("amadeus-launcher", output="[]")
-        result = self.run_cmd("amadeus-search", "--index")
-        self.assert_ok(result)
-        ids = {x["id"] for x in json.loads(result.stdout)}
-        self.assertIn("menu:default:Browser", ids)
-        self.assertIn("menu:config:Look and motion", ids)
-        self.assertIn("setting:harness", ids)
-        self.assertIn("setting:brightness", ids)
-        self.assertIn("setting:admin", ids)
-        self.assertNotIn("menu:config:Lock screen", ids)
-        self.stub("amadeus-editor")
-        self.assert_ok(self.run_cmd("amadeus-menu", "config", "Look and motion"))
-        self.assertEqual(self.calls_of("amadeus-editor"), [[str(self.config / "amadeus/theme.json")]])
-
-    def test_search_opens_the_actual_brightness_control(self):
-        self.stub("quickshell")
-        self.assert_ok(self.run_cmd("amadeus-search", "--run", "setting:brightness"))
-        for _ in range(20):
-            if self.calls_of("quickshell"):
+    def test_search_opens_a_menu_entry_in_the_menu(self):
+        self.stub("amadeus-menu")
+        self.assert_ok(self.run_cmd("amadeus-search", "--run", "menu:appearance.theme"))
+        for _ in range(50):
+            if self.calls_of("amadeus-menu"):
                 break
             time.sleep(0.01)
-        self.assertEqual(self.calls_of("quickshell")[-1][-2:], ["settings", "display"])
-
-    def test_optional_category_menus_prepare_repository_installs(self):
-        for menu, label, source in (("Gaming", "Steam", "multilib/steam"),
-                                    ("Chat", "Discord", "extra/discord")):
-            with self.subTest(menu=menu):
-                (self.tmp / "picker.answers").unlink(missing_ok=True)
-                self.picker(menu, label + "\tpacman:" + source)
-                self.stub("amadeus-catalog", output=label + "\tpacman:" + source + "\n")
-                self.stub("amadeus-terminal")
-                self.assert_ok(self.run_cmd("amadeus-menu"))
-                self.assertIn([menu.lower()], self.calls_of("amadeus-catalog"))
-                command = self.calls_of("amadeus-terminal")[-1][-1]
-                self.assertIn("amadeus-catalog install", command)
-                self.assertIn("pacman:" + source, command)
-                self.assertEqual(self.calls_of("sudo"), [])
+        self.assertEqual(self.calls_of("amadeus-menu"), [["summon", "appearance.theme"]])
 
     def test_qualified_repository_packages_are_detected_as_installed(self):
         catalog = self.tmp / "qualified-catalog"
@@ -203,7 +167,7 @@ esac''')
         exec(compile((BIN / "amadeus-launcher").read_text().rsplit("\nmain()", 1)[0], "amadeus-launcher", "exec"), ns)
         user, system = self.tmp / "user-apps", self.tmp / "system-apps"
         user.mkdir(); system.mkdir()
-        shipped = ROOT / "desktop/shell/launcher.hides"
+        shipped = ROOT / "desktop/launcher.hides"
         personal = self.tmp / "launcher.hides"
         personal.write_text("# mine\nnoisy.desktop\n")
         ns["DIRS"], ns["HIDES"] = [user, system], [shipped, personal]
@@ -325,98 +289,7 @@ esac""")
         self.assertEqual(p.returncode, 0, f"exit {p.returncode}\nstdout: {p.stdout}\nstderr: {p.stderr}")
 
     # ---- defaults, terminal and editor -------------------------------------
-    def test_defaults_work_before_a_file_exists(self):
-        """A fresh user has no defaults file yet; asking what the defaults are must work."""
-        self.assertEqual(self.run_cmd("amadeus-default", "terminal").stdout.strip(), "foot")
-        self.assertEqual(self.run_cmd("amadeus-default", "editor").stdout.strip(), "nvim")
-        self.assertEqual(self.run_cmd("amadeus-default", "harness").stdout.strip(), "")
-        shown = self.run_cmd("amadeus-default")
-        self.assert_ok(shown)
-        self.assertIn("terminal  foot", shown.stdout)
-        self.assertIn("harness   (not set)", shown.stdout)
-
-    def test_defaults_list_choices_and_set(self):
-        self.write_entry("myterm", Name="My Term", Exec="myterm", Categories="TerminalEmulator;")
-        self.stub("nvim")
-        choices = self.run_cmd("amadeus-default", "terminal", "--choices")
-        self.assert_ok(choices)
-        self.assertIn("myterm", choices.stdout.splitlines())
-        self.assert_ok(self.run_cmd("amadeus-default", "terminal", "myterm"))
-        self.assertEqual((self.config / "amadeus/defaults").read_text(), "TERMINAL=myterm\n")
-        self.assertEqual(self.run_cmd("amadeus-default", "terminal").stdout.strip(), "myterm")
-
-        self.assertIn("nvim", self.run_cmd("amadeus-default", "editor", "--choices").stdout.splitlines())
-        self.assert_ok(self.run_cmd("amadeus-default", "editor", "nvim"))
-        self.assertEqual(set((self.config / "amadeus/defaults").read_text().splitlines()),
-                         {"EDITOR=nvim", "TERMINAL=myterm"})
-
-        before = (self.config / "amadeus/defaults").read_text()
-        refused = self.run_cmd("amadeus-default", "terminal", "no-such-terminal")
-        self.assertEqual(refused.returncode, 1)
-        self.assertIn("is not an installed terminal", refused.stdout)
-        self.assertEqual((self.config / "amadeus/defaults").read_text(), before)
-
-    def test_terminal_uses_the_chosen_one(self):
-        self.write_defaults(TERMINAL="foot")
-        self.stub("foot")
-        self.assert_ok(self.run_cmd("amadeus-terminal", "--title", "Test title", "-e", "echo", "hello"))
-        self.assertEqual(self.calls_of("foot"), [["--title", "Test title", "-e", "echo", "hello"]])
-        self.write_defaults(TERMINAL="myterm")
-        self.stub("myterm")
-        self.assert_ok(self.run_cmd("amadeus-terminal", "-e", "true"))
-        self.assertEqual(self.calls_of("myterm"), [["-e", "true"]])
-
-    def test_editor_opens_in_the_terminal_when_it_lives_there(self):
-        self.write_defaults(TERMINAL="myterm", EDITOR="nvim")
-        self.stub("myterm")
-        self.stub("nvim")
-        self.assert_ok(self.run_cmd("amadeus-editor", "notes.txt"))
-        self.assertEqual(self.calls_of("myterm"), [["-e", "nvim", "notes.txt"]])
-        self.write_defaults(TERMINAL="myterm", EDITOR="code")
-        self.stub("code")
-        self.assert_ok(self.run_cmd("amadeus-editor", "notes.txt"))
-        self.assertEqual(self.calls_of("code"), [["notes.txt"]])
-
     # ---- web apps -----------------------------------------------------------
-    def test_web_app_list_works_with_none_installed(self):
-        p = self.run_cmd("amadeus-webapp", "list")
-        self.assert_ok(p)
-        self.assertEqual(p.stdout, "")
-
-    def test_web_app_is_added_listed_launched_and_removed(self):
-        self.assert_ok(self.run_cmd("amadeus-webapp", "install", "My App", "https://example.org"))
-        f = self.data / "applications/amadeus-webapp-my-app.desktop"
-        text = f.read_text()
-        self.assertIn("Name=My App", text)
-        self.assertIn("X-Amadeus-WebApp=true", text)
-        self.assertEqual(self.run_cmd("amadeus-webapp", "list").stdout, "My App\thttps://example.org\n")
-        self.assertIn("My App", self.run_cmd("amadeus-launcher", "--print").stdout)
-        self.assert_ok(self.run_cmd("amadeus-webapp", "remove", "My App"))
-        self.assertFalse(f.exists())
-        self.assertEqual(self.run_cmd("amadeus-webapp", "list").stdout, "")
-
-    def test_web_app_address_survives_the_desktop_entry(self):
-        """A URL with % in it is common (%20 for a space); the launcher must receive it unchanged."""
-        url = "https://example.org/a%20b?q=100%25"
-        self.assert_ok(self.run_cmd("amadeus-webapp", "install", "Percent", url))
-        exec_line = next(l for l in (self.data / "applications/amadeus-webapp-percent.desktop").read_text().splitlines()
-                         if l.startswith("Exec="))
-        argv = desktop_exec(exec_line[len("Exec="):])
-        self.assertEqual(argv, ["amadeus-webapp", "launch", url])
-
-        # The same path a click takes: the default browser says it can show a site as an app.
-        self.stub("xdg-settings", output="test-browser.desktop")
-        self.write_entry("test-browser", Name="Test Browser", Exec="test-browser")
-        self.stub("test-browser", output="Chromium 120")
-        self.assert_ok(self.run_cmd(argv[0], *argv[1:]))
-        self.assertEqual(self.calls_of("test-browser")[-1], [f"--app={url}"])
-
-    def test_web_app_refuses_a_name_with_a_line_break(self):
-        p = self.run_cmd("amadeus-webapp", "install", "Two\nLines", "https://example.org")
-        self.assertEqual(p.returncode, 1)
-        self.assertIn("line break", p.stdout)
-        self.assertEqual(list((self.data / "applications").glob("*.desktop")), [])
-
     # ---- launcher -----------------------------------------------------------
     def test_launcher_starts_an_entry_with_a_missing_working_directory(self):
         self.write_entry("mine", Name="Mine", Exec="mineapp %U", Path="/nonexistent/directory")
@@ -459,94 +332,6 @@ esac""")
         self.assertNotIn("Hidden", listed)
 
     # ---- theme ----------------------------------------------------------------
-    def test_theme_renders_every_application_from_one_file(self):
-        env = {"AMADEUS_THEME_SHARE": str(ROOT / "desktop")}
-        skel = ROOT / "desktop/skel/.config"
-        for name in ("foot/foot.ini", "swaylock/config"):
-            (self.config / name).parent.mkdir(parents=True, exist_ok=True)
-            (self.config / name).write_text((skel / name).read_text())
-        (self.config / "amadeus").mkdir(exist_ok=True)
-        (self.config / "amadeus/theme.json").write_text('{"font_size": 16}')
-        self.stub("foot"); self.stub("gsettings"); self.stub("pkill"); self.stub("hyprctl")
-        self.assertEqual(self.run_cmd("amadeus-theme", "list", env=env).stdout.split(), ["amadeus", "amadeus-light"])
-        # The shipped look is the default theme: applying it changes nothing.
-        self.assert_ok(self.run_cmd("amadeus-theme", "set", "amadeus", env=env))
-        for name in ("foot/foot.ini", "swaylock/config"):
-            self.assertEqual((self.config / name).read_text(), (skel / name).read_text())
-        shipped = json.loads((ROOT / "desktop/theme/theme.json").read_text())
-        mine = json.loads((self.config / "amadeus/theme.json").read_text())
-        self.assertEqual(mine.pop("font_size"), 16)
-        self.assertEqual(mine, {k: shipped[k] for k in mine})
-
-        self.assert_ok(self.run_cmd("amadeus-theme", "set", "amadeus-light", env=env))
-        self.assertEqual(self.run_cmd("amadeus-theme", "current", env=env).stdout, "amadeus-light\n")
-        self.assertIn("background=f6f1e8", (self.config / "foot/foot.ini").read_text())
-        self.assertIn("pad=14x14", (self.config / "foot/foot.ini").read_text())
-        self.assertIn(["set", "org.gnome.desktop.interface", "color-scheme", "prefer-light"], self.calls_of("gsettings"))
-        theme = self.config / "amadeus/current/theme"
-        for name in ("kitty.conf", "alacritty.toml", "ghostty.conf", "btop.theme", "gtk.css", "hyprland.lua", "foot.ini", "swaylock"):
-            self.assertNotIn("{{", (theme / name).read_text(), name)
-        # An open terminal is told the new colours in place: escape sequences on its own
-        # terminal device, and nothing sent to other programs.
-        proc, pts = self.tmp / "proc", self.tmp / "pts"
-        for pid, comm in (("100", "foot"), ("200", "bash"), ("300", "nvim")):
-            (proc / pid / "task" / pid).mkdir(parents=True)
-            (proc / pid / "comm").write_text(comm + "\n")
-            (proc / pid / "task" / pid / "children").write_text("200\n" if pid == "100" else "")
-            (proc / pid / "fd").mkdir()
-        pts.mkdir()
-        (pts / "1").write_text(""); (pts / "2").write_text("")
-        os.symlink(pts / "1", proc / "200/fd/1")
-        os.symlink(pts / "2", proc / "300/fd/1")
-        live = dict(env, AMADEUS_PROC=str(proc), AMADEUS_PTS=str(pts) + "/")
-        self.assert_ok(self.run_cmd("amadeus-theme", "set", "amadeus-light", env=live))
-        sent = (pts / "1").read_text()
-        self.assertIn("\033]11;#f6f1e8\007", sent)
-        self.assertIn("\033]4;1;#b3261e\007", sent)
-        self.assertEqual(sent.count("\033]"), 21)
-        self.assertEqual(sent.replace("\007", "").count("\033]"), sent.count("\007"))
-        self.assertEqual((pts / "2").read_text(), "")
-        # An application that is not installed yet starts out themed; a file the user owns is kept.
-        self.assertIn(str(theme / "kitty.conf"), (self.config / "kitty/kitty.conf").read_text())
-        (self.config / "ghostty/config").write_text("font-size = 13\n")
-        self.assert_ok(self.run_cmd("amadeus-theme", "set", "amadeus", env=env))
-        self.assertEqual((self.config / "ghostty/config").read_text(), "font-size = 13\n")
-
-    def test_theme_accepts_a_personal_theme_and_refuses_a_broken_one(self):
-        env = {"AMADEUS_THEME_SHARE": str(ROOT / "desktop")}
-        self.stub("gsettings"); self.stub("pkill")
-        mine = self.config / "amadeus/themes/mine"
-        mine.mkdir(parents=True)
-        (mine / "colors.toml").write_text('background = "#101010"\nforeground = "#eeeeee"\naccent = "#33aaff"\nred = "#ff0000"\n'
-                                          'green = "#00ff00"\nyellow = "#ffff00"\nblue = "#0000ff"\nmagenta = "#ff00ff"\ncyan = "#00ffff"\n')
-        self.assert_ok(self.run_cmd("amadeus-theme", "set", "mine", env=env))
-        self.assertEqual(json.loads((self.config / "amadeus/theme.json").read_text())["accent"], "#33aaff")
-        (mine / "colors.toml").write_text('background = "#101010"\n')
-        p = self.run_cmd("amadeus-theme", "set", "mine", env=env)
-        self.assertEqual(p.returncode, 1)
-        self.assertIn("missing", p.stderr)
-        self.assertEqual(json.loads((self.config / "amadeus/theme.json").read_text())["accent"], "#33aaff")
-        self.assertEqual(self.run_cmd("amadeus-theme", "set", "nope", env=env).returncode, 1)
-
-    def test_login_screen_hands_root_only_a_name_and_colours(self):
-        env = {"AMADEUS_THEME_SHARE": str(ROOT / "desktop"), "AMADEUS_GREETER_DIR": str(self.tmp / "greeter")}
-        self.assertEqual(self.run_cmd("amadeus-login", "current", env=env).stdout, "default\n")
-        self.assert_ok(self.run_cmd("amadeus-login", "set", "amadeus-light", env=env))
-        call = self.calls_of("sudo")[-1]
-        self.assertEqual(call[1:4], [str(BIN / "amadeus-login"), "--publish", "amadeus-light"])
-        self.assertIn("bg=#f6f1e8", call)
-        for value in call[4:]:
-            self.assertRegex(value, r"^[a-z0-9]+=#[0-9a-f]{6}$")
-        self.assertEqual(self.run_cmd("amadeus-login", "set", "nope", env=env).returncode, 1)
-        # The root step is refused to anyone else, so nothing is written without the password.
-        p = self.run_cmd("amadeus-login", "--publish", "amadeus-light", "bg=#f6f1e8", env=env)
-        self.assertEqual(p.returncode, 1)
-        self.assertFalse((self.tmp / "greeter").exists())
-        self.stub("amadeus-pick", output="amadeus-light", body="cat >/dev/null")
-        self.stub("amadeus-terminal")
-        self.assert_ok(self.run_cmd("amadeus-login", env=env))
-        self.assertEqual(self.calls_of("amadeus-terminal")[-1][-2:], ["set", "amadeus-light"])
-
     # ---- install catalogue --------------------------------------------------
     def test_catalog_says_so_when_it_is_not_installed(self):
         p = self.run_cmd("amadeus-catalog", env={"AMADEUS_CATALOG": str(self.tmp / "missing")})
@@ -881,29 +666,6 @@ esac
         self.assertEqual(listed, ["Server = https://cachyos.example/$arch_v3/$repo", "Server = https://far.example/$arch_v3/$repo"])
 
     # ---- shortcuts ----------------------------------------------------------
-    def test_keys_are_read_from_the_configuration_file(self):
-        config = self.tmp / "hyprland.lua"
-        config.write_text('o.bind("SUPER + SHIFT + T", "Test shortcut", "echo test")\n'
-                          'o.bind("SUPER + K", "Shortcuts and commands", "amadeus-keys")\n')
-        out = self.run_cmd("amadeus-keys", "--print", env={"AMADEUS_HYPR_CONFIG": str(config)})
-        self.assert_ok(out)
-        self.assertRegex(out.stdout, r"(?m)^Super \+ Shift \+ T +Test shortcut$")
-        self.assertRegex(out.stdout, r"(?m)^Super \+ K +Shortcuts and commands$")
-
-    def test_keys_print_without_a_configuration(self):
-        out = self.run_cmd("amadeus-keys", "--print", env={"AMADEUS_HYPR_CONFIG": str(self.tmp / "none.lua")})
-        self.assert_ok(out)
-
-    def test_keys_follow_relative_dofile_paths(self):
-        d = self.tmp / "hypr"
-        (d / "nested").mkdir(parents=True)
-        (d / "main.lua").write_text('dofile("more.lua")\n')
-        (d / "more.lua").write_text('dofile("nested/deep.lua")\n')
-        (d / "nested/deep.lua").write_text('o.bind("SUPER + SHIFT + R", "Relative bind", "true")\n')
-        out = self.run_cmd("amadeus-keys", "--print", env={"AMADEUS_HYPR_CONFIG": str(d / "main.lua")})
-        self.assert_ok(out)
-        self.assertRegex(out.stdout, r"(?m)^Super \+ Shift \+ R +Relative bind$")
-
     # ---- harnesses ----------------------------------------------------------
     def test_harness_list_install_run_and_remove(self):
         tool_bin = self.tmp / "installs/claude/2.1/bin"
@@ -940,56 +702,7 @@ esac""")
         self.assertIn("claude --version", ran.stdout)
 
     # ---- Wi-Fi --------------------------------------------------------------
-    def test_wifi_lists_and_connects(self):
-        self.stub("nmcli", body="""case "$*" in
-  "-t -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan auto")
-      printf '*:Home:82:WPA2\\n:Office:44:WPA2\\n:Home:30:WPA2\\n:Open:70:\\n' ;;
-  "-t -f NAME connection show") printf 'Home\\n' ;;
-  "connect Home") exit 0 ;;
-  "radio wifi") echo enabled ;;
-  "-t -f SSID,SECURITY device wifi list") printf 'Home:WPA2\\nOffice:WPA2\\nOpen:\\n' ;;
-  "device wifi connect Open") exit 0 ;;
-  "device wifi connect Office password secret") exit 0 ;;
-  *) exit 0 ;;
-esac""")
-        listed = self.run_cmd("amadeus-wifi", "list")
-        self.assert_ok(listed)
-        self.assertEqual(listed.stdout.count("Home"), 1)
-        self.assertEqual(self.run_cmd("amadeus-wifi", "state").stdout.strip(), "enabled")
-        self.assert_ok(self.run_cmd("amadeus-wifi", "on"))
-        self.assertEqual(self.calls_of("nmcli")[-1], ["radio", "wifi", "on"])
-        self.assert_ok(self.run_cmd("amadeus-wifi", "connect", "Home"))
-        self.assertEqual(self.calls_of("nmcli")[-1], ["connection", "up", "id", "Home"])
-        # An open network needs no password and is joined directly.
-        self.assert_ok(self.run_cmd("amadeus-wifi", "connect", "Open"))
-        self.assertEqual(self.calls_of("nmcli")[-1], ["device", "wifi", "connect", "Open"])
-        # A secured network not saved before asks for the password (here, a stand-in answer).
-        self.stub("amadeus-pick", output="secret", rc=2, body="cat >/dev/null")
-        self.assert_ok(self.run_cmd("amadeus-wifi", "connect", "Office"))
-        self.assertEqual(self.calls_of("nmcli")[-1], ["device", "wifi", "connect", "Office", "password", "secret"])
-
     # ---- the System menu ---------------------------------------------------------
-    def test_power_menu_offers_what_the_machine_can_do(self):
-        self.stub("busctl", output='s "yes"')
-        self.stub("amadeus-pick", output="Suspend", body="cat >/dev/null")
-        self.stub("systemctl")
-        self.stub("swaylock")
-        self.assert_ok(self.run_cmd("amadeus-menu", "system"))
-        self.assertEqual(self.calls_of("systemctl"), [["suspend"]])
-
-        self.stub("amadeus-pick", output="Hibernate", body="cat >/dev/null")
-        self.assert_ok(self.run_cmd("amadeus-menu", "system"))
-        self.assertEqual(self.calls_of("systemctl")[-1], ["hibernate"])
-
-    def test_power_menu_does_not_offer_hibernate_when_it_cannot(self):
-        self.stub("busctl", output='s "no"')
-        self.stub("amadeus-pick", output="Lock", body="cat >/dev/null")
-        self.stub("swaylock")
-        sent = self.tmp / "picker.in"
-        self.stub("amadeus-pick", body=f'cat >{sent}')
-        self.assert_ok(self.run_cmd("amadeus-menu", "system"))
-        self.assertNotIn("Hibernate", sent.read_text())
-
     # ---- the update command -------------------------------------------------
     def test_update_snapshot_is_numbered_and_tools_update_last(self):
         self.stub("amadeus-aur")
@@ -1004,91 +717,8 @@ esac""")
         names = [line.split("\t")[0] for line in self.calls.read_text().splitlines()]
         self.assertEqual(names[-2:], ["amadeus-aur", "amadeus-harness"])
 
-    def test_install_menu_fetches_missing_package_lists(self):
-        # Without a sync database the menu cannot show anything; it should offer to fetch them.
-        self.stub("pacman", rc=1)
-        self.stub("amadeus-terminal")
-        self.assert_ok(self.run_cmd("amadeus-menu", "install"))
-        self.assertIn("pacman -Sy", self.calls_of("amadeus-terminal")[-1][-1])
-
     # ---- the menu builds commands without running them ----------------------
-    def test_menu_routes_to_commands(self):
-        self.stub("amadeus-terminal")
-        self.stub("fastfetch", output="Amadeus OS")
-        self.assert_ok(self.run_cmd("amadeus-menu", "about"))
-        self.assertEqual(self.calls_of("amadeus-terminal")[0][0], "--title")
-        self.stub("swaylock")
-        self.assert_ok(self.run_cmd("amadeus-menu", "system", "Lock"))
-        self.assertEqual(self.calls_of("swaylock"), [["-f"]])
-        self.stub("amadeus-pick", output="Harnesses and tools only", body="cat >/dev/null")
-        self.assert_ok(self.run_cmd("amadeus-menu", "update"))
-        self.assertIn("amadeus-harness update", self.calls_of("amadeus-terminal")[-1][-1])
-
     # ---- the picker itself and the menu that drives it -----------------------
-    def test_pick_passes_the_list_through_the_shell_and_prints_the_choice(self):
-        seen = self.tmp / "pick"
-        self.stub("quickshell", body=f"""cp "$8" {seen}.in
-printf '%s' "${{10}}" > {seen}.options
-( sleep 0.05; printf 'ok\\nbeta\\n' > "$9" ) &""")
-        p = self.run_cmd("amadeus-pick", "--multi", "--preview", 'printf %s "$1"', "--hint", "more", "Pick one",
-                         input="alpha\nbeta\n")
-        self.assert_ok(p)
-        self.assertEqual(p.stdout, "beta\n")
-        self.assertEqual(Path(str(seen) + ".in").read_text(), "alpha\nbeta\n")
-        options = json.loads(Path(str(seen) + ".options").read_text())
-        self.assertEqual(options, {"multi": True, "allowNew": False, "preview": 'printf %s "$1"',
-                                    "preview2": "", "hint": "more", "newLabel": "", "globalSearch": False})
-
-    def test_only_navigation_menus_ask_for_universal_search(self):
-        seen = self.tmp / "pick"
-        self.stub("quickshell", body=f"""printf '%s' "${{10}}" > {seen}.options
-( sleep 0.05; printf 'ok\\nalpha\\n' > "$9" ) &""")
-        self.assert_ok(self.run_cmd("amadeus-pick", "--global", "Menu", input="alpha\n"))
-        self.assertTrue(json.loads(Path(str(seen) + ".options").read_text())["globalSearch"])
-        # Lists of packages and catalogue entries search only themselves.
-        for line in (ROOT / "desktop/lib/amadeus-menu-providers").read_text().splitlines():
-            if "--multi" in line:
-                self.assertNotIn("--global", line)
-        for name in ("amadeus-catalog", "amadeus-aur", "amadeus-clipboard", "amadeus-wifi"):
-            self.assertNotIn("pick --global", (BIN / name).read_text())
-
-    def test_pick_returns_new_text_and_cancel(self):
-        self.stub("quickshell", body="""( sleep 0.05; printf 'new\\ntyped text\\n' > "$9" ) &""")
-        p = self.run_cmd("amadeus-pick", "--new", "Name", input="")
-        self.assertEqual((p.returncode, p.stdout), (2, "typed text\n"))
-        self.stub("quickshell", body="""( sleep 0.05; printf 'cancel\\n' > "$9" ) &""")
-        p = self.run_cmd("amadeus-pick", "Choose", input="")
-        self.assertEqual((p.returncode, p.stdout), (1, ""))
-
-    def test_pick_says_so_when_the_shell_is_not_running(self):
-        self.stub("quickshell", rc=1)
-        p = self.run_cmd("amadeus-pick", "Choose", input="")
-        self.assertEqual(p.returncode, 1)
-        self.assertIn("desktop shell is not running", p.stderr)
-
-    def test_menu_routes_capture_to_the_screenshot_tool(self):
-        self.picker("Capture", "Screenshot")
-        self.stub("amadeus-screenshot")
-        p = self.run_cmd("amadeus-menu", "trigger")
-        self.assert_ok(p)
-        self.assertEqual(self.calls_of("amadeus-screenshot"), [["area"]])
-
-    def test_menu_builds_a_remove_command_without_running_it(self):
-        self.picker("Packages", "htop")
-        self.stub("pacman", body="[[ $1 == -Qqe ]] && printf 'htop\\n'")
-        self.stub("amadeus-terminal")
-        p = self.run_cmd("amadeus-menu", "remove")
-        self.assert_ok(p)
-        self.assertIn("sudo pacman -Rns -- htop", " ".join(self.calls_of("amadeus-terminal")[-1]))
-        self.assertEqual(self.calls_of("sudo"), [])
-
-    def test_menu_routes_to_display_setup(self):
-        self.picker("Display")
-        self.stub("amadeus-display")
-        p = self.run_cmd("amadeus-menu", "setup")
-        self.assert_ok(p)
-        self.assertEqual(self.calls_of("amadeus-display"), [[]])
-
     # ---- capture, display and small helpers ---------------------------------
     def hyprctl_json(self, monitors=None, clients=None, active=None):
         """One stand-in for hyprctl, answering the queries these commands make."""
@@ -1126,233 +756,10 @@ while [[ $# -gt 0 ]]; do [[ $1 == -o ]] && out=$2; shift; done
 : >"$out"
 sleep 0.5""")
 
-    def test_area_returns_a_drag_a_window_and_the_screen(self):
-        self.hyprctl_json(clients=[
-            {"at": [100, 100], "size": [400, 300], "workspace": {"id": 1}, "hidden": False},
-            {"at": [600, 100], "size": [800, 600], "workspace": {"id": 1}, "hidden": False}])
-        self.stub("slurp", body='cat >/dev/null; [[ ${SLURP_EXIT:-0} != 0 ]] && exit 1; printf "%s\\n" "$SLURP"')
-        drag = self.run_cmd("amadeus-area", env={"SLURP": "10,20 300x200"})
-        self.assertEqual(drag.stdout.strip(), "10,20 300x200")          # a drag is used as drawn
-        window = self.run_cmd("amadeus-area", env={"SLURP": "150,150 0x0"})
-        self.assertEqual(window.stdout.strip(), "100,100 400x300")      # a click is the window under it
-        empty = self.run_cmd("amadeus-area", env={"SLURP": "1500,900 0x0"})
-        self.assertEqual(empty.stdout.strip(), "0,0 1920x1080")         # a click on nothing is the screen
-        cancelled = self.run_cmd("amadeus-area", env={"SLURP": "", "SLURP_EXIT": "1"})
-        self.assertEqual(cancelled.returncode, 1)
-        self.assertEqual(cancelled.stdout, "")
-
-    def test_area_freezes_and_releases_the_screen(self):
-        self.hyprctl_json()
-        self.stub("slurp", body="cat >/dev/null; echo '0,0 10x10'")
-        self.stub("hyprpicker", body="exec sleep 30")
-        p = self.run_cmd("amadeus-area", "--freeze")
-        self.assert_ok(p)
-        self.assertIn("-r", self.calls_of("hyprpicker")[0])
-        self.assertIn("-z", self.calls_of("hyprpicker")[0])
-
-    def test_display_writes_and_checks_the_setting(self):
-        self.hyprctl_json()
-        answers = self.tmp / "display.answers"
-        self.stub("amadeus-pick", body=f"""n=$(cat {answers} 2>/dev/null || echo 0); n=$((n + 1)); echo $n >{answers}
-cat >/dev/null
-[[ $n == 1 ]] && echo Resolution || echo '1920x1080@60.00'""")
-        self.stub("Hyprland", output="config ok")
-        self.stub("notify-send")
-        hyprland = self.config / "hypr/hyprland.lua"
-        hyprland.parent.mkdir(parents=True)
-        hyprland.write_text("-- config\n")
-        self.assert_ok(self.run_cmd("amadeus-display"))
-        written = (self.config / "hypr/display.lua").read_text()
-        self.assertIn('hl.monitor({ output = "eDP-1", mode = "1920x1080@60.00", position = "auto", scale = 1.0 })', written)
-        self.assertEqual(self.calls_of("hyprctl")[-1], ["reload"])
-
-    def test_display_puts_the_old_file_back_when_the_desktop_rejects_it(self):
-        self.hyprctl_json()
-        answers = self.tmp / "display.answers"
-        self.stub("amadeus-pick", body=f"""n=$(cat {answers} 2>/dev/null || echo 0); n=$((n + 1)); echo $n >{answers}
-cat >/dev/null
-[[ $n == 1 ]] && echo Scale || echo 1.25""")
-        self.stub("Hyprland", output="config error")
-        self.stub("notify-send")
-        hyprland = self.config / "hypr/hyprland.lua"
-        hyprland.parent.mkdir(parents=True)
-        hyprland.write_text("-- config\n")
-        display = self.config / "hypr/display.lua"
-        display.write_text("-- old setting\n")
-        p = self.run_cmd("amadeus-display")
-        self.assertEqual(p.returncode, 1)
-        self.assertEqual(display.read_text(), "-- old setting\n")
-        self.assertIn("Display setting not applied", " ".join(self.calls_of("notify-send")[-1]))
-
     def monitor(self, name, width, height, mm_w, mm_h, scale=1.0, focused=True):
         return {"name": name, "focused": focused, "x": 0, "y": 0, "width": width, "height": height, "physicalWidth": mm_w,
                 "physicalHeight": mm_h, "scale": scale, "transform": 0, "refreshRate": 60.0, "activeWorkspace": {"id": 1},
                 "availableModes": [f"{width}x{height}@60.00Hz"]}
-
-    def test_display_auto_suits_scale_and_text_to_the_panel(self):
-        self.stub("Hyprland", output="config ok")
-        self.stub("notify-send")
-        self.stub("gsettings", body='[[ $3 == font-name ]] && echo "Inter 11" || echo 1.0')
-        (self.config / "hypr").mkdir(parents=True)
-        (self.config / "hypr/hyprland.lua").write_text("-- config\n")
-        display, theme = self.config / "hypr/display.lua", self.config / "amadeus/theme.json"
-        cases = (  # panel, the scale the compositor guessed, expected scale line, expected text size
-            (("eDP-1", 1920, 1080, 344, 194), 1.0, None, 15),       # 15.6 inch full HD: scale 1, slightly larger text
-            (("eDP-1", 1920, 1080, 309, 174), 1.0, "scale = 1.25", None),   # 14 inch full HD
-            (("eDP-1", 2560, 1600, 345, 215), 1.0, "scale = 1.6", None),    # 16 inch 2.5K
-            (("eDP-1", 3840, 2160, 344, 194), 1.5, "scale = 2", 15),        # 15.6 inch 4K
-            (("DP-1", 3840, 2160, 597, 336), 1.5, "scale = 1.25", None),    # 27 inch 4K
-            (("DP-1", 2560, 1440, 597, 336), 1.0, None, None),              # 27 inch 1440p
-            (("Virtual-1", 1920, 1080, 0, 0), 1.0, None, None),             # a virtual machine: size unknown
-            (("HDMI-A-1", 3840, 2160, 160, 90), 1.0, None, None))           # a television reporting an aspect ratio, not a size
-        for panel, guessed, scale, text in cases:
-            with self.subTest(panel=panel):
-                display.unlink(missing_ok=True); theme.unlink(missing_ok=True)
-                self.hyprctl_json([self.monitor(*panel, scale=guessed)])
-                self.assert_ok(self.run_cmd("amadeus-display", "auto"))
-                self.assertEqual(scale is not None and scale in display.read_text() if display.exists() else False, scale is not None)
-                self.assertEqual(json.loads(theme.read_text()).get("font_size") if theme.exists() else None, text)
-
-    def test_display_auto_never_replaces_a_choice_made_by_hand(self):
-        self.stub("Hyprland", output="config ok")
-        self.stub("notify-send"); self.stub("gsettings")
-        (self.config / "hypr").mkdir(parents=True)
-        (self.config / "hypr/hyprland.lua").write_text("-- config\n")
-        display, theme = self.config / "hypr/display.lua", self.config / "amadeus/theme.json"
-        mine = '-- Display settings, written by amadeus-display.\n-- eDP-1 {"mode": "1920x1080@60.00", "scale": "1.0"}\n'
-        display.write_text(mine)
-        theme.parent.mkdir(parents=True, exist_ok=True)
-        theme.write_text('{"font_size": 14}')
-        self.hyprctl_json([self.monitor("eDP-1", 3840, 2160, 344, 194)])
-        self.assert_ok(self.run_cmd("amadeus-display", "auto"))
-        self.assertEqual(display.read_text(), mine)
-        self.assertEqual(json.loads(theme.read_text()), {"font_size": 14})
-
-    def test_display_text_size_updates_shell_gtk_and_terminal(self):
-        self.stub("gsettings", body='[[ $3 == font-name ]] && echo "Inter 11" || echo 1.0')
-        self.stub("foot")
-        terminal = self.config / "foot/foot.ini"
-        terminal.parent.mkdir()
-        terminal.write_text("[main]\nfont=JetBrains Mono:size=11\n")
-        theme = self.config / "amadeus/theme.json"
-        theme.parent.mkdir()
-        theme.write_text('{"accent": "#ffa14a"}')
-        self.assertEqual(self.run_cmd("amadeus-display", "text").stdout.strip(), "14 px")
-        self.assert_ok(self.run_cmd("amadeus-display", "text", "16"))
-        self.assertEqual(json.loads(theme.read_text()), {"accent": "#ffa14a", "font_size": 16})
-        self.assertIn(":size=13", terminal.read_text())
-        self.assertEqual(self.calls_of("gsettings")[-1],
-                         ["set", "org.gnome.desktop.interface", "text-scaling-factor", "1.1818"])
-        self.assertEqual(self.run_cmd("amadeus-display", "text").stdout.strip(), "16 px")
-        self.assert_ok(self.run_cmd("amadeus-display", "text", "reset"))
-        self.assertEqual(json.loads(theme.read_text())["font_size"], 14)
-
-    def test_display_text_size_restores_files_when_validation_fails(self):
-        self.stub("gsettings", body='[[ $3 == font-name ]] && echo "Inter 11" || echo 1.0')
-        self.stub("foot", rc=1)
-        terminal = self.config / "foot/foot.ini"
-        terminal.parent.mkdir()
-        terminal.write_text("[main]\nfont=JetBrains Mono:size=11\n")
-        self.assertNotEqual(self.run_cmd("amadeus-display", "text", "18").returncode, 0)
-        self.assertIn(":size=11", terminal.read_text())
-        self.assertFalse((self.config / "amadeus/theme.json").exists())
-        self.assertEqual(self.calls_of("gsettings")[-1][-1], "1.0")
-
-    def test_display_scale_of_the_focused_monitor(self):
-        self.hyprctl_json()
-        self.stub("Hyprland", output="config ok")
-        self.stub("notify-send")
-        hyprland = self.config / "hypr/hyprland.lua"
-        hyprland.parent.mkdir(parents=True)
-        hyprland.write_text("-- config\n")
-        self.assertEqual(self.run_cmd("amadeus-display", "scale").stdout.strip(), "1.0")
-        self.assert_ok(self.run_cmd("amadeus-display", "scale", "1.25"))
-        written = (self.config / "hypr/display.lua").read_text()
-        self.assertIn('hl.monitor({ output = "eDP-1", mode = "1920x1080@60.00", position = "auto", scale = 1.25 })', written)
-        self.assertEqual(self.calls_of("hyprctl")[-1], ["reload"])
-        self.assertIn("eDP-1: scale 1.25", " ".join(self.calls_of("notify-send")[-1]))
-
-    def test_display_scale_refuses_a_bad_value(self):
-        self.hyprctl_json()
-        for value in ("8", "1.25oops", "nan", "1;error('injected')", "1\nerror('injected')"):
-            with self.subTest(value=value):
-                self.assertNotEqual(self.run_cmd("amadeus-display", "scale", value).returncode, 0)
-        self.assertFalse((self.config / "hypr/display.lua").exists())
-        self.assertNotIn(["reload"], self.calls_of("hyprctl"))
-
-    def test_screenshot_screen_is_saved_and_copied(self):
-        self.hyprctl_json()
-        self.stub("xdg-user-dir", output=str(self.home / "Pictures"))
-        self.stub("grim", body=': >"$3"')
-        self.stub("wl-copy", body="cat >/dev/null")
-        self.stub("notify-send")
-        p = self.run_cmd("amadeus-screenshot", "screen")
-        self.assert_ok(p)
-        shots = list((self.home / "Pictures/Screenshots").glob("screenshot-*.png"))
-        self.assertEqual(len(shots), 1)
-        self.assertIn("--type", self.calls_of("wl-copy")[0])
-        self.assertTrue(any("Screenshot copied" in c for c in self.calls_of("notify-send")))
-
-    def test_screenshot_window_uses_the_focused_window(self):
-        self.hyprctl_json(active={"at": [10, 20], "size": [300, 200]})
-        self.screenshot_stubs()
-        p = self.run_cmd("amadeus-screenshot", "window")
-        self.assert_ok(p)
-        self.assertEqual(self.calls_of("grim")[0][:2], ["-g", "10,20 300x200"])
-        self.assertEqual(len(list((self.home / "Pictures/Screenshots").glob("screenshot-*.png"))), 1)
-
-    def test_screenshot_area_asks_the_area_tool_with_the_screen_frozen(self):
-        self.stub("amadeus-area", output="5,6 70x80")
-        self.screenshot_stubs()
-        p = self.run_cmd("amadeus-screenshot", "area")
-        self.assert_ok(p)
-        self.assertEqual(self.calls_of("amadeus-area"), [["--freeze"]])
-        self.assertEqual(self.calls_of("grim")[0][:2], ["-g", "5,6 70x80"])
-
-    def test_recording_all_includes_both_audio_sources(self):
-        self.hyprctl_json()
-        self.stub("amadeus-area", output="0,0 1920x1080")
-        self.stub("xdg-user-dir", output=str(self.home / "Videos"))
-        self.recorder_stub()
-        self.stub("ffprobe", output="3.5")
-        self.stub("ffmpeg")
-        self.stub("notify-send")
-        self.assert_ok(self.run_cmd("amadeus-record", "all"))
-        pidfile = self.run_dir / "amadeus-record.pid"
-        for _ in range(100):
-            if pidfile.exists():
-                break
-            time.sleep(0.02)
-        self.addCleanup(lambda: self.stop_stray_recorder(pidfile))
-        args = self.calls_of("gpu-screen-recorder")[0]
-        self.assertIn("-a", args)
-        self.assertIn("default_output|default_input", args)
-        self.assert_ok(self.run_cmd("amadeus-record", "stop"))
-
-    def test_recording_starts_by_name_and_stops_cleanly(self):
-        self.hyprctl_json()
-        self.stub("amadeus-area", output="0,0 1920x1080")
-        self.stub("xdg-user-dir", output=str(self.home / "Videos"))
-        self.recorder_stub()
-        self.stub("ffprobe", output="3.5")
-        self.stub("ffmpeg")
-        self.stub("notify-send")
-        started = self.run_cmd("amadeus-record", "screen")
-        self.assert_ok(started)
-        pidfile = self.run_dir / "amadeus-record.pid"
-        for _ in range(100):
-            if pidfile.exists():
-                break
-            time.sleep(0.02)
-        self.assertTrue(pidfile.exists())
-        self.addCleanup(lambda: self.stop_stray_recorder(pidfile))
-        recorder = self.calls_of("gpu-screen-recorder")[0]
-        self.assertIn("eDP-1", recorder)                    # the whole screen is recorded by monitor name
-        self.assertIn("-f", recorder)
-        self.assert_ok(self.run_cmd("amadeus-record", "stop"))
-        self.assertFalse(pidfile.exists())
-        files = list((self.home / "Videos").glob("screenrecording-*.mp4"))
-        self.assertEqual(len(files), 1)
 
     def test_hooks_run_every_script_and_report_failures(self):
         hooks = self.config / "amadeus/hooks"; (hooks / "post-update.d").mkdir(parents=True)
@@ -1366,30 +773,9 @@ cat >/dev/null
         self.assertIn("Hook failed", p.stderr)
         self.assertNotEqual(self.run_cmd("amadeus-hook", "../escape").returncode, 0)
 
-    def test_reset_restores_a_shipped_file_and_keeps_a_backup(self):
-        skel = self.tmp / "skel/.config/hypr"; skel.mkdir(parents=True)
-        (skel / "hyprland.lua").write_text("shipped\n")
-        mine = self.config / "hypr/hyprland.lua"; mine.parent.mkdir(parents=True); mine.write_text("mine\n")
-        env = {"AMADEUS_SKEL": str(self.tmp / "skel")}
-        p = self.run_cmd("amadeus-reset", "config", "hypr/hyprland.lua", env=env)
-        self.assert_ok(p)
-        self.assertEqual(mine.read_text(), "shipped\n")
-        self.assertEqual([b.read_text() for b in mine.parent.glob("hyprland.lua.bak.*")], ["mine\n"])
-        self.assertNotEqual(self.run_cmd("amadeus-reset", "config", "not/shipped", env=env).returncode, 0)
-
     def test_version_reports_the_desktop_package(self):
         self.stub("pacman", body='[[ $2 == amadeus-desktop ]] && echo "amadeus-desktop 0.1.0-1"; true')
         self.assertEqual(self.run_cmd("amadeus-version").stdout.strip(), "0.1.0-1")
-
-    def test_restart_unblocks_radios_and_restarts_an_app(self):
-        for n in ("rfkill", "nmcli", "pkill", "uwsm-app"): self.stub(n)
-        self.assert_ok(self.run_cmd("amadeus-restart", "bluetooth"))
-        self.assertEqual(self.calls_of("rfkill"), [["unblock", "bluetooth"]])
-        self.assert_ok(self.run_cmd("amadeus-restart", "wifi"))
-        self.assertIn(["radio", "wifi", "on"], self.calls_of("nmcli"))
-        self.assert_ok(self.run_cmd("amadeus-restart", "app", "foot"))
-        self.assertEqual(self.calls_of("pkill"), [["-x", "--", "foot"]])
-        self.assertNotEqual(self.run_cmd("amadeus-restart").returncode, 0)
 
     def fake_machine(self, pci, dmi=None, cpu=("GenuineIntel", 154), battery=True, intel_names="00:02.0 VGA compatible controller: Intel Corporation Iris Xe Graphics"):
         """A sysfs and /proc for amadeus-hardware: PCI devices as (vendor, device, class)."""
@@ -1495,35 +881,6 @@ cat >/dev/null
         p = self.run_cmd("amadeus-gpu-run", "probe")
         self.assert_ok(p)
         self.assertEqual(p.stdout.strip(), "1|nvidia|NVIDIA_only")
-
-    def test_clipboard_history_and_clear(self):
-        clip = self.tmp / "clipboard"
-        self.stub("cliphist", body=f"""case "$1" in
-  list) printf '1\tone\n2\ttwo\n' ;;
-  decode) cat >{clip} ;;
-  wipe) touch {self.tmp}/wiped ;;
-esac""")
-        self.stub("amadeus-pick", output="2\ttwo", body="cat >/dev/null")
-        self.stub("wl-copy", body="cat >/dev/null")
-        self.assert_ok(self.run_cmd("amadeus-clipboard"))
-        self.assertEqual(clip.read_text(), "2\ttwo")
-        self.assertEqual(self.calls_of("wl-copy"), [[]])
-        self.assert_ok(self.run_cmd("amadeus-clipboard", "clear"))
-        self.assertTrue((self.tmp / "wiped").exists())
-
-    def test_menu_builds_an_install_command_without_running_it(self):
-        answers = self.tmp / "picker.count"
-        self.stub("amadeus-pick", body=f"""n=$(cat {answers} 2>/dev/null || echo 0); n=$((n + 1)); echo $n >{answers}
-cat >/dev/null
-[[ $n == 1 ]] && echo Packages || echo htop""")
-        self.stub("pacman", body="""[[ $1 == -Slq ]] && printf 'htop\\nvim\\n'""")
-        self.stub("amadeus-terminal")
-        self.stub("sudo")
-        self.assert_ok(self.run_cmd("amadeus-menu", "install"))
-        command = " ".join(self.calls_of("amadeus-terminal")[-1])
-        self.assertIn("sudo pacman -S --needed -- htop", command)
-        self.assertEqual(self.calls_of("sudo"), [])   # only handed to a terminal, never run here
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
