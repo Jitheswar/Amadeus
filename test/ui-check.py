@@ -64,11 +64,14 @@ try:
     target = Path("/mnt/try" if mode == "try" else "/mnt/auto") / ("greeter-" + mode + ".png")
     target.write_bytes(image)
     if mode == "installed":
+        cursor = run("journalctl", "-b", "-n", "0", "--show-cursor", "--quiet").strip().removeprefix("-- cursor: ")
         request("wrong-login-auto" if Path("/usr/share/amadeus-os/greeter/profiles.py").exists() else "wrong-login")
-        time.sleep(4)
+        # PAM logs a bad password before its delay ends and greetd returns the error.
+        def rejected():
+            journal = run("journalctl", "-b", "-u", "greetd", "--after-cursor", cursor, "--no-pager")
+            return "pam_authenticate: AUTH_ERR" in journal
+        wait_for(rejected, "greetd never finished rejecting the wrong password")
         assert not present("Hyprland"), "wrong password started a desktop"
-        journal = run("journalctl", "-b", "-u", "greetd", "--no-pager")
-        assert "authentication failure" in journal.lower(), "wrong-password authentication was not exercised"
         log("GUI: wrong password refused")
     request("login-" + mode)
     wait_for(lambda: present("Hyprland") and not present("regreet"), "graphical login did not return to the desktop", 35)
