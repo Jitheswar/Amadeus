@@ -86,8 +86,8 @@ gh issue create --repo amadeus/amadeus --title "..." --body "..."
 ```
 
 Include what happened, what was expected, steps to reproduce, system details from
-`amadeus version`, and diagnostics from `amadeus debug --no-sudo --print` (which
-also writes `/tmp/amadeus-debug.log`; the interactive `amadeus debug` can upload
+`amadeus version`, and diagnostics from `amadeus-debug --no-sudo --print` (which
+also writes `/tmp/amadeus-debug.log`; the interactive `amadeus-debug` can upload
 it and print a shareable URL worth including).
 
 `gh` cannot attach media. If a screenshot would help, save one and give the user

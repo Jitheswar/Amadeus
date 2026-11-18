@@ -29,7 +29,6 @@ The two `.conf` files are read by separate processes, so `hyprctl` neither
 applies nor validates them:
 - `hyprsunset.conf` (night light): apply changes with `amadeus restart hyprsunset`; reset with `amadeus refresh hyprsunset`
 - `xdph.conf` (screen-sharing portal): applies when the portal restarts, e.g. on next login
-
 ## Keybindings
 
 Edit `~/.config/hypr/bindings.lua`. Format:
@@ -57,16 +56,6 @@ o.rebind("SUPER + F", "File manager", { launch = "nautilus" })
 ```
 
 Tell the user which action was replaced. Use `hl.unbind(...)` to remove a binding without replacing it.
-
-## Display/Monitors
-
-Edit `~/.config/hypr/monitors.lua`. Format:
-```lua
-hl.monitor({ output = "eDP-1", mode = "1920x1080@60", position = "0x0", scale = 1 })
-hl.monitor({ output = "HDMI-A-1", mode = "2560x1440@144", position = "1920x0", scale = 1 })
-```
-List monitors and supported modes: `hyprctl monitors all`
-
 ## Window Rules
 
 **CRITICAL: Hyprland window rules syntax changes frequently between versions.**
@@ -77,3 +66,5 @@ Before writing ANY window rules, you MUST fetch the current documentation from t
 DO NOT rely on cached or memorized window rule syntax. The format has changed multiple times and using outdated syntax will cause errors or unexpected behavior.
 
 Window rules go in `~/.config/hypr/hyprland.lua` or a required Lua module. Prefer Amadeus's `o.window(match, rules)` helper — see examples in `$AMADEUS_PATH/default/hypr/windows.lua`.
+
+Monitors (scale, resolution, layout) are in [`monitors.md`](monitors.md).

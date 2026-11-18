@@ -16,7 +16,6 @@ The shell hot-reloads `shell.json` on save — no restart needed for layout
 changes. `idle.screensaver` and `idle.lock` are seconds since user idle began.
 
 **Commands:** `amadeus restart shell`, `amadeus refresh shell`
-
 ## Plugin UI Safety
 
 Plugins run inside Amadeus's long-lived, unsandboxed shell. Treat text from network responses, files, IPC, settings, environment variables, and command output as untrusted.
@@ -35,7 +34,6 @@ Text {
 - Bound and validate downloaded data before displaying or saving it: limit response and collection sizes, string lengths, identifiers, and timestamps.
 - Keep network access explicit. Use fixed HTTPS sources, timeouts, response-size limits, and validation. For periodic background refreshes, disclose the behavior and let users enable or disable it. Never execute downloaded content or interpolate untrusted values into shell commands.
 - Add regression coverage for markup-shaped input and every shared tooltip or notification sink that receives dynamic text.
-
 ## Plugin Motion
 
 Motion in a plugin should feel like the rest of the shell. Most of it comes free from Amadeus's kit in `qs.Ui`: a `KeyboardPanel` grows out of its bar icon and fades, morphs into a neighbouring panel in the same bar section, and grows to fit content that arrives late; a `PopupCard` grows and fades; a `Button` gives a little when pressed. Build on those rather than animating your own open and close.
@@ -64,5 +62,5 @@ Item {
 }
 ```
 
-The bar layout, built-in widgets and idle behaviour are in [`bar.md`](bar.md); translating a
-plugin is in [`translations.md`](translations.md).
+Making a new bar plugin is in [`making-plugins.md`](making-plugins.md); the bar layout,
+built-in widgets and idle in [`bar.md`](bar.md); translating a plugin in [`translations.md`](translations.md).

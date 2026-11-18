@@ -17,7 +17,6 @@ the tray's drawer. `center` is a box in the middle of the bar whose widgets
 are centered as one group; `centerBegin` and `centerEnd` hang off its two
 edges. Put a widget beside the clock in `centerBegin` or `centerEnd`, not in
 `center`, or the clock moves off center.
-
 ## Customizing Built-In Plugins and Widgets
 
 To customize a built-in bar widget, never edit `$AMADEUS_PATH/shell/plugins/`.
@@ -33,8 +32,7 @@ which is yours to edit and survives updates.
 
 Saving a file anywhere under `~/.config/amadeus/plugins/` reloads plugin code
 automatically. If a change somehow fails to apply, force a reload with
-`amadeus-shell shell rescanPlugins`.
-
+`amadeus-shell shell reloadPlugins`.
 ## Idle and Lock
 
 Set `idle.screensaver` and `idle.lock` in `~/.config/amadeus/shell.json`,

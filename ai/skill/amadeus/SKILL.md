@@ -17,6 +17,7 @@ before you start instead of searching the system for how things are done. `ama g
 lists them and `ama guide TOPIC` prints one; over MCP the `system_guide` tool does the same.
 
 - [`desktop.md`](desktop.md): compositor, shortcuts, windows, bar, menu
+- [`making-themes.md`](making-themes.md): making a theme or customizing a stock one
 - [`theming.md`](theming.md): themes and colours for every application
 - [`software.md`](software.md): installing, removing and updating
 - [`ai.md`](ai.md): providers, models, execution modes, permissions, tasks
@@ -26,8 +27,11 @@ lists them and `ama guide TOPIC` prints one; over MCP the `system_guide` tool do
 - [`files.md`](files.md): the user's files, the sandbox, the host shell
 - [`screen.md`](screen.md): seeing and operating an application's window
 - [`troubleshooting.md`](troubleshooting.md): failed services, crashes, a full disk, overdue updates
-- [`hyprland.md`](hyprland.md): Hyprland modules, keybindings, monitors, window rules
+- [`hyprland.md`](hyprland.md): Hyprland modules, keybindings, window rules
+- [`monitors.md`](monitors.md): monitor scale, resolution and layout
 - [`plugins.md`](plugins.md): writing and changing shell plugins safely
+- [`making-plugins.md`](making-plugins.md): making a new bar plugin
+- [`plugin-popups.md`](plugin-popups.md): a popup card for a bar plugin
 - [`bar.md`](bar.md): the bar layout, built-in widgets, idle and lock
 - [`translations.md`](translations.md): translating a shell plugin
 - [`hooks.md`](hooks.md): scripts that run after updates, at login, on theme or font changes

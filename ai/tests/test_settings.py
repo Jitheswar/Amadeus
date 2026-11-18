@@ -185,7 +185,8 @@ class GuideTest(unittest.TestCase):
                 first = token.split()[0]
                 if first.startswith("amadeus-"):
                     self.assertIn(first, commands, f"{name}.md names {first}")
-                elif "_" in first and first.islower() and not rest.startswith("."):  # gum_env.lua is a file
+                elif "_" in first and first.islower() and not rest.startswith(".") \
+                        and first.split("_")[0] in {t.split("_")[0] for t in self.tools.REGISTRY}:  # not colour keys or files
                     self.assertIn(first, [*self.tools.REGISTRY, "tool_call"], f"{name}.md names tool {first}")
                 elif first == "ama" and " " in token:
                     self.assertIn("ama " + token.split()[1], cli.HELP, f"{name}.md names `{token}`")

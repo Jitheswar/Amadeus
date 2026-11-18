@@ -23,9 +23,9 @@ description with steps to reproduce, and diagnostics. Gather them:
 amadeus version
 
 # Generate the diagnostic log (also written to /tmp/amadeus-debug.log)
-amadeus debug --no-sudo --print
+amadeus-debug --no-sudo --print
 
-# Interactive variant: `amadeus debug` offers to upload the log to
+# Interactive variant: `amadeus-debug` offers to upload the log to
 # logs.amadeus.org (expires after 24h) and prints a shareable URL to
 # include in the issue.
 ```
