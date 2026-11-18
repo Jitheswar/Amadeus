@@ -13,6 +13,7 @@ ShellRoot {
     property bool tasksOpen: false
     property var savedTasks: []
     property var goals: []
+    property var pendingGoal: null
     property string taskMessage: ""
     property var providerOptions: []
     property string defaultProvider: ""
@@ -62,13 +63,15 @@ ShellRoot {
         const requests = Object.assign({}, byRequest)
         requests[id] = { kind: "goals" }
         byRequest = requests
+        return id
     }
     // A goal is worked on in the background, round by round, and reports in Tasks.
     function startGoal() {
         const q = input.text.trim()
-        if (!sock.connected || !q) return
-        goalRequest("goal_start", { text: q, provider: providerOverride ? selectedProvider : "", mode: mode === "full" ? savedMode : mode })
-        input.text = ""; tasksOpen = true; settingsOpen = false
+        if (!sock.connected || !q || pendingGoal) return
+        const id = goalRequest("goal_start", { text: q, provider: providerOverride ? selectedProvider : "", mode: mode === "full" ? savedMode : mode })
+        pendingGoal = { id: id, draft: input.text }
+        tasksOpen = true; settingsOpen = false
     }
     function refreshTasks() { if (sock.connected) { taskRequest("tasks", {}); goalRequest("goals", {}) } }
     function runSavedTask(job) {
@@ -163,6 +166,10 @@ ShellRoot {
             return
         }
         if (r.kind === "goals") {
+            if (pendingGoal && pendingGoal.id === m.id) {
+                if (!m.error && m.result !== undefined && input.text === pendingGoal.draft) input.text = ""
+                pendingGoal = null
+            }
             if (m.error) taskMessage = m.error
             else if (m.result !== undefined) { goals = m.result; taskMessage = "" }
             return
@@ -200,7 +207,13 @@ ShellRoot {
         id: sock
         path: Quickshell.env("XDG_RUNTIME_DIR") + "/amadeus/daemon.sock"
         connected: true
-        onConnectedChanged: if (connected) root.refreshProviders()
+        onConnectedChanged: {
+            if (connected) root.refreshProviders()
+            else if (root.pendingGoal) {
+                root.pendingGoal = null
+                root.taskMessage = "Connection lost. Check the goal list before retrying."
+            }
+        }
         parser: SplitParser { onRead: line => { try { root.handle(JSON.parse(line)) } catch (e) {} } }
     }
     FileView {
