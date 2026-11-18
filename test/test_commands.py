@@ -707,6 +707,30 @@ esac""")
         self.assertIn("git", " ".join(self.calls_of("git")[0]))
         self.assertEqual(self.calls_of("makepkg"), [["-sif", "--needed", "--noconfirm"]])
 
+    def test_overlapping_aur_builds_have_independent_recipe_directories(self):
+        from concurrent.futures import ThreadPoolExecutor
+        cache = self.tmp / "cache/amadeus-aur"
+        self.stub("pacman", rc=1)
+        self.stub("git", body='''dest="${@: -1}"
+mkdir "$dest" || exit 1
+touch "$dest/PKGBUILD" "$dest/.SRCINFO"''')
+        self.stub("makepkg", body='''touch "$SYNC/$RUN"
+for ((i=0; i<100; i++)); do
+  [[ -e $SYNC/one && -e $SYNC/two ]] && exit 0
+  sleep 0.02
+done
+exit 1''')
+        def install(run):
+            return self.run_cmd("amadeus-aur", "install", "demo", env={
+                "RUN": run, "SYNC": str(self.tmp), "XDG_CACHE_HOME": str(cache.parent),
+                "AMADEUS_AUR_YES": "1"})
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            for result in pool.map(install, ("one", "two")):
+                self.assert_ok(result)
+        destinations = {call[-1] for call in self.calls_of("git")}
+        self.assertEqual(len(destinations), 2)
+        self.assertEqual(list(cache.iterdir()), [])
+
     def test_failed_shared_aur_dependency_skips_both_apps(self):
         self.stub("git", body='''dest="${@: -1}"
 mkdir -p "$dest"

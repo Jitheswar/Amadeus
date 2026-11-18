@@ -13,6 +13,7 @@ cache=${XDG_CACHE_HOME:-$HOME/.cache}/amadeus-aur
 mkdir -p "$cache"
 (( EUID != 0 )) || { echo "Run amadeus-aur as your user; it asks for the password when needed."; exit 1; }
 declare -A build_state=()
+work=''
 
 # The system repositories come first: never build a package they carry.
 from_repos() { pacman -Si "$1" >/dev/null 2>&1; }
@@ -39,14 +40,21 @@ for k, v in rows: print(f"{k:<15}: {v}")
 print("\nThis recipe is written by a user, not by Arch. Alt+B shows it.")'
 }
 
-fetch() {  # NAME -> clones the recipe into $cache/NAME
-  rm -rf "${cache:?}/$1"
-  git clone -q --depth 1 "$AUR/$1.git" "$cache/$1"
-  [[ -f $cache/$1/PKGBUILD ]] || { echo "  $1 is not in the AUR."; return 1; }
+fetch() {
+  if [[ -z $work ]]; then
+    work=$(mktemp -d "$cache/build.XXXXXXXX") || return 1
+    trap 'rm -rf -- "$work"' EXIT
+  fi
+  git clone -q --depth 1 "$AUR/$1.git" "$work/$1" || return 1
+  [[ -f $work/$1/PKGBUILD && -f $work/$1/.SRCINFO ]] || {
+    echo "  The recipe for $1 is incomplete." >&2
+    return 1
+  }
 }
 
 build() {  # NAME: build and install, AUR dependencies first
   local name=$1
+  [[ $name =~ ^[a-z0-9@_+][a-z0-9@._+-]*$ ]] || { echo "Invalid package name: $name" >&2; return 1; }
   case ${build_state[$name]:-} in
     installed) return 0 ;;
     failed) return 1 ;;
@@ -76,7 +84,7 @@ build_recipe() {
     }
   done
   fetch "$name" || return 1
-  for dep in $(sed -nE 's/^\s*(make|check)?depends(_x86_64)? = ([^<>=: ]+).*/\3/p' "$cache/$name/.SRCINFO" | sort -u); do
+  for dep in $(sed -nE 's/^\s*(make|check)?depends(_x86_64)? = ([^<>=: ]+).*/\3/p' "$work/$name/.SRCINFO" | sort -u); do
     pacman -T "$dep" >/dev/null 2>&1 && continue          # already satisfied
     pacman -Si "$dep" >/dev/null 2>&1 && continue          # in the Arch repositories; installed during the build
     pacman -Ssq "^${dep//+/\\+}$" >/dev/null 2>&1 && continue
@@ -85,17 +93,17 @@ build_recipe() {
   done
   if [[ -z ${AMADEUS_AUR_YES:-} ]]; then
     echo "  Downloads from:"
-    sed -nE 's/^\s*source(_x86_64)? = (.*::)?(.*)/    \3/p' "$cache/$name/.SRCINFO" | grep -E '://' || echo "    (only files inside the recipe)"
+    sed -nE 's/^\s*source(_x86_64)? = (.*::)?(.*)/    \3/p' "$work/$name/.SRCINFO" | grep -E '://' || echo "    (only files inside the recipe)"
     while :; do
       read -rp "  Build and install $name? [y]es / [n]o / [v]iew the recipe: " answer
       case ${answer,,} in
         y|yes) break ;;
-        v|view) ${PAGER:-less} "$cache/$name/PKGBUILD" ;;
+        v|view) ${PAGER:-less} "$work/$name/PKGBUILD" ;;
         *) echo "  Skipped $name."; return 1 ;;
       esac
     done
   fi
-  (cd "$cache/$name" && makepkg -sif --needed ${AMADEUS_AUR_YES:+--noconfirm}) || { echo "  $name could not be built; nothing was changed for it."; return 1; }
+  (cd "$work/$name" && makepkg -sif --needed ${AMADEUS_AUR_YES:+--noconfirm}) || { echo "  $name could not be built; nothing was changed for it."; return 1; }
 }
 
 case ${1:-} in
