@@ -210,8 +210,6 @@ ch passwd -l root >/dev/null
 echo '%wheel ALL=(ALL:ALL) ALL' >$T/etc/sudoers.d/10-wheel; chmod 440 $T/etc/sudoers.d/10-wheel
 # A fresh install already has every settings change in it; amadeus-update runs only later ones.
 ch runuser -u "$USERNAME" -- env HOME="/home/$USERNAME" amadeus-migrate --mark-all
-# Commands run over SSH get no login shell, so put the user's mise tools on PATH for them too.
-echo 'PATH DEFAULT=/usr/local/sbin:/usr/local/bin:/usr/bin:@{HOME}/.local/share/mise/shims:@{HOME}/.local/bin' >>$T/etc/security/pam_env.conf
 
 printf '[zram0]\nzram-size = min(ram, 8192)\ncompression-algorithm = zstd\n' >$T/etc/systemd/zram-generator.conf
 printf 'vm.swappiness = 150\nvm.page-cluster = 0\n' >$T/etc/sysctl.d/90-zram.conf
@@ -254,14 +252,24 @@ ch limine-mkinitcpio >/dev/null 2>&1 || ch limine-mkinitcpio
 
 # ---- snapshots and services --------------------------------------------------
 say "Snapshots and services"
-ch snapper --no-dbus -c root create-config /
-# Snapshots are taken by amadeus-update, once before each update, and only the newest five are kept.
-sed -i 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE="no"/; s/^NUMBER_LIMIT=.*/NUMBER_LIMIT="5"/; s/^NUMBER_LIMIT_IMPORTANT=.*/NUMBER_LIMIT_IMPORTANT="0"/; s/^NUMBER_MIN_AGE=.*/NUMBER_MIN_AGE="0"/' $T/etc/snapper/configs/root
-for s in NetworkManager sddm bluetooth power-profiles-daemon ananicy-cpp systemd-timesyncd systemd-resolved fstrim.timer snapper-cleanup.timer limine-snapper-sync.service; do
+# The desktop system's own setup: snapshot retention (the newest five; amadeus-update takes
+# them), firewall, services, sign-in limits, SSH, locale, the login screen, device rules and
+# the file index. Its package-channel step is not run: the repositories set up above stay.
+ch env AMADEUS_PATH=/usr/share/amadeus AMADEUS_INSTALL=/usr/share/amadeus/install AMADEUS_LOG_TO_STDOUT=1 bash -c '
+  source "$AMADEUS_INSTALL/helpers/logging.sh"
+  source "$AMADEUS_INSTALL/config/all.sh"
+  source "$AMADEUS_INSTALL/login/all.sh"
+  run_logged "$AMADEUS_INSTALL/post-install/udev.sh"
+  run_logged "$AMADEUS_INSTALL/post-install/localdb.sh"' || die "the system setup steps failed; see the messages above"
+for s in bluetooth ananicy-cpp systemd-timesyncd fstrim.timer; do
   ch systemctl enable "$s" >/dev/null 2>&1 || echo "  (could not enable $s)"
 done
 ln -sf ../run/systemd/resolve/stub-resolv.conf $T/etc/resolv.conf
 ch systemctl --global enable amadeusd.service pipewire.socket pipewire-pulse.socket wireplumber.service >/dev/null 2>&1 || true
+# The new user's own setup: the default theme, browser extensions, input methods, keyring,
+# mise and the per-user hardware fixes.
+ch runuser -u "$USERNAME" -- env HOME="/home/$USERNAME" AMADEUS_PATH=/usr/share/amadeus \
+  AMADEUS_USER_NAME="${FULLNAME:-$USERNAME}" amadeus-provision-user --first-install || die "the user setup failed; see the messages above"
 
 # The Install menu and amadeus-catalog read pacman's package lists. An install from the
 # medium leaves none for the repositories the new system uses, so fetch them now when

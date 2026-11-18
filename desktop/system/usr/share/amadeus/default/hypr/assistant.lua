@@ -12,9 +12,3 @@ require("default.hypr.require_optional").module("hypr.amadeus")
 
 -- Approval prompts and the assistant's own windows float in the centre.
 o.window({ class = "^org\\.quickshell$", title = "^Amadeus" }, { float = true, center = true })
-
-hl.on("hyprland.start", function()
-  -- Audio fixes this computer's hardware needs (ASUS mixer, AMD microphones, Dell XPS speaker
-  -- tuning). Once per user: it needs the audio server, so it cannot run at install.
-  hl.exec_cmd("amadeus-hardware user --once")
-end)

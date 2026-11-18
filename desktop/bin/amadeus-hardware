@@ -9,7 +9,6 @@
 #   amadeus-hardware trust [ROOT]    add the signing key those repositories need to ROOT's keyring
 #   amadeus-hardware apply [ROOT]    write the system settings into ROOT (default /)
 #   amadeus-hardware setup           install what is missing and apply, on this system (asks for your password)
-#   amadeus-hardware user            the per-user fixes, once per user (the desktop runs this at login)
 # --portable (for a system on a USB drive) detects every maker's processor, graphics and Wi-Fi
 # instead, and no model-specific fix. --with NAME and --without NAME add or drop one name.
 # Detection reads sysfs, never lspci on an NVIDIA card, so a sleeping graphics card stays asleep.
@@ -334,49 +333,6 @@ missing() {
   for p in $(packages --plain); do pacman -Q "$p" >/dev/null 2>&1 || echo "$p"; done
 }
 
-# ---- per user ----------------------------------------------------------------
-user() {
-  local state=${XDG_STATE_HOME:-$HOME/.local/state}/amadeus/hardware-user conf=${XDG_CONFIG_HOME:-$HOME/.config}
-  [[ ${1:-} == --once && -e $state ]] && return 0
-  mkdir -p "$(dirname "$state")"
-  local list; list=$(names)
-  if grep -qx asus-rog <<<"$list"; then
-    # The ALC285 codec's hardware mixer mutes and muffles; software volume is consistent.
-    install -Dm644 "$SHARE/alsa-soft-mixer.conf" "$conf/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf"
-    local card
-    card=$(grep -l ALC285 /proc/asound/card*/codec* 2>/dev/null | head -1 | grep -oE 'card[0-9]+' | tr -dc 0-9 || true)
-    if [[ -n $card ]]; then
-      amixer -c "$card" set Master 80% unmute >/dev/null 2>&1 || true
-      # The internal microphone boost is high enough to clip.
-      amixer -c "$card" set 'Internal Mic Boost' 0 >/dev/null 2>&1 || true
-      amixer -c "$card" set Capture 70% unmute >/dev/null 2>&1 || true
-    fi
-  fi
-  # AMD laptops (Framework 13 and others) default to a profile without their microphones.
-  local amd_card
-  amd_card=$(pactl list cards 2>/dev/null | grep -B20 "Family 17h/19h" | awk '/Name: / {print $2}' | head -1 || true)
-  [[ -n $amd_card ]] && pactl set-card-profile "$amd_card" "HiFi (Mic1, Mic2, Speaker)" 2>/dev/null || true
-  grep -qx speaker-tuning <<<"$list" && speaker_tuning || true
-  touch "$state"
-}
-
-speaker_tuning() {
-  # Dell XPS 14/16 (2026): the measured voicing the Windows audio layer adds, as a PipeWire
-  # filter-chain in front of the speakers. Needs lsp-plugins-lv2 for its limiter.
-  local conf=${XDG_CONFIG_HOME:-$HOME/.config} sink _
-  [[ -e /usr/lib/lv2/lsp-plugins.lv2/limiter_stereo.ttl ]] || return 0
-  for _ in {1..20}; do
-    sink=$(pactl list sinks short 2>/dev/null | awk '$2 ~ /^alsa_output.*sof_sdw.*HiFi__Speaker__sink$/ {print $2; exit}')
-    [[ -n $sink ]] && break; sleep 0.5
-  done
-  [[ -n $sink ]] || return 0
-  install -Dm644 "$SHARE/speaker-tuning-host.conf" "$conf/pipewire/amadeus-speaker-tuning.conf"
-  sed "s|@SPEAKER_SINK@|$sink|g" "$SHARE/speaker-tuning-dell-xps-2026.conf" |
-    install -Dm644 /dev/stdin "$conf/pipewire/amadeus-speaker-tuning.conf.d/90-tuning.conf"
-  install -Dm644 "$SHARE/amadeus-speaker-tuning.service" "$conf/systemd/user/amadeus-speaker-tuning.service"
-  systemctl --user daemon-reload && systemctl --user enable --now amadeus-speaker-tuning.service >/dev/null 2>&1 || true
-}
-
 saved=()
 [[ $portable == yes ]] && saved+=(--portable)
 for n in "${with[@]+"${with[@]}"}"; do saved+=(--with "$n"); done
@@ -392,6 +348,5 @@ case ${1:-} in
   trust) trust "${2:-/}" "${3:-}" ;;
   apply) apply "${2:-/}" ;;
   setup) setup ;;
-  user) user "${2:-}" ;;
   *) sed -n 2,14p "$0"; exit 1 ;;
 esac
