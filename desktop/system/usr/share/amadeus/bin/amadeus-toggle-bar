@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# amadeus:summary=Toggle bar visibility without killing the Amadeus shell (on hides the bar, off shows it)
+# amadeus:args=[toggle|on|off]
+# amadeus:examples=amadeus toggle bar | amadeus toggle bar off | amadeus toggle bar on
+
+amadeus-toggle bar-off "${1:-toggle}"
+
+# The shell's watch on the toggles directory can miss flag changes that land in
+# quick succession, stranding the bar off screen until the shell restarts.
+# Nudge the bar to re-read the flag; quiet best-effort so the toggle still
+# works when the shell is not up.
+amadeus-shell -q amadeus.bar syncHidden

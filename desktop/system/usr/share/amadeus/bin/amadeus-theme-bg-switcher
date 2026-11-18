@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# amadeus:summary=Open the Amadeus background switcher
+# amadeus:group=theme
+# amadeus:name=bg-switcher
+# amadeus:aliases=amadeus background
+
+theme_name=$(cat "$HOME/.local/state/amadeus/current/theme.name" 2>/dev/null)
+current_background=$(readlink -f "$HOME/.local/state/amadeus/current/background" 2>/dev/null)
+
+amadeus-menu-images \
+  --selected "$current_background" \
+  "$HOME/.local/state/amadeus/current/theme/backgrounds" \
+  "$HOME/.config/amadeus/backgrounds/$theme_name"

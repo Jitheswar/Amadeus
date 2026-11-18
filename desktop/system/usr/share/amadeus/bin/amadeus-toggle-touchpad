@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# amadeus:summary=Enable, disable, or toggle the touchpad
+# amadeus:args=[on|off|toggle]
+
+exec amadeus-toggle-input-device touchpad "${1:-toggle}"

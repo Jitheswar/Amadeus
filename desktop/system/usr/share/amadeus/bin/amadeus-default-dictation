@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# amadeus:summary=Get or set the default dictation backend
+# amadeus:args=[backend]
+# amadeus:examples=amadeus default dictation | amadeus default dictation superwhisper
+
+if (($# > 1)); then
+  echo "Usage: amadeus default dictation [backend]" >&2
+  exit 1
+fi
+
+if (($# == 0)); then
+  config="${XDG_CONFIG_HOME:-$HOME/.config}/amadeus/defaults/dictation"
+  if [[ ! -s $config ]]; then
+    echo "No dictation backend configured. Select one in Setup > Defaults > Dictation." >&2
+    exit 1
+  fi
+  read -r backend < "$config"
+else
+  backend=$1
+fi
+
+if [[ ! $backend =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+  echo "Invalid dictation backend: $backend" >&2
+  exit 1
+fi
+
+if (($# == 0)); then
+  echo "$backend"
+else
+  installer="amadeus-install-dictation-$backend"
+  if amadeus-cmd-missing "$installer"; then
+    echo "No installer available for dictation backend: $backend" >&2
+    exit 1
+  fi
+  amadeus-launch-floating-terminal-with-presentation "$installer"
+fi

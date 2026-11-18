@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# amadeus:summary=Open a config file in the user's editor and surface a toast
+# amadeus:args=<path>
+# amadeus:examples=amadeus launch config-editor ~/.config/hypr/hyprland.lua
+
+path="${1-}"
+
+if [[ -z $path ]]; then
+  echo "Usage: amadeus-launch-config-editor <path>" >&2
+  exit 1
+fi
+
+amadeus-notification-send -u low "$(amadeus-i18n config.editing)" "$path"
+exec amadeus-launch-editor "$path"

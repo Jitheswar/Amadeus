@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# amadeus:summary=Reload btop configuration (used by the Amadeus theme switching).
+
+# pkill exits 1 when no btop is running: nothing to reload, not a failure.
+pkill -SIGUSR2 -x btop
+(( $? <= 1 ))

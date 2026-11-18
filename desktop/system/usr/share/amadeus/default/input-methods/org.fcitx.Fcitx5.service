@@ -1,0 +1,5 @@
+# Installed per-user so D-Bus activation uses the supervised Amadeus unit.
+[D-BUS Service]
+Name=org.fcitx.Fcitx5
+Exec=/usr/bin/fcitx5
+SystemdService=amadeus-fcitx5.service

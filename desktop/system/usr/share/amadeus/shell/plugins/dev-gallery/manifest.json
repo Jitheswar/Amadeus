@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "amadeus.dev-gallery",
+  "name": "Dev gallery",
+  "version": "1.0.0",
+  "author": "Amadeus",
+  "description": "Visual reference for amadeus-shell common UI components. Summon with: amadeus-shell shell summon amadeus.dev-gallery '{}' (or run: amadeus dev ui-preview).",
+  "kinds": [
+    "panel"
+  ],
+  "entryPoints": {
+    "panel": "GalleryPanel.qml"
+  }
+}

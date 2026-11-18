@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# amadeus:summary=Launch or focus on a given web app identified by the window-pattern.
+# amadeus:args=<window-pattern> <url-and-flags...>
+
+if (($# == 0)); then
+  echo "Usage: amadeus-launch-or-focus-webapp [window-pattern] [url-and-flags...]"
+  exit 1
+fi
+
+WINDOW_PATTERN="$1"
+shift
+LAUNCH_COMMAND="amadeus-launch-webapp $@"
+
+exec amadeus-launch-or-focus "$WINDOW_PATTERN" "$LAUNCH_COMMAND"

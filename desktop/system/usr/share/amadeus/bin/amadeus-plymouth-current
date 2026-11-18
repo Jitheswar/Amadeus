@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# amadeus:summary=Show which theme is styling the Plymouth boot screen
+# amadeus:examples=amadeus plymouth current
+
+# amadeus-plymouth-set installs the theme's unlock.png as a byte-for-byte
+# copy of logo.png, so matching it back identifies the current theme.
+installed_logo=/usr/share/plymouth/themes/amadeus/logo.png
+
+if cmp -s "$AMADEUS_PATH/default/plymouth/logo.png" "$installed_logo"; then
+  echo default
+  exit
+fi
+
+amadeus-plymouth-list | while read -r name; do
+  if cmp -s "$(amadeus-theme-dir "$name")/unlock.png" "$installed_logo"; then
+    echo "$name"
+    exit
+  fi
+done

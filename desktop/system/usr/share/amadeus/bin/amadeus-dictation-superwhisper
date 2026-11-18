@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# amadeus:summary=Record dictation using Superwhisper
+# amadeus:args=<start|stop|toggle>
+
+case "${1:-}" in
+  start) superwhisper start ;;
+  stop)
+    if amadeus-cmd-missing superwhisper || ! systemctl --user is-active --quiet superwhisper.service; then
+      exit 0
+    else
+      superwhisper stop
+    fi
+    ;;
+  toggle) superwhisper record ;;
+  *) echo "Usage: amadeus dictation superwhisper <start|stop|toggle>" >&2; exit 1 ;;
+esac

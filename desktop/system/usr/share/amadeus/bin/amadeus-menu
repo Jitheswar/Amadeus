@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# amadeus:summary=Control the Amadeus menu (toggle / summon / close / refresh)
+# amadeus:args=[toggle|summon|close|refresh|ping] [route]
+# amadeus:examples=amadeus menu | amadeus menu toggle system | amadeus menu summon appearance.theme | amadeus menu refresh
+
+# Thin wrapper around the standard plugin IPC surface. The menu is the
+# first-party `amadeus.menu` plugin; routes are passed as JSON payload.
+
+set -euo pipefail
+
+verb="${1-toggle}"
+route="${2-root}"
+
+menu_payload() {
+  jq -nc --arg menu "$1" '{ menu: $menu }'
+}
+
+case "$verb" in
+  toggle)
+    exec amadeus-shell shell toggle amadeus.menu "$(menu_payload "$route")"
+    ;;
+  summon)
+    exec amadeus-shell shell summon amadeus.menu "$(menu_payload "$route")"
+    ;;
+  close)
+    exec amadeus-shell shell hide amadeus.menu
+    ;;
+  refresh | ping)
+    exec amadeus-shell shell call amadeus.menu "$verb" "{}"
+    ;;
+  -h | --help | help)
+    cat <<USAGE
+Usage: amadeus menu [verb] [route]
+
+Verbs:
+  toggle [route]   Open the menu at <route>, or close it if already open. Default verb.
+  summon [route]   Always open the menu (no close-if-visible toggle).
+  close            Close the menu if it is visible.
+  refresh          Re-parse the menu JSONC files.
+  ping             Health check.
+
+Route is an item id (e.g. setup.power) or alias (e.g. power). Defaults to
+"root", which opens the top-level menu.
+USAGE
+    exit 0
+    ;;
+  *)
+    echo "amadeus-menu: unknown verb '$verb'. Try 'amadeus menu --help'." >&2
+    exit 2
+    ;;
+esac

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# amadeus:summary=Overwrite the user tmux config with the Amadeus default and reload tmux.
+
+amadeus-refresh-config tmux/tmux.conf
+amadeus-restart-tmux

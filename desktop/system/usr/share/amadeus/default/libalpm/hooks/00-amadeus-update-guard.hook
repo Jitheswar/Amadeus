@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Upgrade
+Type = Package
+Target = *
+
+[Action]
+Description = Checking Amadeus update entrypoint...
+When = PreTransaction
+Depends = amadeus
+Exec = /usr/bin/amadeus-update-pacman-guard
+AbortOnFail

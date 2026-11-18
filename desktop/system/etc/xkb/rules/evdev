@@ -1,0 +1,6 @@
+// Amadeus's own XKB option. libxkbcommon reads /etc/xkb before the system
+// rules, which supply everything else.
+! include %S/evdev
+
+! option = symbols
+  amadeus:shift_caps_compose = +amadeus(shift_caps_compose)

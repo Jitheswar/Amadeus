@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# amadeus:summary=Reset Amadeus user configs and shipped defaults in $HOME (destructive)
+
+set -euo pipefail
+
+if (( EUID == 0 )); then
+  echo "Error: This script should not be run as root"
+  exit 1
+fi
+
+echo "Resetting Amadeus user configs to shipped defaults..."
+
+# /etc/skel is the same tree useradd -m copies to seed a fresh user's $HOME.
+# Replaying it over an existing user resyncs every package-shipped user
+# default in one pass: .bashrc, .config/**, .local/share/applications,
+# nautilus-python extensions, branding, hypr toggles, and migration markers.
+# Trailing dot copies dotfiles; the shell wouldn't glob them with /etc/skel/*.
+cp -af /etc/skel/. ~/
+
+amadeus-refresh-limine
+amadeus-refresh-plymouth
+
+if amadeus-cmd-present amadeus-nvim-refresh; then
+  amadeus-nvim-refresh
+elif amadeus-cmd-present amadeus-nvim-setup; then
+  amadeus-nvim-setup --force
+fi
+
+# /etc/skel holds the shared defaults, so put the Snapdragon video decoding
+# settings back.
+amadeus-install-video-decode

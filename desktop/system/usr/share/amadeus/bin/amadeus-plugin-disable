@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# amadeus:summary=Disable a shell plugin
+# amadeus:group=plugin
+# amadeus:args=<id>
+
+set -euo pipefail
+
+fail() {
+  echo "amadeus-plugin-disable: $*" >&2
+  exit 1
+}
+
+if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
+  echo "Usage: amadeus plugin disable <id>"
+  exit 0
+fi
+
+id="${1:-}"
+[[ -n $id ]] || fail "plugin id is required"
+
+result=$(amadeus-shell shell setPluginEnabled "$id" false)
+[[ $result == "ok" ]] ||
+  fail "plugin '$id' is not known; run: amadeus-shell shell rescanPlugins"
+
+echo "Disabled $id"

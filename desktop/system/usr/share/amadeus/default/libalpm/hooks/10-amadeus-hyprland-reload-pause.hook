@@ -1,0 +1,12 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = amadeus-desktop
+Target = amadeus-desktop
+
+[Action]
+Description = Pausing Hyprland config auto-reload for Amadeus settings update...
+When = PreTransaction
+Depends = amadeus
+Exec = /usr/bin/amadeus-hyprland-reload-guard pause

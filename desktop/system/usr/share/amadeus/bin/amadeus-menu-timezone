@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# amadeus:summary=Select and set the system timezone
+# amadeus:group=menu
+# amadeus:name=timezone
+
+set -e
+
+timezone=$(timedatectl list-timezones | amadeus-menu-select "$(amadeus-i18n timezone.setTitle)" -- --width 520 --maxheight 520) || exit 1
+sudo timedatectl set-timezone "$timezone"
+amadeus-shell -q amadeus.clock refresh
+amadeus-notification-send "$(amadeus-i18n timezone.changed "$timezone")"

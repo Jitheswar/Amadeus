@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+# Only invite when there's a reader to use and it isn't set up yet (the lock
+# PAM file is the last thing the setup writes on success).
+if amadeus-hw-fingerprint && [[ ! -f /etc/pam.d/amadeus-lock-fingerprint ]] &&
+  amadeus-done ensure fingerprint-setup-invitation; then
+  amadeus-notification-send -u critical -g 󰈷 "$(amadeus-i18n firstRun.fingerprintTitle)" \
+    "$(amadeus-i18n firstRun.fingerprintBody)" \
+    --exec amadeus-launch-floating-terminal-with-presentation amadeus-setup-security-fingerprint
+fi

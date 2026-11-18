@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# amadeus:summary=Install the NordVPN service with optional GUI.
+# amadeus:requires-sudo=true
+
+echo "Installing NordVPN..."
+amadeus-pkg-add nordvpn-bin
+
+echo "Enabling NordVPN daemon..."
+sudo systemctl enable --now nordvpnd
+
+echo "Adding user to nordvpn group..."
+sudo usermod -aG nordvpn "$USER"
+
+echo -e "\nNordVPN installed! After reboot, run 'nordvpn login' to authenticate."
+
+echo
+gum confirm --affirmative "$(amadeus-i18n common.yes)" --negative "$(amadeus-i18n common.no)" "$(amadeus-i18n nordvpn.rebootNow)" && amadeus-system reboot

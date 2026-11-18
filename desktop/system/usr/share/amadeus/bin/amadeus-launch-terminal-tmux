@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# amadeus:summary=Launch or attach to the Work tmux session in a terminal
+
+exec amadeus-launch-terminal bash -c "tmux attach || tmux new -s Work"

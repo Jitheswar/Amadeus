@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# amadeus:summary=Ensure default application launchers are installed.
+
+# Copy .desktop declarations
+mkdir -p ~/.local/share/applications
+cp "$AMADEUS_PATH"/applications/*.desktop ~/.local/share/applications/
+
+if amadeus-cmd-present alacritty; then
+  cp "$AMADEUS_PATH/default/alacritty/Alacritty.desktop" ~/.local/share/applications/
+fi
+
+update-desktop-database ~/.local/share/applications

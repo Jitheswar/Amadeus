@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# amadeus:summary=Apply Amadeus system setup in the installed target
+# amadeus:group=apply
+# amadeus:requires-sudo=true
+# amadeus:examples=amadeus apply system --install-user dhh --first-install
+# amadeus:hidden=true
+
+set -euo pipefail
+
+usage() {
+  cat <<USAGE
+Usage: amadeus apply system --install-user USER [--first-install|--upgrade]
+       amadeus apply system --defer-provisioning --first-install
+
+Runs root-owned Amadeus system setup. The ISO calls this in the target chroot
+after packages are installed and the target user exists. It also calls
+amadeus-apply-hardware, so hardware setup cannot be accidentally skipped.
+
+--defer-provisioning runs without an install user: deferred-provisioning installs create the user at
+first boot, so scripts that grant group memberships record them in
+/var/lib/amadeus/provisioning/groups instead of calling usermod.
+USAGE
+}
+
+install_user="${AMADEUS_INSTALL_USER:-}"
+first_install=0
+upgrade=0
+defer_provisioning=0
+
+while (($#)); do
+  case "$1" in
+    --install-user)
+      install_user="${2:-}"
+      shift 2
+      ;;
+    --defer-provisioning)
+      defer_provisioning=1
+      shift
+      ;;
+    --first-install)
+      first_install=1
+      shift
+      ;;
+    --upgrade)
+      upgrade=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if (( EUID != 0 )); then
+  echo "Error: amadeus-apply-system must run as root" >&2
+  exit 1
+fi
+
+if (( defer_provisioning )); then
+  install_user=""
+else
+  if [[ -z $install_user || $install_user == "root" ]]; then
+    echo "Error: --install-user must name the target non-root user" >&2
+    exit 1
+  fi
+
+  if ! getent passwd "$install_user" >/dev/null; then
+    echo "Error: user '$install_user' does not exist" >&2
+    exit 1
+  fi
+fi
+
+export AMADEUS_INSTALL_USER="$install_user"
+export AMADEUS_FIRST_INSTALL="$first_install"
+export AMADEUS_UPGRADE="$upgrade"
+export AMADEUS_PATH="${AMADEUS_PATH:-/usr/share/amadeus}"
+export AMADEUS_INSTALL="${AMADEUS_INSTALL:-$AMADEUS_PATH/install}"
+export AMADEUS_INSTALL_LOG_FILE="${AMADEUS_INSTALL_LOG_FILE:-/var/log/amadeus-install.log}"
+export PATH="$AMADEUS_PATH/bin:$PATH"
+
+source "$AMADEUS_INSTALL/helpers/logging.sh"
+start_install_log
+
+source "$AMADEUS_INSTALL/config/all.sh"
+
+if (( defer_provisioning )); then
+  amadeus-apply-hardware --defer-provisioning
+else
+  amadeus-apply-hardware --install-user "$install_user"
+fi
+
+source "$AMADEUS_INSTALL/login/all.sh"
+source "$AMADEUS_INSTALL/post-install/all.sh"
+
+stop_install_log

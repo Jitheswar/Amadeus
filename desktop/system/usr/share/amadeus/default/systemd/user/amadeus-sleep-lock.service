@@ -1,0 +1,19 @@
+[Unit]
+Description=Lock Amadeus before suspend
+# The monitor calls into the running Amadeus shell. Wait until UWSM has imported
+# AMADEUS_PATH and WAYLAND_DISPLAY, but keep the default target ordering so the
+# monitor starts before graphical-session.target is reached.
+After=dbus.socket wayland-session-waitenv.service
+Requires=dbus.socket
+PartOf=graphical-session.target
+ConditionEnvironment=AMADEUS_PATH
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/amadeus-system-sleep-monitor
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

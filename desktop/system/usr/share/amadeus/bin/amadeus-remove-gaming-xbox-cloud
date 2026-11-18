@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# amadeus:summary=Remove the Xbox Cloud Gaming web app.
+
+set -e
+
+amadeus-webapp-remove "Xbox Cloud Gaming"

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# amadeus:summary=Match the Dell XPS 13 DX13260 with an Intel Panther Lake GPU.
+
+amadeus-hw-match "DX13260" && amadeus-hw-intel-ptl

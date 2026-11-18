@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# amadeus:summary=Apply the current theme keyboard color to supported keyboards
+# amadeus:hidden=true
+
+amadeus-theme-set-keyboard-asus-rog
+amadeus-theme-set-keyboard-f16

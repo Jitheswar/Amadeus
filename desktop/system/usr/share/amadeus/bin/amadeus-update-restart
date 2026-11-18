@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# amadeus:summary=Prompt for required reboot or service restarts after updates
+# amadeus:args=[--services-only|--reboot-only]
+
+kernel_modules_path="${AMADEUS_KERNEL_MODULES_PATH:-/usr/lib/modules}"
+
+mode="${1:-all}"
+case "$mode" in
+  all|--services-only|--reboot-only) ;;
+  *) echo "Unknown restart phase: $mode" >&2; exit 2 ;;
+esac
+
+echo
+confirm_reboot() {
+  if [[ ${AMADEUS_UPDATE_UNATTENDED:-0} == "1" ]]; then
+    echo "$1 Run amadeus-system reboot when ready."
+  elif gum confirm --affirmative "$(amadeus-i18n common.yes)" --negative "$(amadeus-i18n common.no)" "$1"; then
+    amadeus-system reboot
+    exit 0
+  fi
+}
+
+if [[ $mode != "--services-only" ]]; then
+  running_kernel=$(uname -r)
+  kernel_updated=true
+
+  # Every kernel package owns modules.builtin; Arch Linux ARM's ships no vmlinuz here (#12440).
+  for kernel in "$kernel_modules_path"/*/modules.builtin; do
+    if [[ -f $kernel ]] && pacman -Qo "$kernel" &>/dev/null; then
+      installed_kernel=$(basename "$(dirname "$kernel")")
+
+      if [[ $installed_kernel == $running_kernel ]]; then
+        kernel_updated=false
+        break
+      fi
+    fi
+  done
+
+  if [[ $kernel_updated == "true" ]]; then
+    confirm_reboot "$(amadeus-i18n update.kernelReboot)"
+  elif [[ -f $HOME/.local/state/amadeus/reboot-required ]]; then
+    confirm_reboot "$(amadeus-i18n update.rebootRequired)"
+  fi
+
+  running_hyprland=$(readlink /proc/$(pgrep -x Hyprland)/exe 2>/dev/null)
+  if [[ $running_hyprland == *"(deleted)"* ]]; then
+    confirm_reboot "$(amadeus-i18n update.hyprlandReboot)"
+  fi
+fi
+
+if [[ $mode != "--reboot-only" ]]; then
+  for file in "$HOME"/.local/state/amadeus/restart-*-required; do
+    if [[ -f $file ]]; then
+      filename=$(basename "$file")
+      service=$(echo "$filename" | sed 's/restart-\(.*\)-required/\1/')
+      echo "Restarting $service"
+      amadeus-state clear "$filename"
+      amadeus-restart-"$service"
+    fi
+  done
+
+  # Updates routinely replace the shell's QML, and a stale process can lazy-load
+  # new files into old code. A restart failure (locked session, ssh, TTY) only
+  # prints its reason: the next update or login gets a fresh shell anyway.
+  echo -e "\e[32m\nRestarting shell\e[0m"
+  echo "All plugins have been reloaded"
+  amadeus-restart-shell || true
+fi

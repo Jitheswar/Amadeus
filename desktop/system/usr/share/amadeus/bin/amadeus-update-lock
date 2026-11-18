@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# amadeus:summary=Run a command while holding the Amadeus update lock
+# amadeus:args=<held|run> [command] [args...]
+# amadeus:hidden=true
+
+set -e
+
+lock_dir="${XDG_RUNTIME_DIR:-/tmp}"
+lock_path="$lock_dir/amadeus-update.lock"
+
+lock_is_held() {
+  local lock_fd_path=""
+
+  [[ -n ${AMADEUS_UPDATE_LOCK_FD:-} && -e /proc/$$/fd/$AMADEUS_UPDATE_LOCK_FD ]] || return 1
+
+  lock_fd_path=$(readlink -f "/proc/$$/fd/$AMADEUS_UPDATE_LOCK_FD" 2>/dev/null || true)
+  [[ $lock_fd_path == "$(readlink -m "$lock_path")" ]] &&
+    flock -n "$AMADEUS_UPDATE_LOCK_FD"
+}
+
+case "${1:-}" in
+  held)
+    lock_is_held
+    ;;
+  run)
+    shift
+    if (( $# == 0 )); then
+      echo "Usage: amadeus-update-lock run <command> [args...]" >&2
+      exit 2
+    fi
+
+    mkdir -p "$lock_dir" 2>/dev/null || true
+    exec {AMADEUS_UPDATE_LOCK_FD}>"$lock_path"
+    if ! flock -n "$AMADEUS_UPDATE_LOCK_FD"; then
+      echo "An Amadeus update is already running."
+      exit 1
+    fi
+
+    export AMADEUS_UPDATE_LOCK_FD
+    exec "$@"
+    ;;
+  *)
+    echo "Usage: amadeus-update-lock <held|run> [command] [args...]" >&2
+    exit 2
+    ;;
+esac

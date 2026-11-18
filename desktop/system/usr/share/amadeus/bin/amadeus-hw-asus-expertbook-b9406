@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# amadeus:summary=Detect ASUS ExpertBook B9406 series laptops on Intel Panther Lake.
+
+amadeus-hw-match "B9406" && amadeus-hw-intel-ptl

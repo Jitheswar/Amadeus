@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# amadeus:summary=Edit, set, or reset About branding
+# amadeus:group=branding
+# amadeus:name=about
+# amadeus:args=<image|text|reset>
+# amadeus:examples=amadeus branding about image | amadeus branding about text | amadeus branding about reset
+
+set -euo pipefail
+
+case "${1:-}" in
+image)
+  image=$(amadeus-file-select --title "$(amadeus-i18n branding.pickAboutImage)" --extensions "png svg")
+  if amadeus-transcode-ascii "$image" ~/.config/amadeus/branding/about.txt --width 54 --height 26; then
+    amadeus-launch-about >/dev/null 2>&1
+  fi
+  ;;
+text)
+  amadeus-launch-editor ~/.config/amadeus/branding/about.txt >/dev/null 2>&1 && amadeus-launch-about >/dev/null 2>&1
+  ;;
+reset)
+  cp "$AMADEUS_PATH/icon.txt" ~/.config/amadeus/branding/about.txt && amadeus-launch-about >/dev/null 2>&1
+  ;;
+*)
+  echo "Usage: amadeus-branding-about <image|text|reset>" >&2
+  exit 1
+  ;;
+esac

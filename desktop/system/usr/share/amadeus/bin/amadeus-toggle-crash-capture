@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# amadeus:summary=Toggle crash capture notifications
+
+# nf-md-robot_dead, escaped so this file reads without a Nerd Font.
+readonly CRASH_GLYPH=$'\U000f16a1'
+
+amadeus-toggle crash-capture-off
+
+# The unit checks the same flag with ConditionPathExists, so stopping and
+# starting only settles this session; the next login reads the flag itself.
+if amadeus-toggle-enabled crash-capture-off; then
+  systemctl --user stop amadeus-crash-watch.service
+  amadeus-notification-send -g "$CRASH_GLYPH" "$(amadeus-i18n crash.captureDisabled)"
+else
+  systemctl --user start amadeus-crash-watch.service
+  amadeus-notification-send -g "$CRASH_GLYPH" "$(amadeus-i18n crash.captureEnabled)"
+fi

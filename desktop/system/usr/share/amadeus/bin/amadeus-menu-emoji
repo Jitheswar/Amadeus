@@ -1,0 +1,6 @@
+#!/bin/bash
+# amadeus:summary=Launch emojis
+# amadeus:group=menu
+# amadeus:examples=amadeus menu emoji
+
+amadeus-shell shell toggle amadeus.emojis

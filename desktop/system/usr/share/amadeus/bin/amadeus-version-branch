@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# amadeus:summary=Print the active Amadeus dev-link git branch
+# amadeus:hidden=true
+
+amadeus_path=${AMADEUS_PATH:-/usr/share/amadeus}
+amadeus_path=${amadeus_path%/}
+
+[[ $amadeus_path != "/usr/share/amadeus" ]] || exit 1
+
+branch=$(git -C "$amadeus_path" branch --show-current 2>/dev/null || true)
+if [[ -z $branch ]]; then
+  hash=$(git -C "$amadeus_path" rev-parse --short HEAD 2>/dev/null || true)
+  [[ -n $hash ]] || exit 1
+  branch="detached@$hash"
+fi
+
+echo "$branch"

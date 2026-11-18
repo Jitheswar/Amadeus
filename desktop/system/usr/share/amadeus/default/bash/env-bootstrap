@@ -1,0 +1,62 @@
+# Single source of truth for AMADEUS_PATH + PATH adjustments. Sourced by:
+#   /etc/profile.d/amadeus.sh                 (system login shells)
+#   /etc/skel/.bashrc                         (interactive shells)
+#   /usr/share/uwsm/env.d/10-amadeus          (Hyprland session via uwsm)
+#   /usr/share/amadeus/default/bash/envs      (bash rc chain; SSH/non-login)
+
+# /etc/amadeus.conf is written by amadeus-dev-link and reset by
+# amadeus-dev-unlink. When absent, force the packaged default instead of
+# preserving a stale inherited value.
+if [ -f /etc/amadeus.conf ]; then
+  . /etc/amadeus.conf
+  : "${AMADEUS_PATH:=/usr/share/amadeus}"
+else
+  AMADEUS_PATH=/usr/share/amadeus
+fi
+export AMADEUS_PATH
+
+# Only prepend in dev-link mode. On a production install, the binaries are
+# already on PATH as /usr/bin/amadeus-* via the amadeus package — prepending
+# /usr/share/amadeus/bin would just be noise.
+if [ "$AMADEUS_PATH" != /usr/share/amadeus ]; then
+  case ":$PATH:" in
+    *":${AMADEUS_PATH%/}/bin:"*) ;;
+    *) PATH="${AMADEUS_PATH%/}/bin${PATH:+:$PATH}" ;;
+  esac
+fi
+
+# mise's command wrappers must precede real tool directories inherited from a
+# parent shell, so scripts follow account switches without Bash functions.
+# mise activate also keeps this directory ahead of its managed tool binaries.
+amadeus_wrapper_dir="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/command-wrappers/bin"
+amadeus_wrapper_path=$amadeus_wrapper_dir
+if [ -n "${PATH:-}" ]; then
+  amadeus_remaining_path=$PATH
+  while :; do
+    amadeus_path_entry=${amadeus_remaining_path%%:*}
+    if [ "$amadeus_path_entry" != "$amadeus_wrapper_dir" ]; then
+      amadeus_wrapper_path="$amadeus_wrapper_path:$amadeus_path_entry"
+    fi
+    case "$amadeus_remaining_path" in
+      *:*) amadeus_remaining_path=${amadeus_remaining_path#*:} ;;
+      *) break ;;
+    esac
+  done
+fi
+PATH=$amadeus_wrapper_path
+unset amadeus_wrapper_dir amadeus_wrapper_path amadeus_remaining_path amadeus_path_entry
+
+# User-level tool paths, appended so system binaries keep precedence. This is
+# what lets login shells (ssh, bash -lc) and the uwsm session find mise-managed
+# tools without an interactive rc. Keep these directories in sync with the PAM
+# PATH line from install/config/ssh-command-path.sh, which covers SSH commands
+# that run no shell setup at all.
+case ":$PATH:" in
+  *":$HOME/.local/share/mise/shims:"*) ;;
+  *) PATH="${PATH:+$PATH:}$HOME/.local/share/mise/shims" ;;
+esac
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) PATH="${PATH:+$PATH:}$HOME/.local/bin" ;;
+esac
+export PATH

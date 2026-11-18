@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# amadeus:summary=Enable, disable, or toggle the touch functionality of the screen
+# amadeus:args=[on|off|toggle]
+
+exec amadeus-toggle-input-device touchscreen "${1:-toggle}"

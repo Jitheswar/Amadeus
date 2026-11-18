@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# amadeus:summary=Toggle animations, blur and shadows, which are slow without a GPU
+# amadeus:args=[toggle|on|off]
+# amadeus:examples=amadeus toggle animations | amadeus toggle animations off | amadeus toggle animations on
+
+# The flag records animations being off, so on and off swap on the way through.
+case ${1:-toggle} in
+toggle) amadeus-hyprland-toggle no-animations toggle ;;
+on) amadeus-hyprland-toggle no-animations off ;;
+off) amadeus-hyprland-toggle no-animations on ;;
+*)
+  echo "Usage: amadeus-toggle-animations [toggle|on|off]" >&2
+  exit 1
+  ;;
+esac
+
+if amadeus-hyprland-toggle-enabled no-animations; then
+  amadeus-notification-send -g 󰗘 "$(amadeus-i18n animations.disabled)"
+else
+  amadeus-notification-send -g 󰗘 "$(amadeus-i18n animations.enabled)"
+fi

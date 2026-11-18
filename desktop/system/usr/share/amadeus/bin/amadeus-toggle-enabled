@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# amadeus:summary=Check if a toggle is enabled (flag file exists)
+# amadeus:args=<flag-name>
+
+[[ -f "$HOME/.local/state/amadeus/toggles/$1" ]]

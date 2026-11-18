@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# amadeus:summary=Toggles the window gaps globally between no gaps and the default.
+
+amadeus-hyprland-toggle window-no-gaps

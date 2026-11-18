@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# amadeus:summary=Set the correct power profile on boot based on current AC/battery state.
+
+exec amadeus-powerprofiles-set autodetect

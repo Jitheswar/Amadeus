@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# amadeus:summary=Toggle single-window square aspect ratio.
+
+case $(amadeus-hyprland-toggle single-window-aspect-ratio) in
+  on) amadeus-notification-send -g  "$(amadeus-i18n window.squareOn)" ;;
+  off) amadeus-notification-send -g  "$(amadeus-i18n window.squareOff)" ;;
+esac

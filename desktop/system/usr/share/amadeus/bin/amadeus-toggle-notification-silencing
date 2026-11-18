@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# amadeus:summary=Toggle notification do-not-disturb mode
+
+state=$(amadeus-shell notifications toggleDnd 2>/dev/null || echo "")
+amadeus-shell -q amadeus.indicators refresh

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# amadeus:summary=Toggle the current weather panel
+
+amadeus-shell shell toggle amadeus.weather

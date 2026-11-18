@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# amadeus:summary=Install Zed Editor and configure it with the current Amadeus theme
+
+echo "Installing Zed Editor..."
+amadeus-pkg-add zed omazed
+
+# Apply Amadeus theme to Zed
+omazed setup
+
+setsid uwsm-app -- gtk-launch dev.zed.Zed >/dev/null 2>&1 &

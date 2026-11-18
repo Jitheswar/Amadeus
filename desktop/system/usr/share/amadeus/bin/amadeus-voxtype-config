@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# amadeus:summary=Open Voxtype configuration
+
+set -e
+
+amadeus-launch-floating-terminal-with-presentation "voxtype configure"
+amadeus-restart-shell

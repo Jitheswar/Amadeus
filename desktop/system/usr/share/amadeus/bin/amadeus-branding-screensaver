@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# amadeus:summary=Edit, set, or reset screensaver branding
+# amadeus:group=branding
+# amadeus:name=screensaver
+# amadeus:args=<image|text|reset>
+# amadeus:examples=amadeus branding screensaver image | amadeus branding screensaver text | amadeus branding screensaver reset
+
+set -euo pipefail
+
+case "${1:-}" in
+image)
+  image=$(amadeus-file-select --title "$(amadeus-i18n branding.pickScreensaverImage)" --extensions "png svg")
+  if amadeus-transcode-ascii "$image" ~/.config/amadeus/branding/screensaver.txt; then
+    amadeus-launch-screensaver force >/dev/null 2>&1
+  fi
+  ;;
+text)
+  amadeus-launch-editor ~/.config/amadeus/branding/screensaver.txt >/dev/null 2>&1 && amadeus-launch-screensaver force >/dev/null 2>&1
+  ;;
+reset)
+  cp "$AMADEUS_PATH/logo.txt" ~/.config/amadeus/branding/screensaver.txt && amadeus-launch-screensaver force >/dev/null 2>&1
+  ;;
+*)
+  echo "Usage: amadeus-branding-screensaver <image|text|reset>" >&2
+  exit 1
+  ;;
+esac

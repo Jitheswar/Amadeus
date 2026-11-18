@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# amadeus:summary=Restore the default Amadeus Plymouth boot theme and SDDM login screen
+# amadeus:requires-sudo=true
+
+set -euo pipefail
+
+"$AMADEUS_PATH/bin/amadeus-refresh-plymouth"
+"$AMADEUS_PATH/bin/amadeus-refresh-sddm"

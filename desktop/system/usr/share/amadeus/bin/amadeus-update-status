@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# amadeus:summary=Clear the shell update indicator after an update
+# amadeus:hidden=true
+
+# amadeus-update now clears the indicator itself. This stays for an update
+# started by an older amadeus-update: its pipeline was parsed before the
+# upgrade replaced it, and still calls this right after a full upgrade that
+# went through, so there is nothing left for the indicator to show.
+amadeus-shell -q amadeus.system-update clear

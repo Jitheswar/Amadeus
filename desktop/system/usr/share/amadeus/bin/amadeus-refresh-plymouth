@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# amadeus:summary=Overwrite the user config for the Plymouth drive decryption and boot sequence with the Amadeus default and rebuild it.
+# amadeus:requires-sudo=true
+
+# Reuse the fixed-file publisher so root never resolves the source checkout or
+# follows a destination symlink while restoring the packaged assets.
+exec "$AMADEUS_PATH/bin/amadeus-plymouth-set" --refresh-default

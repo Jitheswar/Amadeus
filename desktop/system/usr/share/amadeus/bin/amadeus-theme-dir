@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# amadeus:summary=Print the directory holding a theme, preferring a user-installed copy
+# amadeus:args=<theme-name>
+# amadeus:examples=amadeus theme dir tokyo-night
+
+theme="${1:-}"
+
+if [[ -z $theme ]]; then
+  echo "Usage: amadeus-theme-dir <theme-name>" >&2
+  exit 1
+fi
+
+if [[ -d $HOME/.config/amadeus/themes/$theme ]]; then
+  echo "$HOME/.config/amadeus/themes/$theme"
+else
+  echo "$AMADEUS_PATH/themes/$theme"
+fi

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# amadeus:summary=Enable or disable background intros
+# amadeus:args=<enable|disable|toggle|status>
+# amadeus:examples=amadeus theme bg intro toggle | amadeus theme bg intro disable
+
+set -euo pipefail
+
+toggle="$HOME/.local/state/amadeus/toggles/background-intros-off"
+case ${1:-} in
+  enable)
+    rm -f "$toggle"
+    amadeus-notification-send "$(amadeus-i18n theme.backgroundIntros)" "$(amadeus-i18n common.enabled)"
+    ;;
+  disable)
+    mkdir -p "$(dirname "$toggle")"
+    touch "$toggle"
+    amadeus-notification-send "$(amadeus-i18n theme.backgroundIntros)" "$(amadeus-i18n common.disabled)"
+    ;;
+  toggle)
+    if [[ -f $toggle ]]; then
+      amadeus-theme-bg-intro enable
+    else
+      amadeus-theme-bg-intro disable
+    fi
+    ;;
+  status)
+    [[ ! -f $toggle ]]
+    ;;
+  *)
+    echo "Usage: amadeus-theme-bg-intro <enable|disable|toggle|status>" >&2
+    exit 1
+    ;;
+esac

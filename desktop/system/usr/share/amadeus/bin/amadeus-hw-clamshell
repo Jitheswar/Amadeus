@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# amadeus:summary=Returns true when clamshell mode is active
+# amadeus:hidden=true
+
+# Clamshell = lid closed while driving one or more external monitors.
+amadeus-hw-laptop-closed && amadeus-hw-external-monitors

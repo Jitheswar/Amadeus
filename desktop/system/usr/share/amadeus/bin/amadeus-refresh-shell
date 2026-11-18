@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# amadeus:summary=Reset shell.json to Amadeus defaults
+# amadeus:examples=amadeus refresh shell
+
+set -euo pipefail
+
+amadeus-refresh-config amadeus/shell.json
+amadeus-bar defaults
+
+amadeus-restart-shell

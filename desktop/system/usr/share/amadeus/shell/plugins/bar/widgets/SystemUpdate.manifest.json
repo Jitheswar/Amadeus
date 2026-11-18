@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "amadeus.system-update",
+  "name": "Amadeus update",
+  "version": "1.0.0",
+  "author": "Amadeus",
+  "description": "Indicates available Amadeus updates",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "SystemUpdate.qml"
+  },
+  "barWidget": {
+    "displayName": "Amadeus update",
+    "description": "Indicates available Amadeus updates",
+    "category": "System",
+    "allowMultiple": false
+  }
+}

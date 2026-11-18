@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# amadeus:summary=Overwrite all the user Hyprland Lua configs in ~/.config/hypr with the Amadeus defaults.
+
+amadeus-refresh-config hypr/.luarc.json
+amadeus-refresh-config hypr/autostart.lua
+amadeus-refresh-config hypr/bindings.lua
+amadeus-refresh-config hypr/input.lua
+amadeus-refresh-config hypr/looknfeel.lua
+amadeus-refresh-config hypr/hyprland.lua
+amadeus-refresh-config hypr/monitors.lua
+
+mkdir -p ~/.local/state/amadeus/toggles/hypr
+cp "$AMADEUS_PATH/default/hypr/toggles/flags.lua" ~/.local/state/amadeus/toggles/hypr/

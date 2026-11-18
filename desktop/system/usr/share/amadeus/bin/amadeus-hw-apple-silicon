@@ -1,0 +1,15 @@
+#!/bin/bash -p
+
+# amadeus:summary=Detect whether the computer is an Apple Silicon Mac (the old name of amadeus-hw-aarch64-apple).
+# amadeus:hidden=true
+
+# Kept while amadeus-mac's packages and units still call it by this name. Like
+# the predicate it runs, it refuses a launch without -p and searches no PATH.
+if [[ $- != *p* ]]; then
+  echo "Refusing an unsafe Bash startup." >&2
+  exit 126
+fi
+
+dir=${BASH_SOURCE[0]%/*}
+[[ $dir != "${BASH_SOURCE[0]}" ]] || dir=.
+exec "$dir/amadeus-hw-aarch64-apple"

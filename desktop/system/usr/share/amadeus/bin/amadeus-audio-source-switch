@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# amadeus:summary=Cycle to the next media source and transfer playback when the current source is playing
+# amadeus:args=[next|previous]
+# amadeus:examples=amadeus audio source switch | amadeus-audio-source-switch previous
+
+direction="${1:-next}"
+
+case "$direction" in
+  next)
+    amadeus-shell media sourceSwitch
+    ;;
+  previous)
+    amadeus-shell media sourceSwitchPrevious
+    ;;
+  *)
+    echo "Usage: amadeus-audio-source-switch [next|previous]" >&2
+    exit 1
+    ;;
+esac

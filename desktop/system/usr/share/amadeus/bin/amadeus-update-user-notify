@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# amadeus:summary=Compatibility wrapper for amadeus-migrate-notify.
+# amadeus:hidden=true
+
+exec amadeus-migrate-notify "$@"

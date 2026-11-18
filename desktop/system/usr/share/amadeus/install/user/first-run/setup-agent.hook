@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+# Amadeus ships no default agent, so invite once rather than picking one. An
+# agent already chosen means the invitation has nothing to offer.
+if [[ -z $(amadeus-default-agent) ]] && amadeus-done ensure agent-setup-invitation; then
+  amadeus-notification-send -u critical -g 󰚩 "$(amadeus-i18n firstRun.agentTitle)" \
+    "$(amadeus-i18n firstRun.agentBody)" \
+    --exec amadeus menu summon setup.default.agent
+fi

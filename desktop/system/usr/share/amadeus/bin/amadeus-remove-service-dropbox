@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# amadeus:summary=Remove Dropbox and its bar plugin.
+# amadeus:requires-sudo=true
+
+dropbox-cli stop 2>/dev/null || true
+amadeus-plugin-disable amadeus.dropbox
+amadeus-pkg-drop dropbox dropbox-cli python-gpgme nautilus-dropbox
+
+# Other tray apps need libappindicator too, and naming a required package fails the whole removal
+if pacman -Qqtt libappindicator &>/dev/null; then
+  amadeus-pkg-drop libappindicator
+fi
+
+echo ""
+echo "Dropbox has been removed."

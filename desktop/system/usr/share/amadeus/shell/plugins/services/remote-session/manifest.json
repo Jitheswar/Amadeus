@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "amadeus.remote-session",
+  "name": "Remote Session",
+  "version": "1.0.0",
+  "author": "Amadeus",
+  "description": "Detects a gliff remote-desktop session on this machine for the bar indicator.",
+  "kinds": [
+    "service"
+  ],
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}

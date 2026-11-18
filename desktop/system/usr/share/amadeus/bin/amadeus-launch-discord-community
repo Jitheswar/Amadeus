@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# amadeus:summary=Open the Amadeus Discord community in the Discord app or a browser.
+
+invite="https://discord.gg/tXFUdasqhY"
+
+if amadeus-cmd-present discord; then
+  exec setsid uwsm-app -- discord --url -- "discord://-/invite/${invite##*/}"
+else
+  exec amadeus-launch-webapp "$invite"
+fi

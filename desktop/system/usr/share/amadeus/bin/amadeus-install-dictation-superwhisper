@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# amadeus:summary=Install and configure Superwhisper dictation
+# amadeus:args=[--background]
+# amadeus:requires-sudo=true
+
+set -e
+
+# First run configures the preinstalled package unattended, so it must not
+# open settings or announce itself.
+background=false
+if [[ ${1:-} == "--background" ]]; then
+  background=true
+elif (($# > 0)); then
+  echo "Usage: amadeus install dictation superwhisper [--background]" >&2
+  exit 1
+fi
+
+amadeus-pkg-add superwhisper-bin
+bash /usr/share/superwhisper/setup-user
+# Existing profiles may still use Right Alt, which conflicts with Amadeus.
+# Keep a recording shortcut active while moving away from that binding.
+shortcuts=$(superwhisper shortcuts show)
+if [[ $(jq -r '.shortcuts.hold' <<< "$shortcuts") == "RightAlt" ]]; then
+  if [[ -z $(jq -r '.shortcuts.toggle' <<< "$shortcuts") ]]; then
+    superwhisper shortcuts set hold "RightSuper" >/dev/null
+  else
+    superwhisper shortcuts set hold none >/dev/null
+  fi
+fi
+# Superwhisper requires a native recording shortcut; keep it separate from
+# Amadeus's recording keys (Alt + Space and Right Alt).
+superwhisper shortcuts set toggle "Ctrl+Alt+Space" >/dev/null
+superwhisper shortcuts set hold none >/dev/null
+amadeus-dictation-use superwhisper
+amadeus-restart-hyprctl
+if [[ $background == "false" ]]; then
+  amadeus-notification-send -g  "$(amadeus-i18n dictation.superwhisperReady)" "$(amadeus-i18n dictation.hint)" -t 10000
+  superwhisper settings
+fi

@@ -4,6 +4,35 @@ The [README](../README.md#verification) records the verification baseline. Packa
 command, provider and shortcut inventories belong to their source files and live
 discovery output rather than this roadmap.
 
+## In progress: the full desktop system
+
+`desktop/system/` holds the complete desktop system (commands, Quickshell shell with its
+plugin system, modular Hyprland defaults, theme templates and themes, system and user
+configuration) laid out as it lands on disk. Remaining steps, in order:
+
+1. **Package it.** `desktop/PKGBUILD` installs `desktop/system/` (commands linked into
+   `/usr/bin`), with its base package list. Packages only the hardware repository builds
+   (its own apps, titlebars, power-profiles build, fonts) come from that repository, added
+   after all others, and are carried on the ISO for offline installs.
+2. **Swap the desktop.** The user skeleton's modular Hyprland configuration and the new
+   shell replace `desktop/hypr/default.lua` and `desktop/shell/`; Amadeus's own additions
+   (AI panel bindings, hardware user step, hooks) move into one Hyprland module. The menu
+   becomes the shell's menu plugin, with Amadeus entries merged into its definition.
+3. **Boot and login.** Limine with snapshot entries replaces systemd-boot (installer,
+   `amadeus-rollback`, kernel options from `amadeus-hardware`), Plymouth adds a themed
+   splash, and SDDM replaces greetd with an Amadeus login theme carrying the current
+   features (profile list, Try-session auto login, theme from the desktop palette).
+4. **Installer.** Run the system's own config, login, post-install and per-user steps in
+   the chroot; keep Amadeus's disk layout, offline bundle and hardware detection.
+5. **Reconcile.** Update channels and package templates give way to the CachyOS/Arch
+   setup; Amadeus's update, hook, migrate and version commands stay and gain anything
+   the system's versions did beyond them; plugins and themes are read from both
+   `~/.config/amadeus/` and the folders existing plugins and themes expect.
+6. **AI and docs.** `AGENTS.md`, the agent guides in `agents/`, the built-in skill in
+   `ai/skill/` and the AI tools follow the new commands, paths and menu; README and
+   decisions describe the result.
+7. **Verify.** `./build.sh check`, `./build.sh iso`, `./build.sh test`, then flash.
+
 ## Implemented
 
 - A user-session AI daemon with policy checks, approval, audit and file undo; a separate

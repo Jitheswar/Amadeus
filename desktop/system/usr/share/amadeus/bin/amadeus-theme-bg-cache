@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# amadeus:summary=Cache background switcher thumbnails for the current theme
+
+theme_name=$(cat "$HOME/.local/state/amadeus/current/theme.name" 2>/dev/null)
+
+amadeus-menu-images \
+  --cache-only \
+  "$HOME/.local/state/amadeus/current/theme/backgrounds" \
+  "$HOME/.config/amadeus/backgrounds/$theme_name"

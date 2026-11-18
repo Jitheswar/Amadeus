@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# amadeus:summary=Toggle mirroring theme changes to and from your herdr machines
+
+amadeus-toggle herdr-theme-sync
+
+if amadeus-toggle-enabled herdr-theme-sync; then
+  amadeus-notification-send -g 󰸌 "$(amadeus-i18n themeSync.enabled)"
+else
+  amadeus-notification-send -g 󰸌 "$(amadeus-i18n themeSync.disabled)"
+fi

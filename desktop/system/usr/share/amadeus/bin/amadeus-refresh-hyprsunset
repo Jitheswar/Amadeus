@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# amadeus:summary=Overwrite the user config for hyprsunset with the Amadeus default and restart the service.
+
+amadeus-refresh-config hypr/hyprsunset.conf
+amadeus-restart-hyprsunset

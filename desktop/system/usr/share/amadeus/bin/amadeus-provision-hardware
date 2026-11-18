@@ -1,0 +1,162 @@
+#!/bin/bash
+
+# amadeus:summary=Finish the hardware setup an image build deferred to this machine
+# amadeus:requires-sudo=true
+# amadeus:hidden=true
+
+# Started by amadeus-provision-hardware.service on every boot while an image's
+# deferred steps remain (see install/helpers/image-target.sh), and safe to call
+# from a platform's own first boot as well: runs are serialised. The first run
+# retires the image's build manifest, so from then on this machine is itself.
+# Steps run in order and each one that succeeds leaves the queue, so a failure
+# stops the run and the next run resumes at that step. Once the queue is empty
+# the initramfs is rebuilt if any step changed its configuration or asked for
+# the rebuild, and the service is disabled. With nothing deferred this does
+# nothing. A failed step, or a failure to make the pacman keyring the build
+# asked for, exits 75 (it stays queued for the next run); anything else that
+# stops the run, such as an untrusted manifest or queue, exits 1.
+
+set -euo pipefail
+
+fail() {
+  echo "Error: $*" >&2
+  exit 1
+}
+
+if (( EUID == 0 )); then
+  export AMADEUS_PATH=/usr/share/amadeus
+  export PATH=/usr/share/amadeus/bin:/usr/local/sbin:/usr/local/bin:/usr/bin
+elif [[ -z ${AMADEUS_IMAGE_ROOT:-} || -z ${AMADEUS_PATH:-} ]]; then
+  fail "amadeus-provision-hardware must run as root"
+fi
+export AMADEUS_INSTALL=$AMADEUS_PATH/install
+export AMADEUS_INSTALL_USER=""
+
+source "$AMADEUS_INSTALL/helpers/logging.sh"
+source "$AMADEUS_INSTALL/helpers/image-target.sh"
+amadeus_image_init
+export AMADEUS_INSTALL_LOG_FILE=$amadeus_image_root/var/log/amadeus-install.log
+
+queue_present() {
+  [[ -e $amadeus_image_queue || -L $amadeus_image_queue ]]
+}
+
+# Anything left for the first boot: the manifest, a queue, or the keyring an
+# image build asked for, which is owed even when no step was queued.
+work_present() {
+  amadeus_image_manifest_present || queue_present || [[ -e $amadeus_image_keyring_request ]]
+}
+
+work_present || exit 0
+amadeus_image_lock || exit 1
+# Another run may have finished while this one waited for the lock.
+work_present || exit 0
+
+if amadeus_image_manifest_present; then
+  amadeus_image_read_manifest || exit 1
+  mv -f "$amadeus_image_manifest" "$amadeus_image_manifest.booted" || fail "could not retire $amadeus_image_manifest"
+  live_platform=$(amadeus-hw-platform) || live_platform=unknown
+  echo "First boot of an image built for $amadeus_image_platform, on $live_platform hardware"
+fi
+
+remaining=()
+if queue_present; then
+  [[ -f $amadeus_image_queue ]] && amadeus_image_trusted "$amadeus_image_queue" ||
+    fail "$amadeus_image_queue is not a root-owned regular file"
+  mapfile -t queued <"$amadeus_image_queue"
+  for step in "${queued[@]}"; do
+    [[ -z $step ]] || remaining+=("$step")
+  done
+fi
+
+# What the boot image is built from: mkinitcpio's configuration, the module
+# options its modconf hook copies in (leaves such as nvidia.sh write them), and
+# the kernel command line Limine's entry tool adds (leaves such as intel/fred.sh
+# add to it).
+initramfs_inputs() {
+  local file
+
+  for file in "$amadeus_image_root/etc/mkinitcpio.conf" "$amadeus_image_root/etc/mkinitcpio.conf.d/"* \
+    "$amadeus_image_root/etc/modprobe.d/"* "$amadeus_image_root/usr/lib/modprobe.d/"* \
+    "$amadeus_image_root/etc/default/limine" "$amadeus_image_root/etc/limine-entry-tool.d/"*; do
+    [[ -e $file ]] || continue
+    printf '%s\0' "$file"
+    cat -- "$file"
+  done | cksum
+}
+
+# Recorded before the first step and kept until a rebuild lands, so a step that
+# changed the initramfs and then failed or lost power still gets one.
+if [[ ! -f $amadeus_image_initramfs_baseline ]]; then
+  baseline=$(mktemp "$amadeus_image_dir/.initramfs-inputs.XXXXXX") &&
+    initramfs_inputs >"$baseline" && chmod 0644 "$baseline" && mv -f "$baseline" "$amadeus_image_initramfs_baseline" ||
+    fail "could not record the initramfs inputs"
+fi
+
+mkdir -p "$(dirname "$AMADEUS_INSTALL_LOG_FILE")"
+
+# A step that would build the boot image itself (a platform's boot setup) asks
+# for this run's rebuild instead, so the image is built once, after the last
+# step. The request stays on disk until that rebuild lands.
+export AMADEUS_IMAGE_BOOT_REBUILD=$amadeus_image_boot_rebuild
+# Tells a step it runs on the booted machine, after boot already brought up the
+# targets its units hang off (see install/hardware/bluetooth.sh).
+export AMADEUS_IMAGE_DEFERRED_HARDWARE=1
+
+# An image build asks for this machine's own pacman keyring (see
+# install/post-install/pacman.sh), made before any step installs a package. Any
+# keyring the build or an interrupted run left is replaced; the request stays
+# until a keyring is complete.
+if [[ -e $amadeus_image_keyring_request ]]; then
+  echo "Creating this machine's pacman keyring"
+  keyring=$amadeus_image_root/etc/pacman.d/gnupg
+  if ! { rm -rf "$keyring" && pacman-key --gpgdir "$keyring" --init &&
+    pacman-key --gpgdir "$keyring" --populate; } </dev/null >>"$AMADEUS_INSTALL_LOG_FILE" 2>&1; then
+    echo "Error: could not create the pacman keyring (see $AMADEUS_INSTALL_LOG_FILE); the next run retries it" >&2
+    exit 75
+  fi
+  rm -f "$amadeus_image_keyring_request"
+fi
+
+while (( ${#remaining[@]} )); do
+  step=${remaining[0]}
+  [[ $step == install/hardware/*.sh && $step != *..* ]] || fail "Deferred step is not a hardware setup step: $step"
+  script=$AMADEUS_PATH/$step
+
+  if [[ -L $script ]]; then
+    fail "Deferred step is a symlink: $step"
+  elif [[ ! -e $script ]]; then
+    echo "Skipping deferred hardware step $step: this Amadeus no longer ships it"
+  else
+    echo "Running deferred hardware step $step"
+    if ! run_logged "$script"; then
+      echo "Error: Deferred hardware step failed: $step (see $AMADEUS_INSTALL_LOG_FILE); the next run resumes here" >&2
+      exit 75
+    fi
+  fi
+
+  remaining=("${remaining[@]:1}")
+  amadeus_image_write_queue "${remaining[@]}" || fail "could not update $amadeus_image_queue"
+done
+
+if [[ -e $amadeus_image_boot_rebuild || $(initramfs_inputs) != "$(<"$amadeus_image_initramfs_baseline")" ]]; then
+  echo "Rebuilding the initramfs for the deferred hardware setup"
+  if amadeus-cmd-present limine-mkinitcpio; then
+    limine-mkinitcpio </dev/null >>"$AMADEUS_INSTALL_LOG_FILE" 2>&1
+  else
+    mkinitcpio -P </dev/null >>"$AMADEUS_INSTALL_LOG_FILE" 2>&1
+  fi || fail "Initramfs rebuild failed (see $AMADEUS_INSTALL_LOG_FILE); the next run retries it"
+  # The new image must be on disk before the queue that owes it is cleared.
+  sync || fail "could not flush the rebuilt initramfs to disk"
+fi
+rm -f "$amadeus_image_initramfs_baseline" "$amadeus_image_boot_rebuild"
+
+# Disabled, not deleted: a platform first boot that runs this while the
+# service's start job waits would otherwise fail that job at the next
+# daemon-reload. The emptied queue keeps the unit from running.
+rm -f "$amadeus_image_systemd_dir/multi-user.target.wants/$amadeus_image_unit"
+rm -f "$amadeus_image_queue"
+if (( EUID == 0 )); then
+  systemctl daemon-reload 2>/dev/null || true
+fi
+echo "Deferred hardware setup is complete"

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# amadeus:summary=Toggle screensaver availability
+
+amadeus-toggle screensaver-off
+
+if amadeus-toggle-enabled screensaver-off; then
+  amadeus-notification-send -g 󱄄 "$(amadeus-i18n screensaver.disabled)"
+else
+  amadeus-notification-send -g 󱄄 "$(amadeus-i18n screensaver.enabled)"
+fi

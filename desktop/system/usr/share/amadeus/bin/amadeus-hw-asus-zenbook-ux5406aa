@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# amadeus:summary=Detect ASUS Zenbook UX5406AA series laptops on Intel Panther Lake.
+
+amadeus-hw-match "ux5406aa" && amadeus-hw-intel-ptl

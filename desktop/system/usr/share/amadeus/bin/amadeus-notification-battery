@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# amadeus:summary=Show the current battery status notification
+
+amadeus-notification-send -g 󰁹 -u low "$(amadeus-battery-status)"

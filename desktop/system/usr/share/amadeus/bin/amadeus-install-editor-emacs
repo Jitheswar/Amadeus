@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# amadeus:summary=Install Emacs with Amadeus theme and font integration via the omarchy-emacs AUR package
+
+echo "Installing Emacs..."
+amadeus-pkg-aur-add omarchy-emacs && amadeus-install-emacs
+
+# emacsclient opens a frame on the running daemon, not a second Emacs
+setsid uwsm-app -- gtk-launch emacsclient >/dev/null 2>&1 &

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# amadeus:summary=Prompt for confirmation before starting an update
+
+gum style --border normal --padding "1 2" \
+  "$(amadeus-i18n update.ready)" \
+  "" \
+  "• $(amadeus-i18n update.cannotStop)" \
+  "• $(amadeus-i18n update.connectPower)" \
+  "" \
+  "$(amadeus-i18n update.whatsNew "https://github.com/Jitheswar/Amadeus")"
+
+echo
+
+if ! gum confirm --affirmative "$(amadeus-i18n common.yes)" --negative "$(amadeus-i18n common.no)" "$(amadeus-i18n update.continue)"; then
+  echo "Update cancelled"
+  exit 1
+fi

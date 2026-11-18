@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# amadeus:summary=Wake displays and restore brightness after idle
+# amadeus:group=system
+# amadeus:name=wake
+# amadeus:examples=amadeus system wake
+
+amadeus-brightness-display on
+amadeus-brightness-keyboard restore
+amadeus-hyprland-monitor-clamshell >/dev/null 2>&1 || true

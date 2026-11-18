@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# amadeus:summary=Toggle suspend availability in the system menu
+
+if amadeus-sleep-disabled; then
+  amadeus-notification-send -g 󰒲 "$(amadeus-i18n suspend.turnedOffOnMachine)"
+  exit 0
+fi
+
+amadeus-toggle suspend-off
+
+if amadeus-toggle-enabled suspend-off; then
+  amadeus-notification-send -g 󰒲 "$(amadeus-i18n suspend.removedFromMenu)"
+else
+  amadeus-notification-send -g 󰒲 "$(amadeus-i18n suspend.availableInMenu)"
+fi

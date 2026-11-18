@@ -1,0 +1,12 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = amadeus-desktop
+Target = amadeus-desktop
+
+[Action]
+Description = Reloading Hyprland after Amadeus settings update...
+When = PostTransaction
+Depends = amadeus
+Exec = /usr/bin/amadeus-hyprland-reload-guard resume

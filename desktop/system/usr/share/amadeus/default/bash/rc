@@ -1,0 +1,7 @@
+: "${AMADEUS_PATH:=/usr/share/amadeus}"
+source "$AMADEUS_PATH/default/bash/envs"
+source "$AMADEUS_PATH/default/bash/shell"
+source "$AMADEUS_PATH/default/bash/aliases"
+source "$AMADEUS_PATH/default/bash/functions"
+source "$AMADEUS_PATH/default/bash/init"
+[[ $- == *i* ]] && bind -f "$AMADEUS_PATH/default/bash/inputrc"
