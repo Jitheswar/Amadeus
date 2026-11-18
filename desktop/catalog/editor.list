@@ -7,4 +7,4 @@ Emacs	pacman:emacs-wayland pacman:emacs
 Zed	pacman:zed
 Helix	pacman:helix
 Sublime Text	aur:sublime-text-4
-Cursor	aur:cursor-bin
+Cursor	pacman:cursor-bin aur:cursor-bin

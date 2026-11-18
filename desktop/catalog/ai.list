@@ -1,10 +1,10 @@
 # AI desktop applications. Same format as terminal.list. Recipes here download the
 # publisher's own release or build from the publisher's source.
-Claude Desktop	aur:claude-desktop
-ChatGPT	aur:chatgpt-desktop
+Claude Desktop	pacman:claude-desktop aur:claude-desktop
+ChatGPT	pacman:chatgpt-desktop-bin aur:chatgpt-desktop
 Amp	aur:amp-desktop-bin
 Grok Bot	aur:grok-bot-bin
-Hermes Desktop	aur:hermes-agent-desktop
+Hermes Desktop	pacman:hermes-agent-desktop aur:hermes-agent-desktop
 T3 Code	aur:t3code-bin
 OpenClaw	aur:openclaw
 LM Studio (local models)	aur:lmstudio-bin
