@@ -517,6 +517,21 @@ class GoalTest(unittest.TestCase):
         saved = self.goals.load(goal["id"])
         self.assertEqual((saved["reported"], saved["notes"]), ("blocked", ["Which folder?"]))
 
+    def test_restart_skips_damaged_goal_files_without_rewriting_them(self):
+        with mock.patch.object(self.goals, "launch"):
+            good = self.goals.start(self.d, "sort my downloads")
+        for value in ([], good, dict(good, id="broken", created="yesterday"),
+                      dict(good, id="broken", session="interrupted", reported="blocked", notes=[])):
+            with self.subTest(value=value):
+                broken = self.goals.path("broken")
+                raw = json.dumps(value)
+                broken.write_text(raw)
+                with mock.patch.object(self.goals, "launch") as launch:
+                    self.goals.resume(self.d)
+                    launch.assert_called_once_with(self.d, good["id"])
+                self.assertEqual([g["id"] for g in self.goals.listing()], [good["id"]])
+                self.assertEqual(broken.read_text(), raw)
+
     def test_restart_honors_the_last_report_before_starting_another_round(self):
         with mock.patch.object(self.goals, "launch"):
             goal = self.goals.start(self.d, "sort my downloads")

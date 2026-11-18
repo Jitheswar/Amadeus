@@ -54,9 +54,22 @@ def path(ident):
 
 def load(ident):
     try:
-        return json.loads(path(ident).read_text())
+        goal = json.loads(path(ident).read_text())
     except (OSError, ValueError):
         raise ValueError("no such goal")
+    if not isinstance(goal, dict) or goal.get("id") != ident:
+        raise ValueError("invalid goal record")
+    fields = {"text": str, "provider": str, "question": str, "notes": list,
+              "rounds": int, "silent": int, "claimed": bool}
+    if any(type(goal.get(key)) is not kind for key, kind in fields.items()):
+        raise ValueError("invalid goal fields")
+    if (goal.get("state") not in ("working", "waiting", "done", "failed", "stopped")
+            or goal.get("mode") not in MODES
+            or not isinstance(goal.get("created", 0), (float, int))
+            or type(goal.get("rounds_at_answer", 0)) is not int
+            or (goal.get("reported") == "blocked" and not goal["notes"])):
+        raise ValueError("invalid goal state")
+    return goal
 
 
 def store(goal):
@@ -69,8 +82,8 @@ def listing():
     found = []
     for f in sorted((config.DATA / "goals").glob("*.json")):
         try:
-            found.append(json.loads(f.read_text()))
-        except (OSError, ValueError):
+            found.append(load(f.stem))
+        except ValueError:
             continue
     return sorted(found, key=lambda g: -g.get("created", 0))
 
