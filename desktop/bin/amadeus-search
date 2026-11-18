@@ -15,7 +15,7 @@ SETTINGS = {
     "admin": ("Administrator password settings", "sudo passwordless administrator privilege timeout", []),
     "calendar": ("Calendar", "date time calendar", []),
     "text": ("Text size", "font text sizing typography", ["amadeus-menu", "setup", "Text size"]),
-    "gpu": ("Graphics settings", "gpu nvidia intel battery performance", ["amadeus-menu", "setup", "GPU"]),
+    "gpu": ("Graphics settings", "gpu graphics nvidia amd intel dedicated integrated battery performance", ["amadeus-menu", "setup", "GPU"]),
     "defaults": ("Default applications", "default agent terminal editor browser", ["amadeus-menu", "setup", "Defaults"]),
     "config": ("Configuration", "settings configuration shortcuts theme", ["amadeus-menu", "setup", "Config"]),
     "agent": ("AI agent settings", "claude codex antigravity subscription api provider default", ["ama", "panel", "settings"]),

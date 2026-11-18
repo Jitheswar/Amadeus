@@ -34,10 +34,11 @@ package() {
   install -Dm755 "$src/lib/sudo-helper" -t "$pkgdir/usr/lib/amadeus-os/"
   install -Dm644 "$src/lib/org.amadeus.sudo.policy" -t "$pkgdir/usr/share/polkit-1/actions/"
   install -Dm644 "$src/lib/amadeus-sudo-boot.service" -t "$pkgdir/usr/lib/systemd/system/"
-  # Stable names for the two graphics cards, for Setup > GPU (their numbers can change between boots).
+  # Stable names for the two graphics cards, for Setup > GPU (their numbers can change between boots):
+  # the one the firmware starts the screen on, and the other, whatever their makers.
   install -Dm644 /dev/stdin "$pkgdir/usr/lib/udev/rules.d/70-amadeus-gpu.rules" <<'U'
-KERNEL=="card*", SUBSYSTEM=="drm", DRIVERS=="nvidia", SYMLINK+="dri/nvidia-card"
-KERNEL=="card*", SUBSYSTEM=="drm", DRIVERS=="i915|xe", SYMLINK+="dri/intel-card"
+KERNEL=="card*", SUBSYSTEM=="drm", ATTRS{boot_vga}=="1", SYMLINK+="dri/igpu-card"
+KERNEL=="card*", SUBSYSTEM=="drm", ATTRS{boot_vga}=="0", SYMLINK+="dri/dgpu-card"
 U
   install -d "$pkgdir/usr/lib/systemd/system/multi-user.target.wants"
   ln -s ../amadeus-sudo-boot.service "$pkgdir/usr/lib/systemd/system/multi-user.target.wants/"

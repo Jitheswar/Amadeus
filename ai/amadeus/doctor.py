@@ -51,23 +51,35 @@ def main():
     check("no failed system units", OK if not failed else WARN, failed.replace("\n", "; ")[:120])
 
     print("\nGraphics")
-    nv = next((Path(d).parent for d in glob.glob("/sys/bus/pci/devices/*/vendor") if rd(d) == "0x10de" and rd(Path(d).parent / "class").startswith("0x03")), None)
+    gpus = [Path(d).parent for d in glob.glob("/sys/bus/pci/devices/*/class") if rd(d).startswith("0x03")]
+    makers = {rd(g / "vendor") for g in gpus}
+    nv = next((g for g in gpus if rd(g / "vendor") == "0x10de"), None)
+    hybrid = len(gpus) >= 2
     if not nv:
         check("NVIDIA card", WARN, "none in this machine; NVIDIA checks skipped")
     else:
         check("NVIDIA driver loaded", OK if os.path.isdir("/sys/module/nvidia") else BAD, rd("/sys/module/nvidia/version"))
         check("NVIDIA kernel modesetting", OK if rd("/sys/module/nvidia_drm/parameters/modeset") == "Y" else WARN)
-    if nv:
-        ctl, st = rd(nv / "power/control"), rd(nv / "power/runtime_status")
-        check("NVIDIA runtime power management", OK if ctl == "auto" else BAD, f"control={ctl}, currently {st}")
-    panel = [rd(Path(c).parent / "device/device/vendor") for c in glob.glob("/sys/class/drm/card*-eDP-*/status")]
-    check("laptop panel is driven by the Intel GPU", OK if panel and all(v == "0x8086" for v in panel) else WARN, "desktop renders on integrated graphics")
-    forced = [k for k in ("__NV_PRIME_RENDER_OFFLOAD", "__GLX_VENDOR_LIBRARY_NAME", "LIBVA_DRIVER_NAME", "AQ_DRM_DEVICES", "DRI_PRIME") if os.environ.get(k)]
-    check("no global variable forces apps onto NVIDIA", OK if not forced else BAD, ", ".join(forced))
+        if hybrid:
+            ctl, st = rd(nv / "power/control"), rd(nv / "power/runtime_status")
+            check("NVIDIA runtime power management", OK if ctl == "auto" else BAD, f"control={ctl}, currently {st}")
+    missing = out("amadeus-hardware", "missing")
+    check("drivers for this hardware installed", OK if not missing else WARN, ("missing: " + missing.replace("\n", " ") + "; run amadeus-hardware setup") if missing else "")
+    if hybrid:
+        panel = [rd(Path(c).parent / "device/device/boot_vga") for c in glob.glob("/sys/class/drm/card*-eDP-*/status")]
+        check("laptop panel is driven by the integrated GPU", OK if panel and all(v == "1" for v in panel) else WARN, "desktop renders on integrated graphics")
+        forced = [k for k in ("__NV_PRIME_RENDER_OFFLOAD", "__GLX_VENDOR_LIBRARY_NAME", "LIBVA_DRIVER_NAME", "AQ_DRM_DEVICES", "DRI_PRIME") if os.environ.get(k)]
+        check("no global variable forces apps onto the dedicated GPU", OK if not forced else BAD, ", ".join(forced))
     icd = os.listdir("/usr/share/vulkan/icd.d") if os.path.isdir("/usr/share/vulkan/icd.d") else []
-    check("Vulkan drivers: Intel + NVIDIA", OK if any("intel" in i for i in icd) and (not nv or any("nvidia" in i for i in icd)) else BAD, ", ".join(sorted(icd)))
-    check("32-bit Vulkan/GL for Steam and Proton", OK if have("lib32-vulkan-intel") and (not nv or have("lib32-nvidia-utils")) else (WARN if live else BAD), "optional gaming libraries are not included on the live medium" if live else "")
-    check("Intel video decode (VA-API)", OK if os.path.exists("/usr/lib/dri/iHD_drv_video.so") else BAD, "intel-media-driver")
+    need = [n for v, n in (("0x8086", "intel"), ("0x1002", "radeon"), ("0x10de", "nvidia")) if v in makers]
+    check("Vulkan drivers for every graphics card", OK if all(any(n in i for i in icd) for n in need) else BAD, ", ".join(sorted(icd)))
+    lib32 = {"0x8086": "lib32-vulkan-intel", "0x1002": "lib32-vulkan-radeon", "0x10de": "lib32-nvidia-utils"}
+    have32 = all(have(lib32[m]) or (m == "0x10de" and have("lib32-nvidia-580xx-utils")) for m in makers if m in lib32)
+    check("32-bit Vulkan/GL for Steam and Proton", OK if have32 else (WARN if live else BAD), "optional gaming libraries are not included on the live medium" if live else "")
+    if "0x8086" in makers:
+        check("Intel video decode (VA-API)", OK if os.path.exists("/usr/lib/dri/iHD_drv_video.so") or os.path.exists("/usr/lib/dri/i965_drv_video.so") else BAD, "intel-media-driver")
+    if "0x1002" in makers:
+        check("AMD video decode (VA-API)", OK if os.path.exists("/usr/lib/dri/radeonsi_drv_video.so") else WARN, "mesa")
     if nv:
         check("NVIDIA video decode (VA-API over NVDEC)", OK if have("libva-nvidia-driver") else WARN)
     check("CUDA toolkit", OK if have("cuda") else WARN, "" if have("cuda") else "not installed (about 5 GB); install when needed: pacman -S cuda cudnn")

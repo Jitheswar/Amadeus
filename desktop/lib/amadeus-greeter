@@ -11,8 +11,8 @@ profile_mode=$(python3 "$share/profiles.py" /var/lib/regreet/state.toml)
 [[ -r /etc/greetd/amadeus/regreet.css ]] && style=/etc/greetd/amadeus/regreet.css
 [[ -r /etc/greetd/amadeus.css ]] && style=/etc/greetd/amadeus.css
 [[ -e /run/amadeus-try ]] && config=$share/try.toml
-# Use the integrated GPU for the greeter even after a user's NVIDIA session exits.
-[[ -e /dev/dri/intel-card ]] && export WLR_DRM_DEVICES=/dev/dri/intel-card
+# Use the integrated GPU for the greeter even after a user's dedicated-GPU session exits.
+[[ -e /dev/dri/igpu-card ]] && export WLR_DRM_DEVICES=/dev/dri/igpu-card
 # Override only the session entries: Amadeus must go through UWSM to load GPU choices.
 export XDG_DATA_DIRS=$share:/usr/local/share:/usr/share
 export GTK_USE_PORTAL=0 GDK_DEBUG=no-portals

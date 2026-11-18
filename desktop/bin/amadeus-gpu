@@ -1,41 +1,67 @@
 #!/bin/bash
-# Which graphics processor does the work: automatic, NVIDIA for everything, or Intel only.
-#   amadeus-gpu                     show the mode in use
-#   amadeus-gpu set auto            Intel draws the desktop; games and apps that ask use NVIDIA (the default)
-#   amadeus-gpu set nvidia          NVIDIA draws everything: most performance, most power
-#   amadeus-gpu set intel           Intel only; the NVIDIA card stays asleep: longest battery
+# Which graphics processor does the work: automatic, the dedicated one for everything, or integrated only.
+#   amadeus-gpu                     show the mode in use ("one" when there is nothing to choose)
+#   amadeus-gpu set auto            integrated draws the desktop; games and apps that ask use the dedicated GPU (the default)
+#   amadeus-gpu set dedicated       the dedicated GPU draws everything: most performance, most power
+#   amadeus-gpu set integrated      integrated only; the dedicated GPU stays asleep: longest battery
+#   amadeus-gpu dedicated           the dedicated GPU's maker: nvidia, amd or intel
 # A change takes effect at the next login, because the desktop picks its graphics processor when it starts.
+# "nvidia" and "intel" are accepted as the older names of dedicated and integrated.
 set -euo pipefail
 conf=${XDG_CONFIG_HOME:-$HOME/.config}
 mode_file=$conf/amadeus/gpu
 env_file=$conf/uwsm/env-hyprland
+sys=${AMADEUS_HW_SYS:-/sys}
 begin="# --- set by amadeus-gpu; change it with Super+Space, Setup, GPU ---" end="# --- end of amadeus-gpu ---"
 
-has_nvidia() { for d in /sys/bus/pci/devices/*; do [[ $(<"$d/vendor") == 0x10de && $(<"$d/class") == 0x03* ]] && return 0; done; return 1; }
-mode() { cat "$mode_file" 2>/dev/null || echo auto; }
+# The dedicated GPU is the display controller the firmware did not start the screen on
+# (boot_vga 0). Read from sysfs, so asking never wakes a sleeping card.
+dedicated_vendor() {
+  local d n=0 v=""
+  for d in "$sys"/bus/pci/devices/*; do
+    [[ $(cat "$d/class" 2>/dev/null) == 0x03* ]] || continue
+    n=$((n + 1))
+    [[ $(cat "$d/boot_vga" 2>/dev/null || echo 0) == 1 ]] && continue
+    v=$(cat "$d/vendor")
+  done
+  (( n >= 2 )) || return 1
+  case $v in 0x10de) echo nvidia ;; 0x1002) echo amd ;; 0x8086) echo intel ;; *) return 1 ;; esac
+}
+mode() {
+  case $(cat "$mode_file" 2>/dev/null || echo auto) in
+    nvidia|dedicated) echo dedicated ;; intel|integrated) echo integrated ;; *) echo auto ;;
+  esac
+}
 
 case ${1:-} in
-  "") has_nvidia || { echo "one"; exit 0; }; mode ;;
+  "") dedicated_vendor >/dev/null || { echo "one"; exit 0; }; mode ;;
+  dedicated) dedicated_vendor ;;
   set)
     new=${2:-}
-    [[ $new =~ ^(auto|nvidia|intel)$ ]] || { sed -n 3,6p "$0"; exit 1; }
-    has_nvidia || { echo "This computer has one graphics processor; there is nothing to choose."; exit 1; }
+    case $new in nvidia) new=dedicated ;; intel) new=integrated ;; esac
+    [[ $new =~ ^(auto|dedicated|integrated)$ ]] || { sed -n 3,6p "$0"; exit 1; }
+    vendor=$(dedicated_vendor) || { echo "This computer has one graphics processor; there is nothing to choose."; exit 1; }
     mkdir -p "$(dirname "$mode_file")" "$(dirname "$env_file")"; touch "$env_file"
     # Keep whatever else is in the session environment file; replace only this block.
     sed -i "/^$begin\$/,/^$end\$/d" "$env_file"
-    if [[ $new == nvidia ]]; then
+    if [[ $new == dedicated ]]; then
+      if [[ $vendor == nvidia ]]; then
+        offload="export __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only LIBVA_DRIVER_NAME=nvidia"
+      else
+        offload="export DRI_PRIME=1"
+      fi
       cat >>"$env_file" <<E
 $begin
-# The desktop renders on NVIDIA; the Intel GPU only passes the picture to the built-in screen.
-# If the card is not there at login (driver missing after an update), the desktop still starts, on Intel.
-if [ -e /dev/dri/nvidia-card ] && [ -e /dev/dri/intel-card ]; then
-  export AQ_DRM_DEVICES=/dev/dri/nvidia-card:/dev/dri/intel-card
-  export __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only LIBVA_DRIVER_NAME=nvidia
+# The desktop renders on the dedicated GPU; the integrated one only passes the picture to the built-in screen.
+# If the card is not there at login (driver missing after an update), the desktop still starts, on integrated.
+if [ -e /dev/dri/dgpu-card ] && [ -e /dev/dri/igpu-card ]; then
+  export AQ_DRM_DEVICES=/dev/dri/dgpu-card:/dev/dri/igpu-card
+  $offload
 fi
 $end
 E
     fi
     echo "$new" >"$mode_file"
-    echo "Graphics: $(case $new in auto) echo automatic ;; nvidia) echo NVIDIA for everything ;; intel) echo Intel only ;; esac). Takes effect at the next login." ;;
-  *) sed -n 2,7p "$0"; exit 1 ;;
+    echo "Graphics: $(case $new in auto) echo automatic ;; dedicated) echo dedicated GPU for everything ;; integrated) echo integrated only ;; esac). Takes effect at the next login." ;;
+  *) sed -n 2,9p "$0"; exit 1 ;;
 esac

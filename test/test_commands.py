@@ -1414,6 +1414,32 @@ cat >/dev/null
         self.assertIn("[arch-mact2]", self.run_cmd("amadeus-hardware", "repos", env=env).stdout)
         self.assertIn("intel_iommu=on", self.run_cmd("amadeus-hardware", "cmdline", env=env).stdout)
 
+    def fake_gpus(self, *gpus):
+        """Display controllers as (vendor, boot_vga) for amadeus-gpu."""
+        for i, (vendor, boot) in enumerate(gpus):
+            d = self.tmp / f"sys/bus/pci/devices/0000:0{i}:00.0"; d.mkdir(parents=True)
+            for k, v in (("vendor", vendor), ("class", "0x030000"), ("boot_vga", boot)): (d / k).write_text(v + "\n")
+        return {"AMADEUS_HW_SYS": str(self.tmp / "sys")}
+
+    def test_gpu_modes_follow_the_dedicated_gpus_maker(self):
+        env = self.fake_gpus(("0x1002", "1"), ("0x1002", "0"))
+        self.assertEqual(self.run_cmd("amadeus-gpu", env=env).stdout.strip(), "auto")
+        self.assertEqual(self.run_cmd("amadeus-gpu", "dedicated", env=env).stdout.strip(), "amd")
+        self.assert_ok(self.run_cmd("amadeus-gpu", "set", "dedicated", env=env))
+        session = (self.config / "uwsm/env-hyprland").read_text()
+        self.assertIn("AQ_DRM_DEVICES=/dev/dri/dgpu-card:/dev/dri/igpu-card", session)
+        self.assertIn("DRI_PRIME=1", session); self.assertNotIn("nvidia", session)
+        self.assert_ok(self.run_cmd("amadeus-gpu", "set", "intel", env=env))
+        self.assertEqual(self.run_cmd("amadeus-gpu", env=env).stdout.strip(), "integrated")
+        self.assertNotIn("AQ_DRM_DEVICES", (self.config / "uwsm/env-hyprland").read_text())
+        self.stub("probe", body='printf "%s|%s\n" "$DRI_PRIME" "$__NV_PRIME_RENDER_OFFLOAD"')
+        self.assertEqual(self.run_cmd("amadeus-gpu-run", "probe", env=env).stdout.strip(), "1|")
+
+    def test_gpu_reports_one_without_a_dedicated_card(self):
+        env = self.fake_gpus(("0x8086", "1"))
+        self.assertEqual(self.run_cmd("amadeus-gpu", env=env).stdout.strip(), "one")
+        self.assertNotEqual(self.run_cmd("amadeus-gpu", "set", "dedicated", env=env).returncode, 0)
+
     def test_gpu_run_sets_the_offload_variables(self):
         self.stub("probe", output="", body='printf "%s|%s|%s\n" "$__NV_PRIME_RENDER_OFFLOAD" "$__GLX_VENDOR_LIBRARY_NAME" "$__VK_LAYER_NV_optimus"')
         p = self.run_cmd("amadeus-gpu-run", "probe")

@@ -57,14 +57,16 @@ on it.
 
 ## Graphics
 
-- **Automatic mode renders on Intel and offloads applications to NVIDIA.** The selected
-  open module uses runtime power management `0x02`, aiming to let the card suspend
-  when idle. Actual power behavior remains unverified on hardware. Applications are
+- **Automatic mode renders on the integrated GPU and offloads applications to the
+  dedicated one**, NVIDIA through PRIME render offload or AMD through `DRI_PRIME`. The
+  "integrated" GPU is the one the firmware starts the screen on (`boot_vga`), so this needs
+  no list of makers. On NVIDIA the open module uses runtime power management `0x02`, aiming
+  to let the card suspend when idle. Actual power behavior remains unverified on hardware. Applications are
   offloaded one at a time (`amadeus-gpu-run`, or the AI decides per application).
   Only an explicit user-selected GPU mode may select NVIDIA globally.
-- **Driver package: `linux-cachyos-nvidia-open`**, for the card in this machine
-  (GA107BM, `10de:25ec`, Ampere): the open kernel module is NVIDIA's supported path for
-  this generation at the initial driver evaluation. This package provides it prebuilt
+- **Driver package: `linux-cachyos-nvidia-open`** for Turing and newer cards, such as the
+  reference machine's (GA107BM, `10de:25ec`, Ampere): the open kernel module is NVIDIA's
+  supported path for these generations; Maxwell to Volta use `linux-cachyos-nvidia-580xx`. This package provides it prebuilt
   for the `linux-cachyos` kernel family, avoiding a local DKMS build. Package
   compatibility and the actual driver/power path still need target-machine validation.
   The proprietary-driver firmware comes with `nvidia-utils`; the image excludes the
@@ -76,16 +78,22 @@ on it.
 - Left at the driver default, to be tried on the real machine: S0ix video-memory
   self-refresh (`NVreg_EnableS0ixPowerManagement`). The actual suspend path, memory
   retention and battery cost need hardware testing.
-- **The user can choose, in Setup > GPU**: automatic (the default above), NVIDIA for
-  everything (the compositor renders on NVIDIA), or Intel only (desktop launches
-  do not offload to NVIDIA). Actual display routing and power consumption must be
+- **The user can choose, in Setup > GPU**: automatic (the default above), dedicated for
+  everything (the compositor renders on the dedicated GPU), or integrated only (desktop
+  launches do not offload). Actual display routing and power consumption must be
   measured on the machine. The choice is written to the
   session environment and takes effect at the next login, because the compositor picks
-  its GPU when it starts. udev gives the two cards stable names for this.
+  its GPU when it starts. udev gives the two cards stable names for this
+  (`/dev/dri/igpu-card` and `/dev/dri/dgpu-card`).
+- **NVIDIA's own session variables follow the screen.** `NVD_BACKEND` is set whenever the
+  NVIDIA driver is loaded; `LIBVA_DRIVER_NAME` and `__GLX_VENDOR_LIBRARY_NAME` only when
+  NVIDIA drives the screen, because forcing them on a hybrid laptop breaks video in
+  Chromium-based browsers. A card left on nouveau gets software cursors, and a virtual
+  machine starts without animations.
 - No GPU switching daemon (optimus-manager, envycontrol, supergfxctl): PRIME render
   offload in the kernel and driver already does this without a background service.
-- Video decode: `intel-media-driver` (VA-API) on Intel; `libva-nvidia-driver` when an
-  application runs on NVIDIA.
+- Video decode: `intel-media-driver` (VA-API) on Intel, `libva-intel-driver` on GMA-era
+  Intel, Mesa on AMD; `libva-nvidia-driver` when an application runs on NVIDIA.
 
 ## Hardware support: detected
 

@@ -90,8 +90,9 @@ machine that is tested by hand. Hardware is detected, never assumed:
 - Portable installs and explicit installer choices may provision drivers in advance.
 - Never run a tool that wakes the NVIDIA card (for example `nvidia-smi`) to read its
   state. Read sysfs.
-- Automatic mode uses Intel for the desktop and NVIDIA offload per application.
-  Only the user's explicit GPU-mode selection may choose NVIDIA globally.
+- Automatic mode draws the desktop on the GPU the screen is wired to and offloads single
+  applications to the dedicated GPU, whatever its maker. Only the user's explicit GPU-mode
+  selection may put the dedicated GPU in charge of everything.
 
 ## Privileged commands
 

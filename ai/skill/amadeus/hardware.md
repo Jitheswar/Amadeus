@@ -5,8 +5,9 @@ Read this before touching drivers, power behaviour or devices.
 ## GPU
 
 - In automatic mode the desktop runs on the integrated GPU and single applications are
-  sent to NVIDIA (`amadeus-gpu-run`, or the launcher does it for games). Only the user's
-  explicit choice through `amadeus-gpu` puts NVIDIA in charge of everything.
+  sent to the dedicated one, NVIDIA or AMD (`amadeus-gpu-run`, or the launcher does it for
+  games). Only the user's explicit choice through `amadeus-gpu set dedicated` puts it in
+  charge of everything; `amadeus-gpu set integrated` keeps it asleep.
 - Never run a tool that wakes the NVIDIA card just to read its state. `sys_status` and
   the map read it from sysfs.
 - A GPU mode change takes effect at the next login. Say so.

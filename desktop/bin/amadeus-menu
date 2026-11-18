@@ -161,9 +161,9 @@ gpu_menu() {
   [[ $now == one ]] && { say "One graphics processor" "This computer has only one, so there is nothing to choose."; exit 0; }
   local mark; mark() { [[ $now == "$1" ]] && printf '  (in use)'; }
   local choice; choice=$(printf '%s\n' \
-    "Automatic: Intel for the desktop, NVIDIA for games$(mark auto)"$'\t'auto \
-    "NVIDIA for everything: most performance, most power$(mark nvidia)"$'\t'nvidia \
-    "Intel only: NVIDIA stays asleep, longest battery$(mark intel)"$'\t'intel | pick "Graphics") || exit 0
+    "Automatic: integrated for the desktop, dedicated for games$(mark auto)"$'\t'auto \
+    "Dedicated for everything: most performance, most power$(mark dedicated)"$'\t'dedicated \
+    "Integrated only: the dedicated GPU sleeps, longest battery$(mark integrated)"$'\t'integrated | pick "Graphics") || exit 0
   local new=${choice##*$'\t'}
   [[ $new == "$now" ]] && exit 0
   amadeus-gpu set "$new" >/dev/null

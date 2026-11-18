@@ -1,7 +1,8 @@
 -- Amadeus OS desktop defaults. Shipped in /usr/share/amadeus-os and updated with the system.
 -- Personal changes belong in ~/.config/hypr/hyprland.lua, which loads this file first.
--- Nothing here selects the NVIDIA card: the compositor and ordinary applications render on
--- the Intel GPU, and Amadeus (or `amadeus-gpu-run <app>`) sends individual applications to NVIDIA.
+-- Nothing here selects a dedicated GPU: the compositor and ordinary applications render on the
+-- GPU the screen is wired to, and Amadeus (or `amadeus-gpu-run <app>`) sends single applications
+-- to the dedicated one.
 
 -- Small helper layer used by this file and by Amadeus when it adds shortcuts and rules.
 -- Every shortcut made with o.bind carries a description; Super+K lists them.
@@ -29,6 +30,40 @@ hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 hl.env("EDITOR", "amadeus-editor")
 hl.env("VISUAL", "amadeus-editor")
 
+-- Graphics, following the hardware. Read from sysfs only: reading PCI configuration would wake a
+-- sleeping NVIDIA card, and a configuration reload has a time budget.
+local function first_line(path)
+  local f = io.open(path)
+  if not f then return nil end
+  local line = f:read("l"); f:close(); return line
+end
+local nvidia, nvidia_gsp, nvidia_display, other_display = false, false, false, false
+local devices = io.popen("ls -d /sys/bus/pci/devices/* 2>/dev/null")
+for dev in devices:lines() do
+  if (first_line(dev .. "/class") or ""):sub(1, 4) == "0x03" then
+    local boot = first_line(dev .. "/boot_vga") == "1"
+    if first_line(dev .. "/vendor") == "0x10de" then
+      nvidia = true
+      nvidia_gsp = nvidia_gsp or (tonumber(first_line(dev .. "/device") or "0") or 0) >= 0x1e00
+      nvidia_display = nvidia_display or boot
+    elseif boot then
+      other_display = true
+    end
+  end
+end
+devices:close()
+if nvidia and first_line("/sys/module/nvidia/version") then
+  hl.env("NVD_BACKEND", nvidia_gsp and "direct" or "egl")
+  -- On hybrid laptops the screen is wired to the integrated GPU, and forcing NVIDIA's video and GL
+  -- drivers for everything breaks video in Chromium-based browsers; only when NVIDIA drives the screen.
+  if nvidia_display or not other_display then
+    if nvidia_gsp then hl.env("LIBVA_DRIVER_NAME", "nvidia") end
+    hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+  end
+end
+-- nouveau (an NVIDIA card running without NVIDIA's driver) hides the hardware cursor on many cards.
+local nouveau = first_line("/sys/module/nouveau/refcnt") ~= nil and not io.open("/etc/modprobe.d/nvidia.conf")
+
 hl.config({
   general = {
     gaps_in = 5, gaps_out = 10, border_size = 2, layout = "dwindle",
@@ -44,6 +79,14 @@ hl.config({
   misc = { force_default_wallpaper = 0, disable_hyprland_logo = true, disable_splash_rendering = true, background_color = "rgb(0f0e0d)" },
   input = { kb_layout = "us", follow_mouse = 1, touchpad = { natural_scroll = true, tap_to_click = true, disable_while_typing = true } },
 })
+
+if nouveau then hl.config({ cursor = { no_hardware_cursors = true } }) end
+-- A virtual machine usually draws on the processor, where every animation costs a frame.
+local vm = io.popen("systemd-detect-virt --vm --quiet && echo vm")
+if vm then
+  if vm:read("l") == "vm" then hl.config({ animations = { enabled = false } }) end
+  vm:close()
+end
 
 -- The chosen theme's colours, written by amadeus-theme; until one is chosen the values above stand.
 pcall(dofile, (os.getenv("XDG_CONFIG_HOME") or (os.getenv("HOME") .. "/.config")) .. "/amadeus/current/theme/hyprland.lua")

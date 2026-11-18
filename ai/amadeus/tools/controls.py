@@ -161,7 +161,7 @@ def desktop_settings(a, ctx):
                 remember(ctx, root / rel, recovery={"kind": "text", "factor": factor} if rel == "amadeus/theme.json" else None)
             argv = commands[area] + [val]
         elif area == "gpu":
-            if value not in ("auto", "intel", "nvidia"): raise ToolError("GPU mode must be auto, intel or nvidia")
+            if value not in ("auto", "integrated", "dedicated", "intel", "nvidia"): raise ToolError("GPU mode must be auto, integrated or dedicated")
             for rel in ("amadeus/gpu", "uwsm/env-hyprland"): remember(ctx, root / rel)
             argv = ["amadeus-gpu", "set", value]
         elif area == "scale":

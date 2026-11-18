@@ -23,7 +23,7 @@ NVMe drive.
 |---|---|
 | Base | Arch with CachyOS repositories first, a CachyOS kernel, encrypted btrfs, systemd-boot and zram. Processor-specific builds are selected when supported. |
 | Desktop | Hyprland with one Quickshell shell for the bar, menus, launcher and notifications. Personal configuration overrides shipped defaults. One theme file colours every application, and display scale and text size start from the panel's size. |
-| Graphics | Automatic mode uses Intel for the desktop and offloads suitable applications to NVIDIA. Other GPU modes are an explicit user choice and apply at the next login. Hardware power behavior still needs testing. |
+| Graphics | Intel, AMD and NVIDIA. With two GPUs, automatic mode draws the desktop on the integrated one and offloads suitable applications to the dedicated one. Other GPU modes are an explicit user choice and apply at the next login. Hardware power behavior still needs testing. |
 | Recovery | A snapshot before a system update, a matching copy of the boot files, and rollback from the installed system or installer medium. AI package transactions have their own pre/post snapshots. |
 | AI | A user-session daemon applies capability policy, approvals, audit logging and file undo to Amadeus tool requests. Requests carry a short tool list and a small memory; failed services and a full disk are noticed and offered. Subscription CLIs, APIs and compatible local servers are optional. |
 | Generated apps | QML applications with explicit sandbox permissions, private data and source-version history. |

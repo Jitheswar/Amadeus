@@ -8,7 +8,6 @@ from .files import remember
 HYPR_USER = Path.home() / ".config/hypr"
 MAIN = HYPR_USER / "hyprland.lua"
 MANAGED = HYPR_USER / "amadeus.lua"
-NV_ENV = {"__NV_PRIME_RENDER_OFFLOAD": "1", "__GLX_VENDOR_LIBRARY_NAME": "nvidia", "__VK_LAYER_NV_optimus": "NVIDIA_only"}
 
 
 def lstr(s):
@@ -141,7 +140,7 @@ def spawn(argv, env=None):
 
 
 @tool("desktop_launch", "Launch an installed application by desktop id or name, optionally with arguments (files, URLs). "
-      "gpu: 'auto' uses the Intel GPU unless the app is a game or asks for the dedicated one; 'dedicated' forces NVIDIA; 'integrated' forces Intel.",
+      "gpu: 'auto' uses the integrated GPU unless the app is a game or asks for the dedicated one; 'dedicated' forces the dedicated GPU; 'integrated' forces the integrated one.",
       {"app": {"type": "string"}, "args": {"type": "array", "items": {"type": "string"}}, "gpu": {"type": "string", "enum": ["auto", "integrated", "dedicated"]}},
       required=("app",), cap="apps.launch", risk="modify")
 def desktop_launch(a, ctx):
@@ -158,8 +157,8 @@ def desktop_launch(a, ctx):
     mode_file = Path.home() / ".config/amadeus/gpu"
     mode = mode_file.read_text().strip() if mode_file.exists() else "auto"     # the user's choice in Setup > GPU
     dg = gpu == "dedicated" or (gpu == "auto" and mode == "auto" and wants_dgpu(e))
-    spawn(argv, NV_ENV if dg else None)
-    return f"launched {e.get('Name', e['id'])} on the {'NVIDIA' if dg else 'Intel'} GPU"
+    spawn(["amadeus-gpu-run"] + argv if dg else argv)
+    return f"launched {e.get('Name', e['id'])} on the {'dedicated' if dg else 'integrated'} GPU"
 
 
 
