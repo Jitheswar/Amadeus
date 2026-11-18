@@ -460,13 +460,14 @@ class GoalTest(unittest.TestCase):
         self.assertEqual((self.only()["state"], self.only()["rounds"]), ("done", 4))
 
     def test_a_blocked_goal_waits_and_continues_from_the_answer(self):
+        self.d.cfg["ai"]["goal_rounds"] = 2
         self.script[:] = [("blocked", "May I remove the old kernel packages?")]
         self.goals.start(self.d, "free some disk space")
         goal = self.only()
         self.assertEqual((goal["state"], goal["question"]), ("waiting", "May I remove the old kernel packages?"))
         self.script[:] = [("finished", "cleared caches only"), ("finished", "verified")]
         self.goals.answer(self.d, goal["id"], "no, only caches")
-        self.assertEqual(self.only()["state"], "done")
+        self.assertEqual((self.only()["state"], self.only()["rounds"]), ("done", 3))
         self.assertIn("The user answered: no, only caches", self.prompts[1])
         with self.assertRaises(ValueError):
             self.goals.answer(self.d, goal["id"], "again")

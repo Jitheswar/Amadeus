@@ -152,7 +152,7 @@ def work(daemon, ident):
             goal = load(ident)
             if goal["state"] != "working" or goal.get("session"):
                 return
-            if goal["rounds"] >= limit:
+            if goal["rounds"] - goal.get("rounds_at_answer", 0) >= limit:
                 return settle(goal, "waiting", f"I worked {limit} rounds without finishing. Answer to let me continue, or stop the goal.")
             goal["rounds"] += 1
             goal["reported"] = ""
@@ -222,7 +222,7 @@ def answer(daemon, ident, text):
         if goal["state"] != "waiting":
             raise ValueError("this goal is not waiting for an answer")
         note(goal, "The user answered: " + (text or "continue"))
-        goal.update(state="working", question="", rounds=0, silent=0, claimed=False)
+        goal.update(state="working", question="", rounds_at_answer=goal["rounds"], silent=0, claimed=False)
         store(goal)
     launch(daemon, ident)
     return goal
