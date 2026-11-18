@@ -96,6 +96,11 @@ def update(ident, session, status, text):
         return store(goal)["reported"]
 
 
+def require_goal_slot():
+    if sum(g["state"] == "working" for g in listing()) >= MAX_ACTIVE:
+        raise ValueError(f"{MAX_ACTIVE} goals are already being worked on; stop one or wait")
+
+
 def start(daemon, text, provider=None, mode="ask"):
     text = " ".join(str(text).split())
     if not 3 <= len(text) <= 2000:
@@ -105,8 +110,7 @@ def start(daemon, text, provider=None, mode="ask"):
     if provider and provider not in daemon.cfg["providers"]:
         raise ValueError("choose a configured provider")
     with LOCK:
-        if sum(g["state"] == "working" for g in listing()) >= MAX_ACTIVE:
-            raise ValueError(f"{MAX_ACTIVE} goals are already being worked on; stop one or wait")
+        require_goal_slot()
         goal = store({"id": uuid.uuid4().hex[:8], "text": text, "provider": provider or "", "mode": mode, "state": "working",
                       "notes": [], "rounds": 0, "silent": 0, "claimed": False, "question": "", "created": time.time()})
     audit.record("goal_start", goal=goal["id"], text=text, mode=mode)
@@ -225,6 +229,7 @@ def answer(daemon, ident, text):
         goal = load(ident)
         if goal["state"] != "waiting":
             raise ValueError("this goal is not waiting for an answer")
+        require_goal_slot()
         note(goal, "The user answered: " + (text or "continue"))
         goal.update(state="working", question="", rounds_at_answer=goal["rounds"], silent=0, claimed=False)
         store(goal)

@@ -472,6 +472,22 @@ class GoalTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.goals.answer(self.d, goal["id"], "again")
 
+    def test_answer_respects_active_goal_limit_and_can_be_retried(self):
+        self.script[:] = [("blocked", "Which folder?")]
+        ident = self.goals.start(self.d, "sort my downloads")["id"]
+        waiting = self.goals.load(ident)
+        with mock.patch.object(self.goals, "launch") as launch:
+            active = [self.goals.start(self.d, f"job {i}") for i in range(self.goals.MAX_ACTIVE)]
+            launch.reset_mock()
+            with self.assertRaisesRegex(ValueError, "stop one or wait"):
+                self.goals.answer(self.d, ident, "Documents")
+            launch.assert_not_called()
+            self.assertEqual(self.goals.load(ident), waiting)
+            self.goals.stop(self.d, active[0]["id"])
+            self.goals.answer(self.d, ident, "Documents")
+            launch.assert_called_once_with(self.d, ident)
+            self.assertEqual(self.goals.load(ident)["state"], "working")
+
     def test_a_goal_that_stops_reporting_or_runs_long_checks_back(self):
         self.script[:] = [None, None]
         self.goals.start(self.d, "tidy the desktop")
