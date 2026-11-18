@@ -186,6 +186,16 @@ class FilesTest(unittest.TestCase):
         self.assertIn("notes.txt", found)
         self.assertNotIn("GNU grep", found)
 
+    def test_search_distinguishes_no_matches_from_failure(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "notes").write_text("some text")
+            ctx = type("Ctx", (), {"policy": policy.Policy(config.load())})
+            search = self.files.fs_search
+            self.assertEqual(search({"path": d, "content": "absent"}, ctx), "(no matches)")
+            for args in ({"path": d, "content": "["}, {"path": str(Path(d) / "missing")}):
+                with self.subTest(args=args), self.assertRaises(self.files.ToolError):
+                    search(args, ctx)
+
     def test_write_outside_home_is_refused(self):
         p = Path(tempfile.mkdtemp()) / "outside"
         with self.assertRaises(self.files.ToolError):

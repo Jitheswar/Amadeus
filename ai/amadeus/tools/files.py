@@ -113,10 +113,16 @@ def fs_search(a, ctx):
         cmd = ["grep", "-rnI", "--max-count=5", "-E", "-e", a["content"], "--", p]
         if a.get("name"):
             cmd.insert(1, f"--include={a['name']}")
-        out = sh(cmd, timeout=60).stdout
+        result = sh(cmd, timeout=60)
+        failed = result.returncode not in (0, 1)  # grep exits 1 for a successful search with no matches
     else:
-        out = sh(["find", p, "-xdev", "-iname", a.get("name", "*"), "-not", "-path", "*/.git/*"], timeout=60).stdout
-    keep = [l for l in out.splitlines() if not ctx.policy.path_denied(l.split(":")[0])]
+        result = sh(["find", p, "-xdev", "-iname", a.get("name", "*"), "-not", "-path", "*/.git/*"], timeout=60)
+        failed = result.returncode != 0
+    keep = [l for l in result.stdout.splitlines() if not ctx.policy.path_denied(l.split(":")[0])]
+    if failed:
+        if not keep:
+            raise ToolError("Search failed. Check the path, read permissions and any content expression.")
+        return "Search incomplete. Partial matches:\n" + clip("\n".join(keep[:300]))
     return clip("\n".join(keep[:300])) or "(no matches)"
 
 
