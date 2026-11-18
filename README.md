@@ -10,7 +10,7 @@ includes the packages needed to reach a usable system.
 The target is a Core i5-13450HX laptop with Intel UHD graphics, an RTX 3050 6 GB,
 16 GB RAM and a 1 TB NVMe drive.
 
-> **Pre-release:** the November 17 image passed 153 installed-system VM checks, including
+> **Pre-release:** the November 18 image passed 153 installed-system VM checks, including
 > both rollback paths, plus the live-session checks. Real hardware and live provider
 > authentication have not been verified. See [Verification](#verification).
 
@@ -303,7 +303,7 @@ source rollback do not replace a backup of personal data.
 
 ## Verification
 
-The November 17 image used the November 16 Arch repository snapshot. It booted
+The November 18 image, built from [de94bcb](https://github.com/Jitheswar/Amadeus/commit/de94bcb), used the November 16 Arch repository snapshot. It booted
 the Try desktop, installed onto an encrypted disk without internet access, and
 passed all **153 installed-system checks**. The guest reported 138 passes on first
 boot, 8 after rollback from the running system, and 7 after rescue from the ISO.
@@ -311,8 +311,9 @@ Both rollback tests booted the restored system. AI requests used a scripted loca
 model.
 
 The tested ISO has SHA-256
-`950d456685873305632dad5fefa23abee140eb6d4540bb5ab9a1f3fcb9f8c0e5`.
-It predates the installer change that rejects invalid encryption answers.
+`ee8748964ecdd10dc7bab8543ca75f5df55d4356fee56bdcad4ceac883047a97`.
+A separate UEFI test supplied an invalid encryption answer to the installer on
+this ISO and verified that the entire target disk retained its original checksum.
 The earlier [24bc744 validation](https://github.com/Jitheswar/Amadeus/commit/24bc744)
 also included inspected headless previews.
 
