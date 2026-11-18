@@ -1,0 +1,48 @@
+#!/bin/bash
+# Put things back the way Amadeus OS ships them. Your current files are kept as backups.
+#   amadeus-reset config PATH   one settings file under ~/.config, e.g. hypr/hyprland.lua
+#   amadeus-reset desktop       all of the desktop's own settings files
+#   amadeus-reset packages      reinstall every installed package from the repositories (repairs damaged files)
+#   amadeus-reset all           both of the above, then offer a restart
+# Backups are written next to each file as NAME.bak.TIME, and the differences are shown.
+set -euo pipefail
+skel=${AMADEUS_SKEL:-/etc/skel}
+conf=${XDG_CONFIG_HOME:-$HOME/.config}
+(( EUID != 0 )) || { echo "Run amadeus-reset as your user; it asks for the password when it needs it."; exit 1; }
+
+reset_file() {  # PATH relative to ~/.config
+  local rel=$1 mine="$conf/$1" shipped="$skel/.config/$1" backup
+  [[ -f $shipped ]] || { echo "Amadeus does not ship ~/.config/$rel." >&2; return 1; }
+  mkdir -p "$(dirname "$mine")"
+  if [[ -f $mine ]] && ! cmp -s "$mine" "$shipped"; then
+    backup=$mine.bak.$(date +%s)
+    cp -f "$mine" "$backup"
+    echo "Reset ~/.config/$rel (your version is in $backup). What changed:"
+    diff "$backup" "$shipped" || true
+  fi
+  cp -f "$shipped" "$mine"
+}
+
+desktop() {
+  local f
+  while IFS= read -r f; do reset_file "${f#"$skel/.config/"}"; done < <(find "$skel/.config" -type f | sort)
+}
+
+packages() {
+  echo "Reinstalling $(pacman -Qqn | wc -l) packages from the repositories..."
+  # shellcheck disable=SC2046
+  sudo pacman -S --noconfirm $(pacman -Qqn)
+}
+
+case ${1:-} in
+  config) [[ -n ${2:-} ]] || { sed -n 3p "$0"; exit 1; }; reset_file "$2" ;;
+  desktop) desktop; echo "Log out and back in for every change to take effect." ;;
+  packages) packages ;;
+  all)
+    read -rp "This reinstalls every package and resets your desktop settings (with backups). Continue? [y/N] " a
+    [[ ${a,,} =~ ^(y|yes)$ ]] || exit 0
+    packages; desktop
+    read -rp "Done. Restart now? [y/N] " a
+    [[ ! ${a,,} =~ ^(y|yes)$ ]] || systemctl reboot ;;
+  *) sed -n 2,7p "$0"; exit 1 ;;
+esac

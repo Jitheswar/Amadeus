@@ -103,6 +103,7 @@ if ! amadeus-harness update; then
   failed=1
 fi
 kill "$keepalive" 2>/dev/null || true
+amadeus-hook post-update
 
 # A new kernel replaces the running one's modules; new hardware drivers need it to restart too.
 if [[ ! -d /usr/lib/modules/$(uname -r) ]]; then

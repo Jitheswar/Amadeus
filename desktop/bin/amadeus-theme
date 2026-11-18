@@ -180,6 +180,7 @@ def apply(name):
         quiet("pkill", "-" + signal, "-x", program)
     recolour_terminals(c)
     print(f"Theme: {name}.")
+    quiet("amadeus-hook", "theme-set", name)
 
 
 def current():

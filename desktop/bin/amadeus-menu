@@ -9,7 +9,8 @@ root_choices() { printf '%s\n' Apps Trigger Install Gaming Chat Remove Update Se
 install_choices() { printf '%s\n' Terminal Browser Editor AI Development Harness 'Web app' Packages AUR; }
 remove_choices() { printf '%s\n' Packages Harness 'Web app'; }
 setup_choices() { printf '%s\n' Display GPU Theme 'Login screen' 'Text size' Defaults Config Tasks; }
-update_choices() { printf '%s\n' Everything 'Harnesses and tools only'; }
+update_choices() { printf '%s\n' Everything 'Harnesses and tools only' Firmware 'Restart a part' 'Reset settings' Time; }
+restart_choices() { printf '%s\n' Audio Wi-Fi Bluetooth Trackpad Shell Desktop Terminal; }
 trigger_choices() { printf '%s\n' Capture; }
 
 # One category of the install catalogue: pick, then install in a terminal.
@@ -197,12 +198,23 @@ case ${1:-$(root_choices | pick --global "Amadeus")} in
   Remove|remove)     remove_menu "${2:-}" ;;
   Update|update)
     what=${2:-$(update_choices | pick --global "Update")} || exit 0
-    [[ $what == Everything ]] && term "update" "amadeus-update" || term "update" "amadeus-harness update" ;;
+    case $what in
+      Everything) term "update" "amadeus-update" ;;
+      'Harnesses and tools only') term "update" "amadeus-harness update" ;;
+      Firmware) term "firmware" "amadeus-update firmware" ;;
+      'Restart a part')
+        part=$(restart_choices | pick "Restart") || exit 0
+        term "restart" "amadeus-restart $(printf '%s' "${part,,}" | tr -d -- -)" ;;
+      'Reset settings')
+        how=$(printf '%s\n' "Desktop settings (with backups)"$'\t'desktop "Reinstall all packages"$'\t'packages "Both"$'\t'all | pick "Reset") || exit 0
+        term "reset" "amadeus-reset ${how##*$'\t'}" ;;
+      Time) term "time" "sudo systemctl restart systemd-timesyncd && timedatectl" ;;
+    esac ;;
   Setup|setup)       setup_menu "${2:-}" ;;
   Defaults|defaults) defaults_menu "${2:-}" ;;
   Config|config)     config_menu "${2:-}" ;;
   --menu-index)
-    for group in root install remove setup update trigger; do
+    for group in root install remove setup update restart trigger; do
       while read -r name; do
         printf '%s:%s\t%s\t%s\n' "$group" "$name" "$name" "$(case $group in root) echo Amadeus ;; *) echo "Amadeus › ${group^}" ;; esac)"
       done < <("${group}_choices")

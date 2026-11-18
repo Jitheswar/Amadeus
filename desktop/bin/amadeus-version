@@ -1,0 +1,13 @@
+#!/bin/bash
+# Show which Amadeus OS release this is, and its packages.
+#   amadeus-version           the release (the version of the amadeus-desktop package)
+#   amadeus-version --all     every Amadeus package with its version, then the kernel
+set -euo pipefail
+v=$(pacman -Q amadeus-desktop 2>/dev/null | awk '{print $2}')
+[[ -n $v ]] || { echo "Amadeus OS packages are not installed."; exit 1; }
+if [[ ${1:-} == --all ]]; then
+  pacman -Q amadeus amadeus-desktop 2>/dev/null
+  echo "kernel $(uname -r)"
+else
+  echo "$v"
+fi

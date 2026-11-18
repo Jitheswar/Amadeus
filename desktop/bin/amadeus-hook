@@ -1,0 +1,19 @@
+#!/bin/bash
+# Run your own scripts when something happens: amadeus-hook NAME [ARGS...]
+# Put a script at ~/.config/amadeus/hooks/NAME, or any number in ~/.config/amadeus/hooks/NAME.d/.
+# The system calls these names:
+#   post-update    after amadeus-update finishes
+#   post-boot      once at the start of each login
+#   theme-set      after a theme change (the theme's name is the first argument)
+#   font-set       after a font change (the font's name is the first argument)
+#   battery-low    when the battery runs low (the percentage is the first argument)
+# A failing hook is reported and the others still run. Files ending in .sample are skipped.
+set -euo pipefail
+name=${1:-}
+[[ -n $name && $name != */* && $name != . && $name != .. ]] || { sed -n 2,10p "$0"; exit 1; }
+shift
+dir=${XDG_CONFIG_HOME:-$HOME/.config}/amadeus/hooks
+for hook in "$dir/$name" "$dir/$name.d"/*; do
+  [[ -f $hook && $hook != *.sample ]] || continue
+  bash "$hook" "$@" || echo "Hook failed: $hook" >&2
+done

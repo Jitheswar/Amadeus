@@ -223,6 +223,14 @@ by hand doesn't take a snapshot; the assistant's package changes do.
 If you change hardware (a new graphics card, say), run `amadeus-hardware setup` and
 restart.
 
+When something stops working, **Update → Restart a part** (or `amadeus-restart audio`,
+`wifi`, `bluetooth`, `trackpad`, `shell`…) brings it back without restarting the computer.
+**Update → Reset settings** (`amadeus-reset`) puts the shipped settings back, keeping your
+old files as backups, or reinstalls every package to repair damaged files.
+
+To run your own scripts after an update, at login or when the theme changes, put them in
+`~/.config/amadeus/hooks/` (see `amadeus-hook`). `amadeus-version` shows the release.
+
 ## Building from source
 
 Everything builds in Docker and is tested in a QEMU/KVM virtual machine. Nothing is

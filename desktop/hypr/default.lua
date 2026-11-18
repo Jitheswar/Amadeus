@@ -109,6 +109,8 @@ hl.on("hyprland.start", function()
   -- Audio fixes this computer's hardware needs (ASUS mixer, AMD microphones, Dell XPS speaker
   -- tuning). Once per user: it needs the audio server, so it cannot run at install.
   hl.exec_cmd("amadeus-hardware user --once")
+  -- Your own scripts in ~/.config/amadeus/hooks/post-boot(.d), once per login.
+  hl.exec_cmd("amadeus-hook post-boot")
   hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
   -- Clipboard history: remembers what was copied so Super+Ctrl+V can bring it back.
   hl.exec_cmd("wl-paste --type text --watch cliphist store")

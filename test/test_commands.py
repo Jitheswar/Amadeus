@@ -1353,6 +1353,43 @@ cat >/dev/null
         files = list((self.home / "Videos").glob("screenrecording-*.mp4"))
         self.assertEqual(len(files), 1)
 
+    def test_hooks_run_every_script_and_report_failures(self):
+        hooks = self.config / "amadeus/hooks"; (hooks / "post-update.d").mkdir(parents=True)
+        (hooks / "post-update").write_text(f'echo "main $1" >>{self.tmp}/hooks\n')
+        (hooks / "post-update.d/a").write_text(f'echo "a $1" >>{self.tmp}/hooks\n')
+        (hooks / "post-update.d/b").write_text("exit 3\n")
+        (hooks / "post-update.d/c.sample").write_text(f'echo sample >>{self.tmp}/hooks\n')
+        p = self.run_cmd("amadeus-hook", "post-update", "x")
+        self.assert_ok(p)
+        self.assertEqual((self.tmp / "hooks").read_text().splitlines(), ["main x", "a x"])
+        self.assertIn("Hook failed", p.stderr)
+        self.assertNotEqual(self.run_cmd("amadeus-hook", "../escape").returncode, 0)
+
+    def test_reset_restores_a_shipped_file_and_keeps_a_backup(self):
+        skel = self.tmp / "skel/.config/hypr"; skel.mkdir(parents=True)
+        (skel / "hyprland.lua").write_text("shipped\n")
+        mine = self.config / "hypr/hyprland.lua"; mine.parent.mkdir(parents=True); mine.write_text("mine\n")
+        env = {"AMADEUS_SKEL": str(self.tmp / "skel")}
+        p = self.run_cmd("amadeus-reset", "config", "hypr/hyprland.lua", env=env)
+        self.assert_ok(p)
+        self.assertEqual(mine.read_text(), "shipped\n")
+        self.assertEqual([b.read_text() for b in mine.parent.glob("hyprland.lua.bak.*")], ["mine\n"])
+        self.assertNotEqual(self.run_cmd("amadeus-reset", "config", "not/shipped", env=env).returncode, 0)
+
+    def test_version_reports_the_desktop_package(self):
+        self.stub("pacman", body='[[ $2 == amadeus-desktop ]] && echo "amadeus-desktop 0.1.0-1"; true')
+        self.assertEqual(self.run_cmd("amadeus-version").stdout.strip(), "0.1.0-1")
+
+    def test_restart_unblocks_radios_and_restarts_an_app(self):
+        for n in ("rfkill", "nmcli", "pkill", "uwsm-app"): self.stub(n)
+        self.assert_ok(self.run_cmd("amadeus-restart", "bluetooth"))
+        self.assertEqual(self.calls_of("rfkill"), [["unblock", "bluetooth"]])
+        self.assert_ok(self.run_cmd("amadeus-restart", "wifi"))
+        self.assertIn(["radio", "wifi", "on"], self.calls_of("nmcli"))
+        self.assert_ok(self.run_cmd("amadeus-restart", "app", "foot"))
+        self.assertEqual(self.calls_of("pkill"), [["-x", "--", "foot"]])
+        self.assertNotEqual(self.run_cmd("amadeus-restart").returncode, 0)
+
     def fake_machine(self, pci, dmi=None, cpu=("GenuineIntel", 154), battery=True, intel_names="00:02.0 VGA compatible controller: Intel Corporation Iris Xe Graphics"):
         """A sysfs and /proc for amadeus-hardware: PCI devices as (vendor, device, class)."""
         sys_, proc = self.tmp / "sys", self.tmp / "proc"
