@@ -1,0 +1,1 @@
+../../../../.local/state/amadeus/current/theme/neovim.lua

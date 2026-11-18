@@ -328,7 +328,7 @@ esac""")
     def test_defaults_work_before_a_file_exists(self):
         """A fresh user has no defaults file yet; asking what the defaults are must work."""
         self.assertEqual(self.run_cmd("amadeus-default", "terminal").stdout.strip(), "foot")
-        self.assertEqual(self.run_cmd("amadeus-default", "editor").stdout.strip(), "nano")
+        self.assertEqual(self.run_cmd("amadeus-default", "editor").stdout.strip(), "nvim")
         self.assertEqual(self.run_cmd("amadeus-default", "harness").stdout.strip(), "")
         shown = self.run_cmd("amadeus-default")
         self.assert_ok(shown)

@@ -4,7 +4,7 @@
 # screenshot tool, wallpaper engine and fonts) come from it; it is listed after every other
 # repository, so it never replaces a package they carry.
 
-avahi bat bluez-tools bolt chromium cups cups-filters cups-pk-helper ddcutil docker docker-buildx
+avahi bat neovim bluez-tools bolt chromium cups cups-filters cups-pk-helper ddcutil docker docker-buildx
 docker-compose dotnet-runtime evince exfatprogs expac eza fakeroot fcitx5 fcitx5-chewing
 fcitx5-chinese-addons fcitx5-gtk fcitx5-hangul fcitx5-mozc fcitx5-qt fcitx5-table-extra fd
 ffmpegthumbnailer fontconfig fzf gliff gnome-disk-utility gnome-keyring gnome-themes-extra gum

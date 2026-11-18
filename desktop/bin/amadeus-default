@@ -6,7 +6,7 @@
 #   amadeus-default terminal|editor|harness VALUE      set it; takes effect at once
 set -euo pipefail
 file=${XDG_CONFIG_HOME:-$HOME/.config}/amadeus/defaults
-declare -A FALLBACK=([terminal]=foot [editor]=nano [harness]="")
+declare -A FALLBACK=([terminal]=foot [editor]=nvim [harness]="")
 EDITORS="nano nvim vim hx helix micro emacs code codium cursor zed zeditor subl gnome-text-editor kate gedit"
 
 get() { local v=""; if [[ -r $file ]]; then v=$(sed -n "s/^${1^^}=//p" "$file" | tail -1); fi; printf '%s\n' "${v:-${FALLBACK[$1]}}"; }
