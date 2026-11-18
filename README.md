@@ -60,7 +60,7 @@ Amadeus API keys use its private secrets directory.
 Open the Amadeus menu with **Super+Space**. Start typing an installed app or setting
 name in a navigation menu to search across menus. Lists of things to choose, such as
 packages to install or remove, search only their own entries. Matching, app ranking and pointer handoff
-follow Omarchy’s menu implementation, with result paths shown under their names.
+show result paths shown under their names.
 Arrow keys keep the selection while the pointer is stationary. A global result closes
 the current menu before opening its destination. Free-text entry prompts continue to accept the text they ask
 for. Apps respects desktop-entry visibility and hides dependency-owned helpers and

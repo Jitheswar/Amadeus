@@ -26,7 +26,7 @@ Item {
             verify(!gate.moved(row, {x: 30.5, y: 10}))
             verify(gate.moved(row, {x: 31.5, y: 10}))
         }
-        function test_omarchy_ranking_and_breadcrumbs() {
+        function test_ranking_and_breadcrumbs() {
             const entries = [
                 { id: "menu:install:Terminal", label: "Terminal", keywords: "", path: "Amadeus › Install", kind: "Menu" },
                 { id: "app:foot", label: "Foot Terminal", keywords: "terminal emulator", path: "Apps", kind: "Application" },

@@ -1,4 +1,4 @@
-"""Display-only subscription limits, following Omarchy's native collector sources.
+"""Display-only subscription limits, read from each provider's own native source.
 
 Queried on demand and cached for a minute. Tokens remain inside the collector;
 only bounded quota records reach the shell. No timer, credential refresh or model call.
@@ -61,7 +61,7 @@ def claude():
 
 
 def codex(command):
-    # Ask the official app-server, as Omarchy does; never scrape or print an OAuth token.
+    # Ask the official app-server; never scrape or print an OAuth token.
     if not shutil.which(command):
         return [], "Install Codex from Harness", ""
     path = Path(shutil.which(command))

@@ -321,17 +321,17 @@ through the daemon's policy and audit boundary.
 
 ## Unified text size
 
-One text-size setting follows Omarchy's approach: live shell and panel sizing,
+One text-size setting covers everything: live shell and panel sizing,
 GTK scaling quantized to whole font points, and terminal configuration together.
 The default remains Amadeus's 14px shell / 11pt terminal size. A terminal that
 cannot reload its configuration takes the size in a new window.
 
 ## Search across menus
 
-Matching and ranking are adapted from the installed Omarchy menu's MIT-licensed source,
-with attribution shipped in the desktop package. Names and aliases accept partial words;
+Matching and ranking come from MIT-licensed source, with its license shipped in the
+desktop package. Names and aliases accept partial words;
 descriptions require complete words to reduce irrelevant results. Menu entries show their
-parent path. Omarchy's pointer-movement gate prevents a stationary mouse or scrolling
+parent path. A pointer-movement gate prevents a stationary mouse or scrolling
 row from undoing arrow-key selection; real pointer movement restores hover selection.
 
 The picker indexes installed applications and Amadeus settings once per opening,
@@ -343,7 +343,7 @@ search while dependency helpers and secondary backend launchers stay out of Apps
 
 ## On-demand AI usage
 
-The usage view follows Omarchy's native collector sources: Claude OAuth usage,
+The usage view reads each provider's native source: Claude OAuth usage,
 Codex app-server rate limits, and Antigravity's quota summary. It runs only when
 opened or explicitly refreshed, caches quota results for a minute, bounds replies,
 and never sends credentials to the UI or follows authenticated redirects. API
@@ -386,8 +386,7 @@ entry; multiple profiles retain the upstream account dropdown and remember the l
 choice. The Try account has an explicit password-free login screen after logout.
 
 The artwork and GTK style are rendered from the desktop palette at package build time.
-The user can restyle the login screen from any installed theme, as Omarchy's unlock-screen
-switcher does. Because the login screen belongs to the system, a root step publishes it:
+The user can restyle the login screen from any installed theme. Because the login screen belongs to the system, a root step publishes it:
 it receives only a theme name and validated colour values, renders from the packaged
 templates and swaps the result in whole, so root never opens a file the user controls.
 Administrator overrides have separate files and win. Cage and ReGreet run only on the login
@@ -422,7 +421,7 @@ timeout. Native GUI actions retain the application's own recovery semantics.
 ## One theme file for every application
 
 Colours used to be repeated by hand in the compositor, terminal and lock-screen
-configuration, with a check that they matched. Following Omarchy, a theme is now one
+configuration, with a check that they matched. A theme is now one
 `colors.toml`, and `desktop/bin/amadeus-theme` renders a template per application from
 it. Chosen over per-application theme packages (one more thing to install and keep in
 step for each program) and over a generated palette from a wallpaper (there is no
@@ -434,10 +433,9 @@ nine-colour file is a whole theme.
 - An application that is not installed gets a first configuration that includes the
   rendered file, so it is themed from its first start.
 - Open terminals are recoloured by writing colour escape sequences to each terminal's
-  own device, as Omarchy does: nothing is signalled or restarted. Evidence: the VM test
+  own device: nothing is signalled or restarted. Evidence: the VM test
   asks a real terminal for its background after a change.
 - The default theme must reproduce the shipped files exactly; a test compares them.
-- Only the mechanism is taken from Omarchy. Its palettes are not shipped.
 
 ## Display scale and text size from the panel
 

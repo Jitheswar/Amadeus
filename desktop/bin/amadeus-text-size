@@ -2,7 +2,7 @@
 # Set one text size for the Amadeus shell, panel, GTK applications and terminal configuration.
 """amadeus-text-size [9..20|reset]
 
-One knob, adapted from Omarchy: a live shell font size, a quantized GTK scale,
+One knob: a live shell font size, a quantized GTK scale,
 and terminal point sizes. Existing terminals may need a new window.
 Legacy percentage arguments are converted around the 14px default.
 """

@@ -3,7 +3,7 @@
 """amadeus-theme [list | current | set NAME | render NAME DIR | colors NAME]
 
 A theme is one file, colors.toml. Every application's colours are rendered from it
-through the templates in /usr/share/amadeus-os/themed, the way Omarchy does it, so
+through the templates in /usr/share/amadeus-os/themed, so
 an application installed later is already themed. With no argument, pick from a list.
 
 Your own themes go in ~/.config/amadeus/themes/NAME/colors.toml, and your own

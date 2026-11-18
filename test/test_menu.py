@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Exercise Omarchy-derived ranking and pointer movement in the real QML engine."""
+"""Exercise menu ranking and pointer movement in the real QML engine."""
 import os, shutil, subprocess, sys
 from pathlib import Path
 
