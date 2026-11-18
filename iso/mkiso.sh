@@ -72,8 +72,14 @@ mkdir -p "$cache"
 # pacman prints absolute paths for local inputs. Those ship in amadeus-repo.
 sed -i '\|^/|d' /tmp/package-files
 sort -u -o /tmp/package-files /tmp/package-files
+# A host package is reused only when it is the exact file the repositories list: another
+# distribution can publish its own build under the same file name.
+for db in $ROOT/db/sync/*.db; do
+  bsdtar -xOf "$db" '*/desc' | awk '/^%FILENAME%$/{getline; f=$0} /^%SHA256SUM%$/{getline; print $0 "  " f}'
+done >/tmp/package-sums
 while IFS= read -r f; do
-  if [[ -f /hostcache/$f && ! -f $cache/$f ]]; then
+  if [[ -f /hostcache/$f && ! -f $cache/$f ]] &&
+     grep -xF "$(sha256sum <"/hostcache/$f" | cut -d' ' -f1)  $f" /tmp/package-sums >/dev/null; then
     cp "/hostcache/$f" "$cache/$f.tmp"
     mv "$cache/$f.tmp" "$cache/$f"
   fi
