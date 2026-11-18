@@ -1,5 +1,5 @@
 """Files. Every write keeps the previous version so `ama undo` can restore it."""
-import os, json, re, shutil, time, threading, uuid
+import os, json, re, shutil, tempfile, time, threading, uuid
 from pathlib import Path
 from . import tool, sh, clip, ToolError
 from .. import config
@@ -35,7 +35,14 @@ def _restore(j):
     e = json.loads(j.read_text())
     bak = j.with_suffix(".bak")
     if bak.exists():
-        shutil.copy2(bak, e["path"])
+        target = Path(e["path"])
+        fd, staged = tempfile.mkstemp(dir=target.parent, prefix=".amadeus-")
+        os.close(fd)
+        try:
+            shutil.copy2(bak, staged)
+            os.replace(staged, target)
+        finally:
+            Path(staged).unlink(missing_ok=True)
         msg = f"restored {e['path']}"
     elif not e["existed"]:
         Path(e["path"]).unlink(missing_ok=True)

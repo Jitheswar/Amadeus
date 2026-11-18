@@ -134,6 +134,25 @@ class FilesTest(unittest.TestCase):
         self.files.undo_session(self.session)
         self.assertEqual(p.read_text(), "before")
 
+    def test_failed_restore_preserves_current_file_and_can_be_retried(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir=Path.home()) as directory:
+            path = Path(directory) / "notes"
+            path.write_text("original")
+            self.files.fs_write({"path": str(path), "content": "edited"}, None)
+
+            def interrupted_copy(src, dst):
+                Path(dst).write_text("partial")
+                raise OSError("disk full")
+
+            with patch.object(self.files.shutil, "copy2", side_effect=interrupted_copy):
+                with self.assertRaises(OSError):
+                    self.files.undo_session(self.session)
+            self.assertEqual(path.read_text(), "edited")
+            self.assertEqual(list(path.parent.iterdir()), [path])
+            self.files.undo_session(self.session)
+            self.assertEqual(path.read_text(), "original")
+
     def test_write_then_undo_removes_a_new_file(self):
         p = self.home_file("new")
         self.files.fs_write({"path": str(p), "content": "new"}, None)
