@@ -303,7 +303,7 @@ source rollback do not replace a backup of personal data.
 
 ## Verification
 
-The November 18 image, built from [7422d07](https://github.com/Jitheswar/Amadeus/commit/7422d07), used the November 16 Arch repository snapshot. It booted
+The November 18 image, built from [b4e12a7](https://github.com/Jitheswar/Amadeus/commit/b4e12a7), used the November 16 Arch repository snapshot. It booted
 the Try desktop, installed onto an encrypted disk without internet access, and
 passed all **153 installed-system checks**. The guest reported 138 passes on first
 boot, 8 after rollback from the running system, and 7 after rescue from the ISO.
@@ -311,7 +311,10 @@ Both rollback tests booted the restored system. AI requests used a scripted loca
 model.
 
 The tested ISO has SHA-256
-`3ce8c0969a04b32df4ddb0fa3c633f29984c801b5b2bbd8e818b509c73fc6875`.
+`57a71bbbc78c5ee2b496d17893c14ce7a641878119dd7c650679cd105074d1fd`.
+Three additional UEFI boots supplied invalid values for `EXTRAS`, `PORTABLE` and
+`NVIDIA`, one per boot. Each run identified the invalid setting and preserved
+the checksum of the entire target disk.
 A separate UEFI test supplied an invalid encryption answer to the installer on
 [de94bcb](https://github.com/Jitheswar/Amadeus/commit/de94bcb) and verified that the entire target disk retained its original checksum.
 The earlier [24bc744 validation](https://github.com/Jitheswar/Amadeus/commit/24bc744)
