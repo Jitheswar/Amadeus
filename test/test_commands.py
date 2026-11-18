@@ -741,6 +741,16 @@ esac""")
         self.assertEqual([c[0] for c in self.calls_of("sudo")], ["snapper", "snapper", "amadeus-mirrors", "pacman"])
         self.assertEqual(self.calls_of("sudo")[-1], ["pacman", "-Syu"])
 
+    def test_unreachable_aur_reports_incomplete_update_and_runs_harness_stage(self):
+        self.stub("pacman", output="demo\n")
+        self.stub("curl", rc=22)
+        self.stub("amadeus-harness")
+        p = self.run_cmd("amadeus-update")
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn("applications from it were not checked", p.stderr)
+        self.assertIn("Retry with amadeus-aur update", p.stderr)
+        self.assertEqual(self.calls_of("amadeus-harness"), [["update"]])
+
     def test_update_in_the_try_session_skips_the_snapshot(self):
         marker = self.tmp / "try-session"
         marker.touch()

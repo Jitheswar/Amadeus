@@ -17,5 +17,13 @@ fi
 # Later updates skip it until the lists are a month old; a failed ranking keeps the old lists.
 sudo amadeus-mirrors
 sudo pacman -Syu
-amadeus-aur update
-amadeus-harness update
+failed=0
+if ! amadeus-aur update; then
+  echo "The AUR update did not finish. Retry with amadeus-aur update." >&2
+  failed=1
+fi
+if ! amadeus-harness update; then
+  echo "The harness update did not finish. Retry with amadeus-harness update." >&2
+  failed=1
+fi
+exit "$failed"
