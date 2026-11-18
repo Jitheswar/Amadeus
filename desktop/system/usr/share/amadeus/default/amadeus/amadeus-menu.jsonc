@@ -50,7 +50,7 @@
   "learn.bash": {"icon":"󱆃","label":"Bash","action":"amadeus-launch-webapp 'https://devhints.io/bash'"},
   "learn.tmux-keybindings": {"icon":"","label":"Tmux","action":"amadeus-menu-tmux-keybindings"},
   "learn.herdr-keybindings": {"icon":"","label":"Herdr","action":"amadeus-menu-herdr-keybindings"},
-  "learn.community": {"icon":"󰙯","label":"Community","action":"amadeus-launch-discord-community"},
+  "learn.community": {"icon":"","label":"Community","action":"amadeus-launch-webapp 'https://github.com/Jitheswar/Amadeus/issues'"},
 
   // Appearance
   "appearance.theme": {"icon":"󰸌","label":"Theme","aliases":["theme","themes"],"action":"amadeus-shell shell summon amadeus.image-picker '{\"source\":\"themes\"}'"},
