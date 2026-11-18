@@ -36,11 +36,15 @@ for f in files:
         except SyntaxError as e:
             bad(f"{f}: {e}")
 
-# 2. Every program describes itself on line 2 (ama discover shows that line).
+# 2. Every program describes itself in its first comment after the interpreter line, which is
+#    what ama discover shows ("# amadeus:summary=..." in the desktop system's commands).
+#    Fragments that are only sourced or read by another program are not programs.
 for f in scripts:
-    second = (open(f, errors="replace").read().splitlines() + ["", ""])[1]
-    if not re.match(r"#\s*\S.{15,}", second):
-        bad(f"{f}: line 2 must be a comment saying what the program does")
+    if not os.access(f, os.X_OK):
+        continue
+    first = next((l for l in open(f, errors="replace").read().splitlines()[1:8] if l.strip()), "")
+    if not re.match(r"#\s*\S.{15,}", first):
+        bad(f"{f}: the first line after the interpreter must be a comment saying what the program does")
 
 # 3. Command naming.
 for d in ("desktop/bin", "iso/live"):

@@ -1,4 +1,5 @@
 #!/bin/bash
+# List the images (and video wallpapers) in the given folders for the image picker, with cached thumbnails.
 
 image_dirs=${1:-}
 cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/amadeus/image-selector

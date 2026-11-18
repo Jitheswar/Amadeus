@@ -1,4 +1,5 @@
 #!/bin/bash
+# Print the desktop entries the app launcher should hide for the current desktop.
 
 desktop_names=${1:-}
 

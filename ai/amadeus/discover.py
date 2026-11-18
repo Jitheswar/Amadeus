@@ -25,7 +25,8 @@ def _purpose(path):
     for line in lines:
         s = line.strip()
         if s.startswith("#") and len(s) > 2 and not s.startswith("#!"):
-            return s.lstrip("# ").rstrip()
+            # The desktop system's commands label it: "# amadeus:summary=What it does".
+            return s.lstrip("# ").removeprefix("amadeus:summary=").rstrip()
         if s.startswith('"""'):
             return s.strip('"').strip()
     return ""

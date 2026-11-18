@@ -1,4 +1,5 @@
 #!/bin/bash
+# Run any desktop system command by its words: `amadeus theme set NAME` runs amadeus-theme-set NAME.
 
 set -o pipefail
 

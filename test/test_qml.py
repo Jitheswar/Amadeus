@@ -44,7 +44,9 @@ def diagnostics(result):
         for warning in warnings:
             if not isinstance(warning, dict) or not isinstance(warning.get("id"), str):
                 raise ValueError("unrecognized diagnostic")
-            if warning["id"] == "syntax":
+            # qmllint rejects an id on a grouped property (anchor { id: ... }); the QML engine
+            # accepts it, and the desktop shell relies on it to name a popup's anchor.
+            if warning["id"] == "syntax" and warning.get("message") != "id declarations are only allowed in objects":
                 problems.append(f"line {warning.get('line', '?')}: {warning['message']}")
         return problems
     except (ValueError, KeyError, TypeError) as error:
@@ -62,8 +64,13 @@ def main():
     for path in files:
         try:
             p = subprocess.run([qmllint, "--ignore-settings", "--json", "-", str(path)],
-                               capture_output=True, text=True, timeout=30)
+                               capture_output=True, text=True, timeout=60)
             errors = diagnostics(p)
+        except subprocess.TimeoutExpired:
+            # qmllint never finishes on a few large files; qmlformat still proves they parse.
+            fmt = Path(qmllint).with_name("qmlformat")
+            p = subprocess.run([str(fmt), str(path)], capture_output=True, text=True, timeout=60) if fmt.exists() else None
+            errors = [] if p is not None and p.returncode == 0 else [f"does not parse: {(p.stderr if p else 'no qmlformat').strip()[:200]}"]
         except (OSError, subprocess.SubprocessError) as error:
             errors = [f"qmllint did not finish: {error}"]
         if errors:

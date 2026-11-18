@@ -39,7 +39,9 @@ bindings) into prose. Point to the file or the command that produces it.
 
 **Bash**
 - `#!/bin/bash`. Line 2 is a comment saying what the program does in one sentence:
-  `ama discover` shows that line to users and agents as the program's description.
+  `ama discover` shows that line to users and agents as the program's description. The
+  commands in `desktop/system/` keep their own header form, `# amadeus:summary=...`, which
+  `ama discover` reads the same way.
 - `set -euo pipefail` in anything that changes the system.
   With pipefail, never end a pipeline in `grep -q` or `head`: they stop reading early and
   the pipeline then fails although the match was found. Use `grep ... >/dev/null`, or read
