@@ -48,21 +48,15 @@ ShellRoot {
     }
     function providerRequest(method, params) {
         const id = send(method, params || {})
-        const requests = Object.assign({}, byRequest)
-        requests[id] = { kind: "providers" }
-        byRequest = requests
+        byRequest[id] = { kind: "providers" }
     }
     function taskRequest(method, params) {
         const id = send(method, params || {})
-        const requests = Object.assign({}, byRequest)
-        requests[id] = { kind: method === "tasks" ? "tasks" : "taskConfig" }
-        byRequest = requests
+        byRequest[id] = { kind: method === "tasks" ? "tasks" : "taskConfig" }
     }
     function goalRequest(method, params) {
         const id = send(method, params || {})
-        const requests = Object.assign({}, byRequest)
-        requests[id] = { kind: "goals" }
-        byRequest = requests
+        byRequest[id] = { kind: "goals" }
         return id
     }
     // A goal is worked on in the background, round by round, and reports in Tasks.
@@ -82,7 +76,7 @@ ShellRoot {
         setTask(t, {session: "", running: true, stopped: false, steps: 0, changed: 0, showSteps: false, provider: name, providerLabel: info.label || name})
         add(t, "task", job.label)
         const rid = send("task_run", {id: job.id, interactive: true})
-        const requests = Object.assign({}, byRequest); requests[rid] = {kind: "ask", task: t}; byRequest = requests
+        byRequest[rid] = { task: t, kind: "ask" }
     }
     function refreshProviders() { if (sock.connected) providerRequest("providers", {}) }
     function chooseProvider(name) {
@@ -128,7 +122,7 @@ ShellRoot {
         setTask(t, { running: true, stopped: false, provider: selectedProvider, mode: mode,
                      providerLabel: (selectedInfo.label || selectedProvider) + " · " + modes.find(m => m.key === mode).label })
         const rid = send("ask", { prompt: prompt, session: tasks[t].session, interactive: true, provider: selectedProvider, options: options })
-        const m = Object.assign({}, byRequest); m[rid] = { task: t, kind: "ask" }; byRequest = m
+        byRequest[rid] = { task: t, kind: "ask" }
         if (providerOverride) { selectedProvider = defaultProvider; providerOverride = false }
         tune = null; mode = savedMode; confirmFull = false
     }
@@ -142,7 +136,7 @@ ShellRoot {
     function stopAll() { for (const k in tasks) if (tasks[k].running) stop(k) }
     function undo(t) {
         const rid = send("undo", { session: tasks[t].session })
-        const m = Object.assign({}, byRequest); m[rid] = { task: t, kind: "undo" }; byRequest = m
+        byRequest[rid] = { task: t, kind: "undo" }
     }
     function decide(index, aid, d) {
         send("approve", { aid: aid, decision: d })
@@ -152,6 +146,7 @@ ShellRoot {
     function handle(m) {
         const r = byRequest[m.id]
         if (!r) return
+        if (m.result !== undefined || m.error !== undefined) delete byRequest[m.id]
         if (r.kind === "providers") {
             if (m.error) settingsMessage = m.error
             else if (m.result) {
