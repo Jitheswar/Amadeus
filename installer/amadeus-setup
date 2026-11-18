@@ -117,9 +117,13 @@ line=$(lsblk -dpno NAME,SIZE,MODEL,TRAN | grep -vE '^/dev/(loop|sr|zram)' | grep
        awk '{ name = $1; size = $2; $1 = $2 = ""; printf "%-14s %8s  %s\n", name, size, $0 }' |
        gum choose --height 8 --header "  Install on which disk? Everything on it will be erased.") || exit 1
 DISK=${line%% *}
-ENCRYPT=yes
-gum confirm --default=yes --affirmative "Encrypt" --negative "Do not encrypt" \
-  "  Encrypt the disk? Recommended: without the password nobody can read it, even with the disk in hand." || ENCRYPT=no
+encryption=$(gum choose --header "  Protect the contents of this disk with your password?" \
+  "Encrypt the disk (recommended)" "Leave the disk unencrypted") || exit 1
+case $encryption in
+  "Encrypt the disk (recommended)") ENCRYPT=yes ;;
+  "Leave the disk unencrypted") ENCRYPT=no ;;
+  *) exit 1 ;;
+esac
 
 # ---- applications
 screen 6 "Optional extras"
@@ -127,10 +131,14 @@ note "The base desktop and default apps are installed either way, including btop
      "Steam and chat clients are available later from Gaming and Chat in the Amadeus menu." \
      "Claude Desktop is optional under Install > AI; Claude Code is under Install > Harness."
 echo
-EXTRAS=yes
-gum confirm --default=yes --affirmative "Include them" --negative "Leave them out" \
-  "  Add the optional extras: Brave Origin, herdr and LocalSend?" \
-  "  These publisher releases are packaged through AUR recipes." || EXTRAS=no
+note "Brave Origin, herdr and LocalSend are packaged from their publishers' releases."
+extras=$(gum choose --header "  Install Brave Origin, herdr and LocalSend?" \
+  "Include them" "Leave them out") || exit 1
+case $extras in
+  "Include them") EXTRAS=yes ;;
+  "Leave them out") EXTRAS=no ;;
+  *) exit 1 ;;
+esac
 
 # ---- summary
 screen 7 "Ready"
