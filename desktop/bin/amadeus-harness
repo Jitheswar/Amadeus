@@ -66,7 +66,7 @@ case ${1:-} in
       mise unuse --global "$name" 2>/dev/null || true
       mise uninstall --all "$name" && echo "Removed $(label "$name")."
     done ;;
-  update) mise upgrade ;;
+  update) MISE_MINIMUM_RELEASE_AGE=0 mise upgrade ;;
   run)
     name=${2:-$(amadeus-default harness)}
     [[ -n $name ]] || { echo "No default harness is set. Choose one: Super+Space, Defaults, Harness."; exit 1; }

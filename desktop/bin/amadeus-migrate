@@ -1,0 +1,34 @@
+#!/bin/bash
+# Apply the settings changes that came with updated packages, each once for this user.
+#   amadeus-migrate              run the ones not yet run (amadeus-update does this)
+#   amadeus-migrate --pending    list them; fails when there are none
+#   amadeus-migrate --mark-all   record every one as done without running it (a fresh install is current)
+# A migration is a script in /usr/share/amadeus-os/migrations, named by the time it was written, so
+# they run in order. One that fails stops the rest and runs again next time.
+set -euo pipefail
+dir=${AMADEUS_MIGRATIONS:-/usr/share/amadeus-os/migrations}
+done_dir=${XDG_STATE_HOME:-$HOME/.local/state}/amadeus/migrations
+
+pending() {
+  local f
+  for f in "$dir"/*.sh; do
+    [[ -f $f && ! -e $done_dir/$(basename "$f") ]] && basename "$f"
+  done
+  return 0
+}
+
+case ${1:-} in
+  --pending) list=$(pending); [[ -n $list ]] && echo "$list" ;;
+  --mark-all) mkdir -p "$done_dir"; for n in $(pending); do touch "$done_dir/$n"; done ;;
+  "")
+    # A migration written against the new packages must not run while pacman is still installing them.
+    for _ in {1..900}; do [[ -e /var/lib/pacman/db.lck ]] || break; sleep 1; done
+    [[ ! -e /var/lib/pacman/db.lck ]] || { echo "A package transaction is still running; the changes will be applied next time."; exit 0; }
+    mkdir -p "$done_dir"
+    for n in $(pending); do
+      echo "Applying: $(sed -n 's/^# //p;q' "$dir/$n")"
+      bash -euo pipefail "$dir/$n"
+      touch "$done_dir/$n"
+    done ;;
+  *) sed -n 2,7p "$0"; exit 1 ;;
+esac

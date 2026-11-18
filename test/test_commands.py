@@ -771,21 +771,37 @@ esac''')
         self.assertEqual(self.calls_of("git"), [])
 
     # ---- updating ------------------------------------------------------------
-    def test_update_takes_a_snapshot_first(self):
+    UPDATE_ENV = {"AMADEUS_UPDATE_LOGGED": "1", "AMADEUS_UPDATE_AWAKE": "1", "AMADEUS_UPDATE_FORCE": "1"}
+
+    def test_update_prunes_the_cache_then_snapshots_then_updates_keys_and_packages(self):
         self.stub("amadeus-aur")
         self.stub("amadeus-harness")
         self.stub("amadeus-mirrors")
-        p = self.run_cmd("amadeus-update")
+        p = self.run_cmd("amadeus-update", "-y", env=self.UPDATE_ENV)
         self.assert_ok(p)
         self.assertIn("Snapshot taken", p.stdout)
-        self.assertEqual([c[0] for c in self.calls_of("sudo")], ["snapper", "snapper", "amadeus-mirrors", "pacman"])
-        self.assertEqual(self.calls_of("sudo")[-1], ["pacman", "-Syu"])
+        self.assertEqual([c[0] for c in self.calls_of("sudo")], ["true", "paccache", "snapper", "snapper", "amadeus-mirrors", "pacman", "pacman"])
+        self.assertEqual(self.calls_of("sudo")[1], ["paccache", "-rk2"])
+        self.assertEqual(self.calls_of("sudo")[5], ["pacman", "-Sy", "--needed", "--noconfirm", "archlinux-keyring", "cachyos-keyring"])
+        self.assertEqual(self.calls_of("sudo")[-1], ["pacman", "-Su", "--noconfirm"])
+
+    def test_update_removes_orphans_and_runs_new_migrations_once(self):
+        for n in ("amadeus-aur", "amadeus-harness", "amadeus-mirrors"): self.stub(n)
+        self.stub("pacman", body='[[ $1 == -Qtdq ]] && echo old-dep; true')
+        migrations = self.tmp / "migrations"; migrations.mkdir()
+        (migrations / "1.sh").write_text(f"# First change\necho ran >>{self.tmp}/ran\n")
+        env = dict(self.UPDATE_ENV, AMADEUS_MIGRATIONS=str(migrations))
+        self.assert_ok(self.run_cmd("amadeus-update", "-y", env=env))
+        self.assertIn(["pacman", "-Rns", "--noconfirm", "old-dep"], self.calls_of("sudo"))
+        self.assert_ok(self.run_cmd("amadeus-update", "-y", env=env))
+        self.assertEqual((self.tmp / "ran").read_text(), "ran\n")
+        self.assertNotEqual(self.run_cmd("amadeus-migrate", "--pending", env=env).returncode, 0)
 
     def test_unreachable_aur_reports_incomplete_update_and_runs_harness_stage(self):
         self.stub("pacman", output="demo\n")
         self.stub("curl", rc=22)
         self.stub("amadeus-harness")
-        p = self.run_cmd("amadeus-update")
+        p = self.run_cmd("amadeus-update", "-y", env=self.UPDATE_ENV)
         self.assertNotEqual(p.returncode, 0)
         self.assertIn("applications from it were not checked", p.stderr)
         self.assertIn("Retry with amadeus-aur update", p.stderr)
@@ -797,10 +813,10 @@ esac''')
         self.stub("amadeus-aur")
         self.stub("amadeus-harness")
         self.stub("amadeus-mirrors")
-        p = self.run_cmd("amadeus-update", env={"AMADEUS_TRY_MARKER": str(marker)})
+        p = self.run_cmd("amadeus-update", "-y", env=dict(self.UPDATE_ENV, AMADEUS_TRY_MARKER=str(marker)))
         self.assert_ok(p)
         self.assertIn("Try session", p.stdout)
-        self.assertEqual(self.calls_of("sudo"), [["amadeus-mirrors"], ["pacman", "-Syu"]])
+        self.assertNotIn("snapper", [c[0] for c in self.calls_of("sudo")])
 
     # ---- mirrors -------------------------------------------------------------
     def mirror_stubs(self, arch=("arch.example",)):
@@ -974,24 +990,19 @@ esac""")
         self.assertNotIn("Hibernate", sent.read_text())
 
     # ---- the update command -------------------------------------------------
-    def test_update_snapshots_first_then_updates_packages_and_tools(self):
+    def test_update_snapshot_is_numbered_and_tools_update_last(self):
         self.stub("amadeus-aur")
         self.stub("amadeus-harness")
-        p = self.run_cmd("amadeus-update")
+        p = self.run_cmd("amadeus-update", "-y", env=self.UPDATE_ENV)
         self.assert_ok(p)
         sudo = self.calls_of("sudo")
-        self.assertEqual([c[0] for c in sudo], ["snapper", "snapper", "amadeus-mirrors", "pacman"])
-        self.assertEqual(sudo[0][:7], ["snapper", "-c", "root", "create", "--cleanup-algorithm", "number", "--description"])
-        self.assertEqual(len(sudo[0]), 8)
-        self.assertTrue(sudo[0][7].startswith("before update "))
-        self.assertEqual(sudo[1], ["snapper", "-c", "root", "cleanup", "number"])
-        self.assertEqual(sudo[2], ["amadeus-mirrors"])
-        self.assertEqual(sudo[3], ["pacman", "-Syu"])
-        self.assertEqual(self.calls_of("amadeus-aur"), [["update"]])
-        self.assertEqual(self.calls_of("amadeus-harness"), [["update"]])
-        calls = [line.split("\t") for line in self.calls.read_text().splitlines()]
-        self.assertEqual(calls, [["sudo", *sudo[0]], ["sudo", *sudo[1]], ["sudo", *sudo[2]], ["sudo", *sudo[3]],
-                                 ["amadeus-aur", "update"], ["amadeus-harness", "update"]])
+        snap = next(c for c in sudo if c[0] == "snapper")
+        self.assertEqual(snap[:7], ["snapper", "-c", "root", "create", "--cleanup-algorithm", "number", "--description"])
+        self.assertTrue(snap[7].startswith("before update "))
+        self.assertIn(["snapper", "-c", "root", "cleanup", "number"], sudo)
+        names = [line.split("\t")[0] for line in self.calls.read_text().splitlines()]
+        self.assertEqual(names[-2:], ["amadeus-aur", "amadeus-harness"])
+
     def test_install_menu_fetches_missing_package_lists(self):
         # Without a sync database the menu cannot show anything; it should offer to fetch them.
         self.stub("pacman", rc=1)

@@ -291,8 +291,21 @@ verification remains enabled.
 
 ## Updates and recovery
 
-Run `amadeus-update` as your user. It takes a system snapshot before updating, ranks
-mirrors when due, and updates repository packages, AUR apps and mise-managed tools.
+Run `amadeus-update` as your user. It asks for your password once, keeps the computer
+awake, and logs everything to `~/.local/state/amadeus/update.log`. In order, it:
+
+1. checks there are 10 GB free, then trims the package cache to the last two versions;
+2. takes a system snapshot;
+3. ranks mirrors when due and refreshes the signing keys;
+4. updates the system packages;
+5. applies any settings changes that came with them (`amadeus-migrate`), once each;
+6. removes packages nothing needs any more;
+7. installs drivers the hardware needs but does not have (`amadeus-hardware`);
+8. updates AUR apps and mise-managed tools;
+9. offers a restart when the kernel changed.
+
+`amadeus-update -y` asks nothing. `amadeus-update firmware` updates device firmware
+(BIOS, docks, drives) through fwupd.
 Number-based cleanup is configured to retain the newest five snapshots. The temporary
 Try session takes no system snapshot because its changes disappear on restart.
 

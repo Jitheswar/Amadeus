@@ -1,0 +1,5 @@
+# System-wide mise settings for Amadeus OS. Your own ~/.config/mise/config.toml overrides them.
+[settings]
+# An upgrade must not delete the version a running program is executing from:
+# `mise up` would otherwise prune the old install out from under an open session.
+upgrade.auto_prune = false
