@@ -117,6 +117,7 @@ t "web app address keeps its percent signs"    bash -c 'as amadeus-webapp instal
 t "clipboard history records copies"           bash -c 'echo amadeus-clip-test | as wl-copy >/dev/null 2>&1; sleep 1; as cliphist list | grep -q amadeus-clip-test'
 t "system menu and about are present"          bash -c 'test -x /usr/bin/amadeus-power-menu && as fastfetch | grep -q "Amadeus OS"'
 t "GPU choice is offered only where there is one" bash -c '[[ $(as amadeus-gpu) == one ]] && ! as amadeus-gpu set nvidia >/dev/null 2>&1 && test -e /dev/dri/intel-card -o -z "$(ls /sys/bus/pci/drivers/i915 2>/dev/null)"'
+t "hardware detection sees the VM and nothing it needs is missing" bash -c 'amadeus-hardware has vm && [[ -z $(amadeus-hardware missing) ]]'
 t "GPU wrapper sets the offload variables"      bash -c 'as amadeus-gpu-run env | grep -q "^__NV_PRIME_RENDER_OFFLOAD=1$" && as amadeus-gpu-run env | grep -q "^__GLX_VENDOR_LIBRARY_NAME=nvidia$" && as amadeus-gpu-run env | grep -q "^__VK_LAYER_NV_optimus=NVIDIA_only$"'
 t "desktop config has no errors"             bash -c '[[ -z $(as hyprctl configerrors | tr -d "[:space:]") ]]'
 t "every shortcut has a description"           bash -c 'as hyprctl -j binds | python3 -c "import json,sys; b=json.load(sys.stdin); missing=[x[\"key\"] for x in b if not x[\"mouse\"] and not x[\"description\"]]; print(missing); assert len(b) > 40 and not missing"'

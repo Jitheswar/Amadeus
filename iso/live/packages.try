@@ -7,6 +7,9 @@ pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber rtkit alsa-utils
 curl reflector zram-generator
 # Building AUR recipes from the Install menu, as the installed system can.
 base-devel fakeroot debugedit
+# Graphics for whatever computer the medium starts on: Intel and AMD through Mesa's Vulkan and
+# video drivers, NVIDIA through Arch's nvidia-open for the live kernel.
+vulkan-intel vulkan-radeon intel-media-driver libva-intel-driver
 nvidia-open nvidia-utils libva-nvidia-driver
 # Default applications are read directly from installer/packages.apps.
 amadeus amadeus-desktop

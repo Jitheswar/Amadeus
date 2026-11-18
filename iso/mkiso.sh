@@ -55,11 +55,15 @@ pacman-key --populate cachyos >/dev/null 2>&1
   for r in cachyos-v3 cachyos-core-v3 cachyos-extra-v3; do printf '[%s]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n' $r; done
   printf '[cachyos]\nInclude = /etc/pacman.d/cachyos-mirrorlist\n'
   for r in core extra multilib; do printf '[%s]\nInclude = /etc/pacman.d/mirrorlist\n' $r; done
+  # The hardware and the T2 repository, last, for the device support only they carry: the medium
+  # holds every driver, so no computer needs the internet to get its own.
+  AMADEUS_HARDWARE_SHARE=$SRC/desktop/hardware bash $SRC/desktop/bin/amadeus-hardware --with framework16 --with mac-t2 repos
 } >/tmp/offline.conf
+AMADEUS_HARDWARE_SHARE=$SRC/desktop/hardware bash $SRC/desktop/bin/amadeus-hardware trust / --always
 pc=(pacman --config /tmp/offline.conf --root $ROOT --dbpath $ROOT/db --noconfirm)
 "${pc[@]}" -Sy >/dev/null
 # shellcheck disable=SC2046
-want=$(grep -hv '^#' $SRC/installer/packages.{base,desktop,apps,nvidia,extras} | tr '\n' ' ')
+want=$(grep -hv '^#' $SRC/installer/packages.{base,desktop,apps,extras} | tr '\n' ' ')
 local_pkgs=$(ls $REPO/*.pkg.tar.zst | grep -vE '/cachyos-(keyring|mirrorlist|v3-mirrorlist)-' || true)
 # Keep downloads across container exits. Only packages selected by this transaction
 # enter the image, even if older versions remain in the builder's cache.
@@ -69,6 +73,17 @@ mkdir -p "$cache"
 "${pc[@]}" -Sp --print-format '%f' $want >/tmp/package-files
 # shellcheck disable=SC2086
 "${pc[@]}" -Up --print-format '%f' $local_pkgs >>/tmp/package-files
+# Every driver amadeus-hardware may choose, one hardware line at a time: the two NVIDIA branches
+# conflict, so they cannot be resolved together, and the medium carries both for whatever
+# computer it meets, including what comes from the hardware or the T2 repository.
+hwsets=()
+while IFS=$'\t' read -r _ line; do
+  plain=$(tr ' ' '\n' <<<"$line" | sed 's/^[a-z0-9]*://' | tr '\n' ' ')
+  [[ -n ${plain// } ]] || continue
+  # shellcheck disable=SC2086
+  "${pc[@]}" -Sp --print-format '%f' $plain >>/tmp/package-files
+  hwsets+=("$plain")
+done < <(grep -v '^#' $SRC/desktop/hardware/packages.list | grep $'\t')
 # pacman prints absolute paths for local inputs. Those ship in amadeus-repo.
 sed -i '\|^/|d' /tmp/package-files
 sort -u -o /tmp/package-files /tmp/package-files
@@ -86,6 +101,10 @@ while IFS= read -r f; do
 done </tmp/package-files
 # shellcheck disable=SC2086
 "${pc[@]}" --cachedir "$cache" -Sw $want >/dev/null || { echo "   could not collect the packages in the package lists"; exit 1; }
+for set in "${hwsets[@]}"; do
+  # shellcheck disable=SC2086
+  "${pc[@]}" --cachedir "$cache" -Sw $set >/dev/null || { echo "   could not collect the hardware packages: $set"; exit 1; }
+done
 # shellcheck disable=SC2086
 "${pc[@]}" --cachedir "$cache" -Uw $local_pkgs >/dev/null || { echo "   could not collect what the bundled applications need"; exit 1; }
 while IFS= read -r f; do

@@ -1,0 +1,401 @@
+#!/bin/bash
+# Detect this computer's hardware and set up the drivers, firmware and fixes it needs.
+#   amadeus-hardware                 what was detected, one name per line
+#   amadeus-hardware has NAME        succeed when NAME is detected
+#   amadeus-hardware packages        the packages the detected hardware needs
+#   amadeus-hardware missing         those of them that are not installed
+#   amadeus-hardware cmdline         kernel options the detected hardware needs
+#   amadeus-hardware repos           pacman.conf sections for the extra repositories it needs
+#   amadeus-hardware trust [ROOT]    add the signing key those repositories need to ROOT's keyring
+#   amadeus-hardware apply [ROOT]    write the system settings into ROOT (default /)
+#   amadeus-hardware setup           install what is missing and apply, on this system (asks for your password)
+#   amadeus-hardware user            the per-user fixes, once per user (the desktop runs this at login)
+# --portable (for a system on a USB drive) detects every maker's processor, graphics and Wi-Fi
+# instead, and no model-specific fix. --with NAME and --without NAME add or drop one name.
+# Detection reads sysfs, never lspci on an NVIDIA card, so a sleeping graphics card stays asleep.
+set -euo pipefail
+SHARE=${AMADEUS_HARDWARE_SHARE:-/usr/share/amadeus-os/hardware}
+SYS=${AMADEUS_HW_SYS:-/sys}
+PROC=${AMADEUS_HW_PROC:-/proc}
+HW_REPO_KEY=40DFB630FF42BCFFB047046CF0134EE680CAC571
+PORTABLE_NAMES="cpu-intel cpu-amd gpu-intel gpu-intel-media gpu-amd gpu-nvidia wifi"
+
+# ---- reading the hardware ------------------------------------------------------
+rd() { cat "$1" 2>/dev/null || true; }
+dmi() { rd "$SYS/class/dmi/id/$1"; }
+model_is() { grep -qi -- "$1" <<<"$(dmi product_name)$(printf '\n')$(dmi product_family)"; }
+pci_ids() {  # "vendor device class" per PCI device, as 0x-prefixed hex
+  local d
+  for d in "$SYS"/bus/pci/devices/*; do
+    [[ -r $d/vendor ]] && printf '%s %s %s\n' "$(rd "$d/vendor")" "$(rd "$d/device")" "$(rd "$d/class")"
+  done
+}
+pci_has() { awk -v v="$1" -v d="${2:-}" '$1 == v && (d == "" || $2 == d) {f = 1} END {exit !f}' <<<"$PCI"; }
+pci_class() { awk -v v="$1" -v c="$2" '($1 == v || v == "") && index($3, c) == 1 {f = 1} END {exit !f}' <<<"$PCI"; }
+gpu_ids() { awk -v v="$1" 'index($3, "0x03") == 1 && $1 == v {print $2}' <<<"$PCI"; }
+cpu_vendor() { awk -F': *' '/^vendor_id/ {print $2; exit}' "$PROC/cpuinfo" 2>/dev/null || true; }
+cpu_model() { awk -F': *' '/^model[[:space:]]*:/ {print $2; exit}' "$PROC/cpuinfo" 2>/dev/null || true; }
+battery() { compgen -G "$SYS/class/power_supply/BAT*" >/dev/null; }
+# Intel graphics are named by generation only in the PCI ID database. Reading an Intel
+# device's configuration never touches an NVIDIA card.
+intel_gpu_names() { command -v lspci >/dev/null && lspci -d 8086::0300 2>/dev/null; command -v lspci >/dev/null && lspci -d 8086::0380 2>/dev/null; true; }
+
+detect() {
+  local id c m names=()
+  PCI=$(pci_ids)
+  c=$(cpu_vendor); m=$(cpu_model); m=${m:-0}
+  [[ $c == GenuineIntel ]] && names+=(cpu-intel)
+  [[ $c == AuthenticAMD ]] && names+=(cpu-amd)
+
+  if [[ -n $(gpu_ids 0x8086) ]]; then
+    names+=(gpu-intel)
+    local intel; intel=$(intel_gpu_names | tr '[:upper:]' '[:lower:]')
+    # HD/UHD/Iris/Xe/Arc and the newer chips named only "Intel Graphics" use the media driver;
+    # GMA, from 2008 to the mid-2010s, uses the older VA-API driver.
+    if [[ $intel =~ (hd\ graphics|uhd\ graphics|xe|iris|arc|panther\ lake|\[intel\ graphics) || -z $intel ]]; then names+=(gpu-intel-media)
+    elif [[ $intel =~ gma ]]; then names+=(gpu-intel-gma); fi
+    [[ $intel =~ panther\ lake ]] && names+=(intel-ptl)
+  fi
+  [[ -n $(gpu_ids 0x1002) ]] && names+=(gpu-amd)
+  # GSP firmware arrived with Turing, where device IDs cross 0x1e00. Maxwell starts at 0x1340;
+  # anything older needs a legacy driver no repository packages.
+  for id in $(gpu_ids 0x10de); do
+    if (( id >= 0x1e00 )); then names+=(gpu-nvidia)
+    elif (( id >= 0x1340 )); then names+=(gpu-nvidia-legacy); fi
+  done
+  (( $(awk 'index($3, "0x03") == 1' <<<"$PCI" | wc -l) >= 2 )) && names+=(gpu-hybrid)
+
+  { pci_class "" 0x0280 || compgen -G "$SYS/class/net/*/wireless" >/dev/null; } && names+=(wifi)
+  { pci_has 0x14e4 0x43a0 || pci_has 0x14e4 0x4331; } && names+=(wifi-broadcom-wl)
+  { pci_has 0x8086 0xe440 || pci_has 0x8086 0x272b; } && names+=(intel-wifi7-eht)
+
+  if [[ $c == GenuineIntel ]]; then
+    (( m >= 42 )) && battery && names+=(intel-thermald)
+    [[ $m =~ ^(151|154|170|172|183|186|189|191|204)$ ]] && battery && names+=(intel-lpmd)
+  fi
+  { pci_class 0x8086 0x0401 || pci_class 0x8086 0x0403; } && names+=(intel-sof)
+  grep -qs OVTI08F4 "$SYS"/bus/acpi/devices/*/hid && names+=(intel-ipu7-camera)
+
+  local vendor product sku
+  vendor=$(dmi sys_vendor); product=$(dmi product_name); sku=$(dmi product_sku)
+  if [[ $vendor == "ASUSTeK COMPUTER INC." && $(dmi product_family) == *ROG* ]]; then
+    names+=(asus-rog)
+    model_is GZ302 && names+=(asus-z13)
+  fi
+  [[ " ${names[*]} " == *" intel-ptl "* ]] && model_is B9406 && names+=(asus-b9406)
+  [[ " ${names[*]} " == *" intel-ptl "* ]] && model_is UX5406AA && names+=(asus-ux5406aa)
+  [[ $vendor == Framework ]] && model_is "Laptop 16" && names+=(framework16)
+  [[ $vendor == "Microsoft Corporation" ]] && model_is Surface && names+=(surface)
+  grep -qiE 'TUXEDO|Slimbook' <<<"$vendor" && names+=(tuxedo)
+  model_is XPS && [[ -e $SYS/bus/i2c/devices/i2c-VEN_06CB:00 ]] && names+=(dell-xps-haptic-touchpad)
+  if model_is DX13260 && [[ " ${names[*]} " == *" intel-ptl "* ]]; then names+=(dell-xps13-dx13260); fi
+  model_is DX13260 && [[ ${sku,,} == 0e53 ]] && names+=(dell-xps13-sidecar-amps)
+  [[ ${sku,,} == 0db9 || ${sku,,} == 0dba ]] && names+=(speaker-tuning)
+  model_is "Yoga Pro 7 14IAH10" && names+=(lenovo-yoga-pro7)
+  model_is "G15 5530" && names+=(dell-g15-touchpad)
+  grep -qsx "Cam Link 4K" "$SYS"/bus/usb/devices/*/product && names+=(elgato-camlink-4k)
+
+  if pci_has 0x106b 0x1801 || pci_has 0x106b 0x1802; then names+=(mac-t2); fi
+  [[ $product =~ MacBook[89],1|MacBook1[02],1|MacBookPro13,[123]|MacBookPro14,[123] ]] && names+=(mac-spi-keyboard)
+  [[ $product =~ MacBook(8,1|9,1|10,1)|MacBookPro13,[123]|MacBookPro14,[123] ]] && names+=(mac-nvme-suspend)
+  # Broadcom's firmware supplicant fails the WPA handshake on Macs, seen as a rejected password.
+  if [[ " ${names[*]} " == *" mac-t2 "* ]] || { [[ $vendor == Apple* ]] && grep -qE '^0x14e4 0x(43ba|43bb|43bc|43a3|43dc|4464|4488|4425|4433) ' <<<"$PCI"; }; then
+    names+=(mac-broadcom-wifi)
+  fi
+  systemd-detect-virt --vm --quiet 2>/dev/null && names+=(vm)
+  printf '%s\n' "${names[@]}"
+}
+
+# ---- options -----------------------------------------------------------------
+portable=no with=() without=()
+args=()
+while (( $# )); do
+  case $1 in
+    --portable) portable=yes ;;
+    --with) with+=("$2"); shift ;;
+    --without) without+=("$2"); shift ;;
+    *) args+=("$1") ;;
+  esac
+  shift
+done
+set -- "${args[@]+"${args[@]}"}"
+
+NAMES=
+names() {
+  [[ -n $NAMES ]] && { echo "$NAMES"; return; }
+  local n out
+  if [[ $portable == yes ]]; then
+    # Every maker's basics, never a model's fix, and never the 580xx branch beside the current one.
+    out=$(printf '%s\n' $PORTABLE_NAMES; detect | grep -x vm || true)
+  else
+    out=$(detect)
+  fi
+  for n in "${with[@]+"${with[@]}"}"; do out+=$'\n'$n; done
+  # The two NVIDIA branches cannot be installed together; the newer one wins.
+  grep -qx gpu-nvidia <<<"$out" && out=$(grep -vx gpu-nvidia-legacy <<<"$out")
+  for n in "${without[@]+"${without[@]}"}"; do out=$(grep -vx -- "$n" <<<"$out" || true); done
+  NAMES=$(sort -u <<<"$out" | grep . || true)
+  echo "$NAMES"
+}
+has() { grep -x -- "$1" <<<"$(names)" >/dev/null; }
+
+packages() {  # with source prefixes; --plain drops the prefixes
+  local list; list=$(names)
+  awk -F'\t' 'NR == FNR {want[$1] = 1; next} !/^#/ && NF == 2 && want[$1] {print $2}' <(printf '%s\n' "$list") "$SHARE/packages.list" |
+    tr ' ' '\n' | grep . | awk '!seen[$0]++' | if [[ ${1:-} == --plain ]]; then sed 's/^[a-z0-9]*://'; else cat; fi
+}
+
+cmdline() {
+  local opts=()
+  has intel-ptl && opts+=(fred=on)
+  has asus-b9406 && opts+=(xe.enable_panel_replay=0)
+  { has asus-b9406 || has asus-ux5406aa; } && opts+=(xe.enable_dpcd_backlight=1)
+  has mac-t2 && opts+=(intel_iommu=on iommu=pt pm_async=off mem_sleep_default=deep)
+  echo "${opts[*]+"${opts[*]}"}"
+}
+
+repos() {
+  local p; p=$(packages)
+  if grep -q '^hw:' <<<"$p"; then
+    # The hardware repository, after every other one, so it only supplies what nothing else has.
+    printf '\n[omarchy]\nSigLevel = Required DatabaseOptional\nServer = https://pkgs.omarchy.org/stable/$arch\n'
+  fi
+  if grep -q '^t2:' <<<"$p"; then
+    # The T2 project publishes this repository unsigned; it is added only on T2 Macs.
+    printf '\n[arch-mact2]\nSigLevel = Never\nServer = https://github.com/NoaHimesaka1873/arch-mact2-mirror/releases/download/release\n'
+  fi
+}
+
+# ---- system settings ---------------------------------------------------------
+put() {  # ROOT-relative path, mode, content on stdin
+  install -Dm"$2" /dev/stdin "$R$1"
+}
+apply() {
+  R=${1:-}; [[ $R == / ]] && R=
+  local list; list=$(names)
+  in_list() { grep -qx -- "$1" <<<"$list"; }
+  in_root() { if [[ -z $R ]]; then "$@"; else arch-chroot "$R" "$@"; fi; }
+  enable() { systemctl --root="${R:-/}" enable "$@" >/dev/null 2>&1 || echo "  (could not enable $*)"; }
+
+  if in_list gpu-nvidia || in_list gpu-nvidia-legacy; then
+    install -Dm644 "$SHARE/nvidia.conf" "$R/etc/modprobe.d/nvidia.conf"
+    install -Dm644 "$SHARE/80-nvidia-pm.rules" "$R/etc/udev/rules.d/80-nvidia-pm.rules"
+    # nvidia-powerd (Dynamic Boost) exits by itself where the firmware does not support it.
+    systemctl --root="${R:-/}" enable nvidia-suspend nvidia-resume nvidia-hibernate nvidia-powerd >/dev/null 2>&1 || true
+  fi
+  in_list intel-thermald && enable thermald.service
+  in_list intel-lpmd && enable intel_lpmd.service
+
+  if in_list wifi && [[ -f $R/etc/conf.d/wireless-regdom ]] && ! grep -q '^WIRELESS_REGDOM=' "$R/etc/conf.d/wireless-regdom"; then
+    # The country of the chosen time zone, so the radio uses the channels allowed there.
+    local tz country
+    tz=$(readlink -f "$R/etc/localtime" 2>/dev/null || true); tz=${tz#"$R"}; tz=${tz#/usr/share/zoneinfo/}
+    country=$(awk -v tz="$tz" '$3 == tz {print $1; exit}' "$R/usr/share/zoneinfo/zone.tab" 2>/dev/null || true)
+    [[ $country =~ ^[A-Z]{2}$ ]] && echo "WIRELESS_REGDOM=\"$country\"" >>"$R/etc/conf.d/wireless-regdom"
+  fi
+  # Apple-style keyboards (Lofree Flow and others) send media keys unless told F-keys come first.
+  [[ -f $R/etc/modprobe.d/hid_apple.conf ]] || echo "options hid_apple fnmode=2" | put /etc/modprobe.d/hid_apple.conf 644
+  in_list intel-wifi7-eht && put /etc/modprobe.d/iwlwifi-disable-eht.conf 644 <<'E'
+# Intel BE200/BE211: the Wi-Fi 7 (EHT) receive path drops to the lowest rate, which makes
+# Wi-Fi unusable. Wi-Fi 6 works at full speed. Remove when iwlwifi fixes EHT.
+options iwlwifi disable_11be=Y
+E
+  in_list lenovo-yoga-pro7 && put /etc/modprobe.d/lenovo-yoga-pro7-bass.conf 644 <<'E'
+# The ALC287 codec needs this pin quirk to drive both amplifiers; without it the bass speakers stay silent.
+options snd-sof-intel-hda-generic hda_model=alc287-yoga9-bass-spk-pin
+E
+  if in_list dell-g15-touchpad; then
+    # The Synaptics I2C touchpad (06CB:CE81): i2c_hid_acpi probes before the GPIO and LPSS I2C
+    # drivers it needs are up, never binds, and only a PS/2 mouse remains. Load both in the boot
+    # image, and order the touchpad driver after them when it loads later.
+    echo "softdep i2c_hid_acpi pre: pinctrl_alderlake intel_lpss_pci" | put /etc/modprobe.d/dell-g15-touchpad.conf 644
+    echo "MODULES+=(intel_lpss_pci pinctrl_alderlake)" | put /etc/mkinitcpio.conf.d/dell-g15-touchpad.conf 644
+  fi
+  in_list asus-b9406 && put /etc/libinput/asus-expertbook-b9406.quirks 644 <<'E'
+# The touchpad reports pressure 0-1, which libinput reads as jumps and discards every motion.
+[ASUS ExpertBook B9406 Touchpad]
+MatchBus=i2c
+MatchUdevType=touchpad
+MatchVendor=0x093A
+MatchProduct=0x4F05
+MatchDMIModalias=dmi:*svnASUS*:pn*B9406*
+AttrEventCode=-ABS_MT_PRESSURE;-ABS_PRESSURE;
+E
+  in_list asus-z13 && put /etc/udev/rules.d/99-amadeus-asus-z13-touchpad.rules 644 <<'E'
+# The detachable keyboard's touchpad counts as external, so typing does not pause it; mark it internal.
+ACTION=="add|change", KERNEL=="event*", ATTRS{idVendor}=="0b05", ATTRS{idProduct}=="1a30", ENV{ID_INPUT_TOUCHPAD}=="1", ENV{ID_INPUT_TOUCHPAD_INTEGRATION}="internal"
+E
+  in_list framework16 && install -Dm644 "$SHARE/framework16-qmk-hid.rules" "$R/etc/udev/rules.d/50-framework16-qmk-hid.rules"
+  if in_list tuxedo; then
+    # The old clevo_xsm_wmi grabs the keyboard-backlight interface before tuxedo-drivers can.
+    echo "blacklist clevo_xsm_wmi" | put /etc/modprobe.d/blacklist-clevo-xsm-wmi.conf 644
+  fi
+  if in_list surface; then
+    local pinctrl; pinctrl=$(awk '$1 ~ /^pinctrl_/ {print $1; exit}' "$PROC/modules" 2>/dev/null || true)
+    if [[ -n $pinctrl ]]; then
+      echo "MODULES+=($pinctrl surface_aggregator surface_aggregator_registry surface_aggregator_hub surface_hid_core surface_hid surface_kbd intel_lpss_pci 8250_dw)" |
+        put /etc/mkinitcpio.conf.d/surface-keyboard.conf 644
+    else
+      echo "  Surface keyboard: the pin-control module could not be found; the keyboard may need a module added by hand."
+    fi
+  fi
+  if in_list elgato-camlink-4k; then
+    install -Dm644 "$SHARE/elgato-camlink-4k.rules" "$R/etc/udev/rules.d/71-elgato-camlink-4k.rules"
+    install -Dm644 "$SHARE/camlink-relayd.conf" "$R/etc/v4l2-relayd.d/camlink.conf"
+    install -Dm644 "$SHARE/camlink-4k-loopback.service" "$R/etc/systemd/system/camlink-4k-loopback.service"
+    install -Dm644 "$SHARE/camlink-relayd-override.conf" "$R/etc/systemd/system/v4l2-relayd@camlink.service.d/camlink.conf"
+    echo "options v4l2loopback exclusive_caps=1" | put /etc/modprobe.d/v4l2loopback-exclusive-caps.conf 644
+  fi
+  if in_list mac-spi-keyboard; then
+    local mods="applespi intel_lpss_pci spi_pxa2xx_platform"
+    [[ $(dmi product_name) == "MacBook8,1" ]] && mods="applespi spi_pxa2xx_platform spi_pxa2xx_pci"
+    echo "MODULES+=($mods)" | put /etc/mkinitcpio.conf.d/macbook-spi-keyboard.conf 644
+  fi
+  if in_list mac-nvme-suspend && [[ -e $SYS/bus/pci/devices/0000:01:00.0/d3cold_allowed ]]; then
+    put /etc/systemd/system/amadeus-mac-nvme-suspend.service 644 <<'E'
+[Unit]
+Description=Keep the MacBook's NVMe drive out of D3cold, from which it fails to wake
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo 0 > /sys/bus/pci/devices/0000:01:00.0/d3cold_allowed'
+
+[Install]
+WantedBy=multi-user.target
+E
+    enable amadeus-mac-nvme-suspend.service
+  fi
+  in_list mac-broadcom-wifi && put /etc/modprobe.d/brcmfmac.conf 644 <<'E'
+# Broadcom's firmware supplicant and authenticator fail the WPA handshake on Apple hardware,
+# which shows as a rejected password; wpa_supplicant does the handshake instead.
+options brcmfmac feature_disable=0x82000
+E
+  if in_list mac-t2; then
+    printf 't2bce_vhci\nhci_bcm4377\n' | put /etc/modules-load.d/t2.conf 644
+    # The internal keyboard hangs off t2bce_vhci, so it must be in the boot image to type a passphrase.
+    echo "MODULES+=(t2bce_vhci usbhid hid_apple hid_generic xhci_pci xhci_hcd)" | put /etc/mkinitcpio.conf.d/apple-t2.conf 644
+    install -Dm644 "$SHARE/t2fand.conf" "$R/etc/t2fand.conf"
+    enable t2fanrd.service
+  fi
+  if in_list dell-xps13-sidecar-amps && [[ -x $R/usr/bin/dell-xps13-sidecar-amps-apply ]]; then
+    in_root dell-xps13-sidecar-amps-apply
+  fi
+  return 0
+}
+
+# Kernel options on an installed system live in the boot entries; add what is missing.
+apply_cmdline() {
+  local want e o
+  want=$(cmdline); [[ -n $want ]] || return 0
+  for e in /boot/loader/entries/*.conf; do
+    [[ -f $e ]] || continue
+    for o in $want; do
+      grep -qE "^options(.* )?${o//./\\.}( |$)" "$e" || sed -i "s|^options .*|& $o|" "$e"
+    done
+  done
+}
+
+setup() {
+  [[ $EUID == 0 ]] || exec sudo "$0" setup "${saved[@]+"${saved[@]}"}"
+  local sections p missing_pkgs before after
+  sections=$(repos)
+  local signed; signed=$(awk '/^\[/ {name = $0} /^SigLevel = Required/ {print name}' <<<"$sections")
+  if [[ -n $signed ]] && ! grep -qxF "$signed" /etc/pacman.conf; then
+    trust /
+    awk -v s="$signed" '$0 == s {on = 1} on && /^$/ {on = 0} on' <<<"$sections" >>/etc/pacman.conf
+  fi
+  if [[ $sections == *"[arch-mact2]"* ]] && ! grep -q '^\[arch-mact2\]' /etc/pacman.conf; then
+    awk '/^\[arch-mact2\]/,/^$/' <<<"$sections" >>/etc/pacman.conf
+  fi
+  missing_pkgs=$(missing)
+  if [[ -n $missing_pkgs ]]; then
+    echo "Installing: $(tr '\n' ' ' <<<"$missing_pkgs")"
+    # shellcheck disable=SC2086
+    pacman -Sy --needed --noconfirm $missing_pkgs
+  fi
+  before=$(cat /etc/mkinitcpio.conf.d/* /etc/modprobe.d/* 2>/dev/null | md5sum)
+  apply /
+  after=$(cat /etc/mkinitcpio.conf.d/* /etc/modprobe.d/* 2>/dev/null | md5sum)
+  apply_cmdline
+  [[ $before == "$after" && -z $missing_pkgs ]] || mkinitcpio -P
+  echo "Hardware set up. Restart for new drivers and kernel options to take effect."
+}
+
+trust() {  # the hardware repository's signing key, bundled, so no keyserver is needed
+  local r=${1:-/}
+  grep -q '^hw:' <<<"$(packages)" || [[ ${2:-} == --always ]] || return 0
+  if [[ $r == / ]]; then
+    pacman-key --add "$SHARE/hardware-repo.gpg" >/dev/null && pacman-key --lsign-key "$HW_REPO_KEY" >/dev/null
+  else
+    install -m644 "$SHARE/hardware-repo.gpg" "$r/tmp/hardware-repo.gpg"
+    arch-chroot "$r" pacman-key --add /tmp/hardware-repo.gpg >/dev/null && arch-chroot "$r" pacman-key --lsign-key "$HW_REPO_KEY" >/dev/null
+    rm -f "$r/tmp/hardware-repo.gpg"
+  fi
+}
+
+missing() {
+  local p
+  for p in $(packages --plain); do pacman -Q "$p" >/dev/null 2>&1 || echo "$p"; done
+}
+
+# ---- per user ----------------------------------------------------------------
+user() {
+  local state=${XDG_STATE_HOME:-$HOME/.local/state}/amadeus/hardware-user conf=${XDG_CONFIG_HOME:-$HOME/.config}
+  [[ ${1:-} == --once && -e $state ]] && return 0
+  mkdir -p "$(dirname "$state")"
+  local list; list=$(names)
+  if grep -qx asus-rog <<<"$list"; then
+    # The ALC285 codec's hardware mixer mutes and muffles; software volume is consistent.
+    install -Dm644 "$SHARE/alsa-soft-mixer.conf" "$conf/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf"
+    local card
+    card=$(grep -l ALC285 /proc/asound/card*/codec* 2>/dev/null | head -1 | grep -oE 'card[0-9]+' | tr -dc 0-9 || true)
+    if [[ -n $card ]]; then
+      amixer -c "$card" set Master 80% unmute >/dev/null 2>&1 || true
+      # The internal microphone boost is high enough to clip.
+      amixer -c "$card" set 'Internal Mic Boost' 0 >/dev/null 2>&1 || true
+      amixer -c "$card" set Capture 70% unmute >/dev/null 2>&1 || true
+    fi
+  fi
+  # AMD laptops (Framework 13 and others) default to a profile without their microphones.
+  local amd_card
+  amd_card=$(pactl list cards 2>/dev/null | grep -B20 "Family 17h/19h" | awk '/Name: / {print $2}' | head -1 || true)
+  [[ -n $amd_card ]] && pactl set-card-profile "$amd_card" "HiFi (Mic1, Mic2, Speaker)" 2>/dev/null || true
+  grep -qx speaker-tuning <<<"$list" && speaker_tuning || true
+  touch "$state"
+}
+
+speaker_tuning() {
+  # Dell XPS 14/16 (2026): the measured voicing the Windows audio layer adds, as a PipeWire
+  # filter-chain in front of the speakers. Needs lsp-plugins-lv2 for its limiter.
+  local conf=${XDG_CONFIG_HOME:-$HOME/.config} sink _
+  [[ -e /usr/lib/lv2/lsp-plugins.lv2/limiter_stereo.ttl ]] || return 0
+  for _ in {1..20}; do
+    sink=$(pactl list sinks short 2>/dev/null | awk '$2 ~ /^alsa_output.*sof_sdw.*HiFi__Speaker__sink$/ {print $2; exit}')
+    [[ -n $sink ]] && break; sleep 0.5
+  done
+  [[ -n $sink ]] || return 0
+  install -Dm644 "$SHARE/speaker-tuning-host.conf" "$conf/pipewire/amadeus-speaker-tuning.conf"
+  sed "s|@SPEAKER_SINK@|$sink|g" "$SHARE/speaker-tuning-dell-xps-2026.conf" |
+    install -Dm644 /dev/stdin "$conf/pipewire/amadeus-speaker-tuning.conf.d/90-tuning.conf"
+  install -Dm644 "$SHARE/amadeus-speaker-tuning.service" "$conf/systemd/user/amadeus-speaker-tuning.service"
+  systemctl --user daemon-reload && systemctl --user enable --now amadeus-speaker-tuning.service >/dev/null 2>&1 || true
+}
+
+saved=()
+[[ $portable == yes ]] && saved+=(--portable)
+for n in "${with[@]+"${with[@]}"}"; do saved+=(--with "$n"); done
+for n in "${without[@]+"${without[@]}"}"; do saved+=(--without "$n"); done
+
+case ${1:-} in
+  "") names ;;
+  has) [[ -n ${2:-} ]] || { sed -n 4p "$0"; exit 1; }; has "$2" ;;
+  packages) packages "${2:-}" ;;
+  missing) missing ;;
+  cmdline) cmdline ;;
+  repos) repos ;;
+  trust) trust "${2:-/}" "${3:-}" ;;
+  apply) apply "${2:-/}" ;;
+  setup) setup ;;
+  user) user "${2:-}" ;;
+  *) sed -n 2,14p "$0"; exit 1 ;;
+esac

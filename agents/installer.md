@@ -32,6 +32,14 @@ The package lists say what is on the system, and `installer/amadeus-install` say
 - **AI coding harnesses are not packages.** They are installed per user through mise
   (`desktop/bin/amadeus-harness`); do not add one to a package list.
   Do not download a default harness during setup or first login either.
+- **Hardware support is detected, not listed.** Drivers, microcode and model fixes are
+  lines in `desktop/hardware/packages.list`, chosen by `desktop/bin/amadeus-hardware`,
+  which the installer and an installed system (`amadeus-hardware setup`) both use. A new
+  device gets a detector there (sysfs, never anything that wakes an NVIDIA card), its
+  packages in the list, and its settings in `apply`. The ISO carries every line's packages
+  so any computer installs with working drivers offline.
+  The hardware repository and the T2 Mac repository are added to a system only when its
+  hardware needs one of their packages, after every other repository.
 - **Optional extras come from the system repositories when CachyOS or Arch carries them**
   (`installer/packages.extras`). Only an extra no repository carries goes in the AUR list,
   and it must have a recipe that downloads the publisher's own release; read the recipe

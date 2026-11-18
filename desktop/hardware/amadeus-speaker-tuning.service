@@ -1,0 +1,19 @@
+[Unit]
+Description=Amadeus speaker tuning filter-chain
+# WirePlumber links the tuning to the speakers, so wait for it; restart with PipeWire,
+# because the filter-chain loses its connection when the audio server goes away.
+After=pipewire.service wireplumber.service
+Requires=pipewire.service
+Wants=wireplumber.service
+PartOf=pipewire.service
+
+[Service]
+Type=simple
+# A client of its own, so the tuning switches on and off without restarting the audio
+# server, and a broken tuning stops only this service, never PipeWire.
+ExecStart=/usr/bin/pipewire -c amadeus-speaker-tuning.conf
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

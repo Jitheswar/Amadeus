@@ -1342,6 +1342,78 @@ cat >/dev/null
         files = list((self.home / "Videos").glob("screenrecording-*.mp4"))
         self.assertEqual(len(files), 1)
 
+    def fake_machine(self, pci, dmi=None, cpu=("GenuineIntel", 154), battery=True, intel_names="00:02.0 VGA compatible controller: Intel Corporation Iris Xe Graphics"):
+        """A sysfs and /proc for amadeus-hardware: PCI devices as (vendor, device, class)."""
+        sys_, proc = self.tmp / "sys", self.tmp / "proc"
+        for i, (v, d, c) in enumerate(pci):
+            dev = sys_ / f"bus/pci/devices/0000:0{i}:00.0"; dev.mkdir(parents=True)
+            for k, val in (("vendor", v), ("device", d), ("class", c)): (dev / k).write_text(val + "\n")
+        ident = sys_ / "class/dmi/id"; ident.mkdir(parents=True)
+        for k, val in (dmi or {}).items(): (ident / k).write_text(val + "\n")
+        if battery: (sys_ / "class/power_supply/BAT0").mkdir(parents=True)
+        proc.mkdir(); (proc / "cpuinfo").write_text(f"vendor_id\t: {cpu[0]}\nmodel\t\t: {cpu[1]}\n")
+        (proc / "modules").write_text("")
+        self.stub("lspci", output=intel_names + "\n")
+        self.stub("systemd-detect-virt", rc=1)
+        return {"AMADEUS_HW_SYS": str(sys_), "AMADEUS_HW_PROC": str(proc), "AMADEUS_HARDWARE_SHARE": str(ROOT / "desktop/hardware")}
+
+    def test_hardware_picks_the_default_drivers_for_a_hybrid_asus_laptop(self):
+        env = self.fake_machine([("0x8086", "0x9a49", "0x030000"), ("0x10de", "0x25a2", "0x030200"), ("0x14e4", "0x43a0", "0x028000")],
+                                dmi={"sys_vendor": "ASUSTeK COMPUTER INC.", "product_family": "ROG Zephyrus G14", "product_name": "GA402"})
+        names = self.run_cmd("amadeus-hardware", env=env).stdout.split()
+        for n in ("cpu-intel", "gpu-intel", "gpu-intel-media", "gpu-nvidia", "gpu-hybrid", "wifi", "wifi-broadcom-wl", "asus-rog", "intel-lpmd", "intel-thermald"):
+            self.assertIn(n, names)
+        self.assertNotIn("gpu-nvidia-legacy", names)
+        pkgs = self.run_cmd("amadeus-hardware", "packages", env=env).stdout.split()
+        for p in ("intel-ucode", "linux-cachyos-nvidia-open", "nvidia-utils", "broadcom-wl-dkms", "asusctl", "thermald", "intel-media-driver"):
+            self.assertIn(p, pkgs)
+        self.assertNotIn("nvidia-580xx-utils", pkgs)
+        self.assertEqual(self.run_cmd("amadeus-hardware", "repos", env=env).stdout, "")
+        portable = self.run_cmd("amadeus-hardware", "--portable", "packages", env=env).stdout.split()
+        self.assertIn("amd-ucode", portable); self.assertIn("vulkan-radeon", portable); self.assertNotIn("asusctl", portable)
+        self.assertNotIn("nvidia-utils", self.run_cmd("amadeus-hardware", "--without", "gpu-nvidia", "packages", env=env).stdout.split())
+
+    def test_hardware_writes_settings_into_a_target_root(self):
+        env = self.fake_machine([("0x8086", "0x9a49", "0x030000"), ("0x10de", "0x25a2", "0x030200"), ("0x8086", "0x272b", "0x028000")])
+        self.stub("systemctl")
+        root = self.tmp / "target"; (root / "etc/conf.d").mkdir(parents=True); (root / "usr/share/zoneinfo").mkdir(parents=True)
+        (root / "etc/conf.d/wireless-regdom").write_text("#WIRELESS_REGDOM=\"US\"\n")
+        (root / "usr/share/zoneinfo/zone.tab").write_text("IN\t+2232+08822\tAsia/Kolkata\n")
+        (root / "usr/share/zoneinfo/Asia").mkdir(); (root / "usr/share/zoneinfo/Asia/Kolkata").write_text("")
+        (root / "etc/localtime").symlink_to(root / "usr/share/zoneinfo/Asia/Kolkata")
+        p = self.run_cmd("amadeus-hardware", "apply", root, env=env)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("modeset=1", (root / "etc/modprobe.d/nvidia.conf").read_text())
+        self.assertIn("fnmode=2", (root / "etc/modprobe.d/hid_apple.conf").read_text())
+        self.assertIn("disable_11be=Y", (root / "etc/modprobe.d/iwlwifi-disable-eht.conf").read_text())
+        self.assertIn('WIRELESS_REGDOM="IN"', (root / "etc/conf.d/wireless-regdom").read_text())
+        enabled = [c for c in self.calls_of("systemctl") if "enable" in c]
+        self.assertTrue(any("thermald.service" in c for c in enabled))
+        self.assertTrue(any("nvidia-suspend" in c for c in enabled))
+
+    def test_hardware_makes_the_dell_g15_5530_touchpad_bind_at_boot(self):
+        env = self.fake_machine([("0x8086", "0xa788", "0x030000")], dmi={"sys_vendor": "Dell Inc.", "product_name": "Dell G15 5530"})
+        self.stub("systemctl")
+        root = self.tmp / "target"; root.mkdir()
+        self.assertEqual(self.run_cmd("amadeus-hardware", "apply", root, env=env).returncode, 0)
+        self.assertIn("pre: pinctrl_alderlake intel_lpss_pci", (root / "etc/modprobe.d/dell-g15-touchpad.conf").read_text())
+        self.assertIn("intel_lpss_pci pinctrl_alderlake", (root / "etc/mkinitcpio.conf.d/dell-g15-touchpad.conf").read_text())
+        # A G15 5535 is a different board.
+        env["AMADEUS_HW_SYS"] = str(self.tmp / "sys")
+        (self.tmp / "sys/class/dmi/id/product_name").write_text("Dell G15 5535\n")
+        self.assertNotIn("dell-g15-touchpad", self.run_cmd("amadeus-hardware", env=env).stdout.split())
+
+    def test_hardware_chooses_the_580xx_branch_and_t2_support(self):
+        env = self.fake_machine([("0x10de", "0x1c8d", "0x030000"), ("0x106b", "0x1801", "0x108000")],
+                                dmi={"sys_vendor": "Apple Inc.", "product_name": "MacBookPro16,1"})
+        names = self.run_cmd("amadeus-hardware", env=env).stdout.split()
+        self.assertIn("gpu-nvidia-legacy", names); self.assertNotIn("gpu-nvidia", names)
+        self.assertIn("mac-t2", names); self.assertIn("mac-broadcom-wifi", names)
+        pkgs = self.run_cmd("amadeus-hardware", "packages", env=env).stdout.split()
+        self.assertIn("linux-cachyos-nvidia-580xx", pkgs); self.assertIn("t2:linux-t2", pkgs)
+        self.assertIn("[arch-mact2]", self.run_cmd("amadeus-hardware", "repos", env=env).stdout)
+        self.assertIn("intel_iommu=on", self.run_cmd("amadeus-hardware", "cmdline", env=env).stdout)
+
     def test_gpu_run_sets_the_offload_variables(self):
         self.stub("probe", output="", body='printf "%s|%s|%s\n" "$__NV_PRIME_RENDER_OFFLOAD" "$__GLX_VENDOR_LIBRARY_NAME" "$__VK_LAYER_NV_optimus"')
         p = self.run_cmd("amadeus-gpu-run", "probe")

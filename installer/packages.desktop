@@ -1,6 +1,7 @@
-# Desktop: Hyprland on Wayland, rendered by the Intel GPU
-mesa vulkan-intel intel-media-driver vulkan-icd-loader
-lib32-mesa lib32-vulkan-intel lib32-vulkan-icd-loader
+# Desktop: Hyprland on Wayland. Mesa covers Intel and AMD graphics; the Vulkan and video drivers for
+# the graphics this computer has come from desktop/hardware/packages.list.
+mesa vulkan-icd-loader
+lib32-mesa lib32-vulkan-icd-loader
 hyprland uwsm quickshell qt6-wayland foot swaylock swayidle polkit-gnome
 xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-user-dirs xdg-utils libnotify
 greetd greetd-regreet cage librsvg python-gobject

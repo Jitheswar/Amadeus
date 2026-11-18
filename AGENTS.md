@@ -80,12 +80,14 @@ A comment explains a reason that the code cannot.
 
 ## Platforms
 
-One target: x86_64, the machine in `README.md`. Do not add support for hardware that
-machine does not have. Hardware that is present only sometimes is detected, never
-assumed:
+x86_64 computers in general: Intel, AMD and NVIDIA graphics, Intel and AMD processors,
+and the laptops and devices with fixes in `amadeus-hardware`. The laptop in `README.md` is the reference
+machine that is tested by hand. Hardware is detected, never assumed:
 
-- NVIDIA packages and settings follow hardware detection, except for portable installs
-  and explicit installer choices that provision the driver in advance.
+- Drivers, firmware choices and model-specific fixes come from `amadeus-hardware` and its
+  list, `desktop/hardware/packages.list`. Add support there, following
+  [agents/installer.md](agents/installer.md), never as a package in a fixed list.
+- Portable installs and explicit installer choices may provision drivers in advance.
 - Never run a tool that wakes the NVIDIA card (for example `nvidia-smi`) to read its
   state. Read sysfs.
 - Automatic mode uses Intel for the desktop and NVIDIA offload per application.

@@ -63,6 +63,9 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("quickshell -p /usr/share/amadeus-os/shell")
   hl.exec_cmd("swayidle -w")
   hl.exec_cmd("amadeus-display auto")
+  -- Audio fixes this computer's hardware needs (ASUS mixer, AMD microphones, Dell XPS speaker
+  -- tuning). Once per user: it needs the audio server, so it cannot run at install.
+  hl.exec_cmd("amadeus-hardware user --once")
   hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
   -- Clipboard history: remembers what was copied so Super+Ctrl+V can bring it back.
   hl.exec_cmd("wl-paste --type text --watch cliphist store")

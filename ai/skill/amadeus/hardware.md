@@ -28,6 +28,13 @@ Read this before touching drivers, power behaviour or devices.
 - A device that is missing in a virtual machine or the Try session is usually just
   absent. Check that the hardware exists before calling it a fault.
 
+## Drivers
+
+- `amadeus-hardware` lists what was detected; `amadeus-hardware missing` names drivers
+  that should be installed and are not. `amadeus-hardware setup` installs them and applies
+  the hardware's settings; it needs root, a snapshot first, and a restart afterwards.
+- A new graphics card or a moved disk is handled the same way: run the setup, then restart.
+
 ## Pitfalls
 
 - Driver, kernel-parameter and boot changes need root mode, a snapshot first, and a

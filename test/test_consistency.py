@@ -216,7 +216,7 @@ class PackageListTest(unittest.TestCase):
 
     def test_the_installer_reads_each_list_by_name(self):
         text = read(ROOT / "installer/amadeus-install")
-        for name in ("base", "desktop", "apps", "nvidia", "extras", "aur"):
+        for name in ("base", "desktop", "apps", "extras", "aur"):
             self.assertIn(f"packages.{name}", text, f"amadeus-install never reads packages.{name}")
 
     def test_the_named_kernel_is_installed(self):
@@ -225,9 +225,21 @@ class PackageListTest(unittest.TestCase):
         self.assertIsNotNone(kernel, "amadeus-install does not name the kernel once in K=")
         packages = self.lists()[ROOT / "installer/packages.base"]
         self.assertIn(kernel.group(1), packages, f"K={kernel.group(1)} is not installed by packages.base")
-        nvidia = self.lists()[ROOT / "installer/packages.nvidia"]
-        self.assertTrue(any(p.startswith(kernel.group(1) + "-nvidia") for p in nvidia),
-                        "the NVIDIA module does not follow the named kernel")
+        hardware = dict(line.split("\t", 1) for line in read(ROOT / "desktop/hardware/packages.list").splitlines()
+                        if line and not line.startswith("#"))
+        for name in ("gpu-nvidia", "gpu-nvidia-legacy"):
+            self.assertTrue(any(p.startswith(kernel.group(1) + "-nvidia") for p in hardware[name].split()),
+                            f"the {name} module does not follow the named kernel")
+
+    def test_every_hardware_line_is_detected_and_names_clean_packages(self):
+        script = read(ROOT / "desktop/bin/amadeus-hardware")
+        for line in read(ROOT / "desktop/hardware/packages.list").splitlines():
+            if not line or line.startswith("#"):
+                continue
+            name, packages = line.split("\t")
+            self.assertRegex(script, rf"\b{re.escape(name)}\b", f"amadeus-hardware never detects {name}")
+            for p in packages.split():
+                self.assertRegex(p, r"^((hw|t2):)?[a-z0-9@._+-]+$", f"{name}: {p!r} is not a package name")
 
 
 class BuildReferenceTest(unittest.TestCase):

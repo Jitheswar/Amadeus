@@ -1,0 +1,43 @@
+# What each piece of detected hardware needs. Each line: a name amadeus-hardware detects,
+# a tab, then packages. A plain name comes from the system repositories (CachyOS, then Arch).
+#   hw:NAME       the hardware repository, for device support no other repository packages
+#   t2:NAME       the T2 Mac repository (kernel and firmware for Intel Macs with a T2 chip)
+# Each of those two repositories is enabled only on a computer that needs one of its packages.
+# Firmware for every device is in installer/packages.base (linux-firmware), so nothing here names it.
+# A portable install (a USB drive that may start anywhere) takes the processor, graphics and
+# Wi-Fi lines for every maker instead, and none of the model-specific ones.
+
+# Processor microcode, loaded by the boot image's microcode hook.
+cpu-intel	intel-ucode
+cpu-amd	amd-ucode
+
+# Graphics. NVIDIA cards from Turing on (GSP firmware) use the open module; Maxwell to Volta
+# use the 580xx branch. Both are prebuilt for linux-cachyos, so nothing compiles at install.
+gpu-intel	vulkan-intel lib32-vulkan-intel
+gpu-intel-media	intel-media-driver libvpl vpl-gpu-rt
+gpu-intel-gma	libva-intel-driver
+gpu-amd	vulkan-radeon lib32-vulkan-radeon
+gpu-nvidia	linux-cachyos-nvidia-open nvidia-utils lib32-nvidia-utils libva-nvidia-driver
+gpu-nvidia-legacy	linux-cachyos-nvidia-580xx nvidia-580xx-utils lib32-nvidia-580xx-utils
+
+# Wireless: the regulatory database, set to the country of the chosen time zone.
+wifi	wireless-regdb
+wifi-broadcom-wl	broadcom-wl-dkms
+
+# Intel platform services and audio DSP firmware.
+intel-thermald	thermald
+intel-lpmd	intel-lpmd
+intel-sof	sof-firmware
+intel-ipu7-camera	hw:intel-ipu7-camera
+
+# Laptops and devices with their own needs.
+asus-rog	asusctl
+framework16	hw:qmk-hid
+tuxedo	hw:tuxedo-drivers-nocompatcheck-dkms
+dell-xps-haptic-touchpad	hw:dell-xps-touchpad-haptics
+dell-xps13-dx13260	hw:linux-firmware-cirrus-dx13260
+dell-xps13-sidecar-amps	hw:dell-xps13-sidecar-amps
+speaker-tuning	lsp-plugins-lv2
+mac-spi-keyboard	hw:macbook12-spi-driver-dkms
+mac-t2	t2:linux-t2 t2:linux-t2-headers apple-t2-audio-config t2:apple-bcm-firmware-fetcher t2fanrd
+elgato-camlink-4k	v4l2loopback-dkms v4l2loopback-utils hw:v4l2-relayd

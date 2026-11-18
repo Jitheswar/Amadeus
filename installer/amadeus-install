@@ -45,7 +45,7 @@ echo "The base desktop and default apps are installed either way."
 ask EXTRAS "Add optional extras (Brave Origin, herdr, LocalSend) (yes/no)" yes
 [[ $EXTRAS == yes || $EXTRAS == no ]] || die "EXTRAS must be yes or no; nothing was changed"
 # A system on a USB drive is portable: it may start on a different computer from the one
-# installing it, so the boot image covers any hardware and the NVIDIA driver is included.
+# installing it, so the boot image covers any hardware and every maker's drivers are included.
 PORTABLE=${PORTABLE:-auto}
 case $PORTABLE in yes|no|auto) ;; *) die "PORTABLE must be yes, no or auto; nothing was changed" ;; esac
 if [[ $PORTABLE == auto ]]; then
@@ -53,8 +53,14 @@ if [[ $PORTABLE == auto ]]; then
 fi
 NVIDIA=${NVIDIA:-auto}
 case $NVIDIA in yes|no|auto) ;; *) die "NVIDIA must be yes, no or auto; nothing was changed" ;; esac
-[[ $PORTABLE == yes && $NVIDIA == auto ]] && NVIDIA=yes
-if [[ $NVIDIA == auto ]]; then lspci -n | grep -E ' 03[0-9a-f]{2}: 10de:' >/dev/null && NVIDIA=yes || NVIDIA=no; fi
+# Drivers, firmware choices and fixes follow the hardware amadeus-hardware detects; the
+# packages for each are in desktop/hardware/packages.list. NVIDIA=yes or no overrides its choice.
+HW=()
+[[ $PORTABLE == yes ]] && HW+=(--portable)
+[[ $NVIDIA == yes ]] && HW+=(--with gpu-nvidia)
+[[ $NVIDIA == no ]] && HW+=(--without gpu-nvidia --without gpu-nvidia-legacy)
+hw() { amadeus-hardware "${HW[@]}" "$@"; }
+echo "Hardware: $(hw | tr '\n' ' ')"
 
 if [[ $UNATTENDED == no ]]; then
   say "This will permanently erase everything on $DISK:"
@@ -136,7 +142,10 @@ else
 } >"$CONF"
 fi
 LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps)"
-[[ $NVIDIA == yes ]] && LIST+=" $(pkgs $SHARE/packages.nvidia)"
+# Drivers go in with everything else. The medium carries all of them, including those from
+# the hardware or the T2 repository; online, those follow once the new system's repositories are set up.
+if [[ $OFFLINE == yes ]]; then LIST+=" $(hw packages --plain | tr '\n' ' ')"
+else LIST+=" $(hw packages | grep -v ':' | tr '\n' ' ' || true)"; fi
 [[ $EXTRAS == yes ]] && LIST+=" $(pkgs $SHARE/packages.extras)"
 # A stalled download should not end the install: what was fetched is kept, so retry.
 for try in 1 2 3; do
@@ -178,6 +187,21 @@ if "[cachyos]" not in s:            # the pacman.conf that was installed may alr
 open(p, "w").write(s)
 PY
 sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 8/; s/^#Color/Color/' $T/etc/pacman.conf
+# Hardware support no other repository carries, from the hardware or the T2 repository, which are
+# listed last so they never replace a package the others have. Only computers that need them get them.
+THIRD=$(hw packages | grep ':' | sed 's/^[a-z0-9]*://' | tr '\n' ' ' || true)
+if [[ -n ${THIRD// } ]]; then
+  hw repos >>$T/etc/pacman.conf
+  hw trust $T
+  if [[ $OFFLINE == yes ]]; then
+    :  # already installed from the medium
+  elif [[ $ONLINE == yes ]]; then
+    # shellcheck disable=SC2086
+    ch pacman -Sy --needed --noconfirm $THIRD || echo "  Some hardware support could not be installed; connect and run: amadeus-hardware setup"
+  else
+    echo "  This computer needs hardware support from the internet ($THIRD); connect after installing and run: amadeus-hardware setup"
+  fi
+fi
 cp /etc/pacman.d/mirrorlist $T/etc/pacman.d/mirrorlist
 ln -sf ../usr/lib/os-release.amadeus $T/etc/os-release
 echo "$HOSTNAME" >$T/etc/hostname
@@ -202,13 +226,9 @@ printf '[connection]\nwifi.powersave = 3\n' >$T/etc/NetworkManager/conf.d/wifi-p
 
 install -m644 $T/usr/share/amadeus-os/greeter/greetd.toml $T/etc/greetd/config.toml
 
-if [[ $NVIDIA == yes ]]; then
-  install -m644 $T/usr/share/amadeus-os/hardware/nvidia.conf $T/etc/modprobe.d/nvidia.conf
-  install -m644 $T/usr/share/amadeus-os/hardware/80-nvidia-pm.rules $T/etc/udev/rules.d/80-nvidia-pm.rules
-  # nvidia-powerd is Dynamic Boost: in games it moves power budget from the CPU to the GPU.
-  # This laptop's firmware supports it; where it is not supported the service simply exits.
-  ch systemctl enable nvidia-suspend nvidia-resume nvidia-hibernate nvidia-powerd >/dev/null 2>&1 || true
-fi
+# Driver settings, services and model-specific fixes for the detected hardware (before the
+# boot image is built, since some add modules to it).
+AMADEUS_HARDWARE_SHARE=$T/usr/share/amadeus-os/hardware hw apply $T
 
 # ---- boot --------------------------------------------------------------------
 say "Boot loader"
@@ -222,11 +242,13 @@ else
 fi
 # autodetect keeps only the drivers this computer needs; a portable system needs them all.
 [[ $PORTABLE == yes ]] && sed -i 's/^HOOKS=(\(.*\) autodetect /HOOKS=(\1 /' $T/etc/mkinitcpio.conf
-CMD+=" rootflags=subvol=@ rw quiet loglevel=3 nowatchdog ${EXTRA_CMDLINE:-}"
+CMD+=" rootflags=subvol=@ rw quiet loglevel=3 nowatchdog $(hw cmdline) ${EXTRA_CMDLINE:-}"
 ch mkinitcpio -P >/dev/null 2>&1 || ch mkinitcpio -P
 ch bootctl install --no-variables >/dev/null 2>&1 || ch bootctl install
 printf 'default amadeus.conf\ntimeout 2\nconsole-mode keep\neditor no\n' >$T/boot/loader/loader.conf
 K=linux-cachyos
+# Intel Macs with a T2 chip start the T2 kernel: their keyboard, trackpad and audio need its drivers.
+[[ -f $T/boot/vmlinuz-linux-t2 ]] && K=linux-t2
 printf 'title Amadeus OS\nlinux /vmlinuz-%s\ninitrd /initramfs-%s.img\noptions %s\n' $K $K "$CMD" >$T/boot/loader/entries/amadeus.conf
 printf 'title Amadeus OS (fallback)\nlinux /vmlinuz-%s\ninitrd /initramfs-%s-fallback.img\noptions %s\n' $K $K "${CMD/ quiet loglevel=3/}" >$T/boot/loader/entries/amadeus-fallback.conf
 [[ -f $T/boot/initramfs-$K-fallback.img ]] || rm $T/boot/loader/entries/amadeus-fallback.conf
@@ -257,7 +279,7 @@ say "Snapshots and services"
 ch snapper --no-dbus -c root create-config /
 # Snapshots are taken by amadeus-update, once before each update, and only the newest five are kept.
 sed -i 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE="no"/; s/^NUMBER_LIMIT=.*/NUMBER_LIMIT="5"/; s/^NUMBER_LIMIT_IMPORTANT=.*/NUMBER_LIMIT_IMPORTANT="0"/; s/^NUMBER_MIN_AGE=.*/NUMBER_MIN_AGE="0"/' $T/etc/snapper/configs/root
-for s in NetworkManager greetd bluetooth power-profiles-daemon thermald ananicy-cpp systemd-timesyncd systemd-resolved fstrim.timer snapper-cleanup.timer; do
+for s in NetworkManager greetd bluetooth power-profiles-daemon ananicy-cpp systemd-timesyncd systemd-resolved fstrim.timer snapper-cleanup.timer; do
   ch systemctl enable "$s" >/dev/null 2>&1 || echo "  (could not enable $s)"
 done
 ln -sf ../run/systemd/resolve/stub-resolv.conf $T/etc/resolv.conf

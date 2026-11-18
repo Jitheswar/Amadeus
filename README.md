@@ -7,8 +7,11 @@ use permission-checked tools, rearrange the desktop, and build sandboxed applica
 The desktop works without an AI account. The supported offline installation path
 includes the packages needed to reach a usable system.
 
-The target is a Core i5-13450HX laptop with Intel UHD graphics, an RTX 3050 6 GB,
-16 GB RAM and a 1 TB NVMe drive.
+Amadeus OS runs on x86_64 computers with Intel, AMD or NVIDIA graphics. The installer
+detects the hardware and installs its drivers, firmware and model-specific fixes from the
+install medium, without a connection (`amadeus-hardware` shows what it found). The reference machine, tested by hand, is a
+Core i5-13450HX laptop with Intel UHD graphics, an RTX 3050 6 GB, 16 GB RAM and a 1 TB
+NVMe drive.
 
 > **Pre-release:** the November 18 image passed 153 installed-system VM checks, including
 > both rollback paths, plus the live-session checks. Real hardware and live provider
@@ -279,8 +282,8 @@ connection. Harness downloads, provider sign-in and later updates need network a
 
 For a portable system on a USB drive, `./build.sh usb /dev/sdX` starts the guided installer
 in a VM that sees the selected drive. That workflow unmounts the chosen USB on the host,
-and the installer erases it after confirmation. Portable installs include the NVIDIA
-driver and broader boot-image coverage; CPU-build compatibility still applies.
+and the installer erases it after confirmation. Portable installs include every
+maker's graphics drivers and broader boot-image coverage; CPU-build compatibility still applies.
 
 The medium seeds missing package indexes for offline browsing. Their first online sync
 fetches current metadata instead of treating the copy time as freshness. Signature

@@ -87,6 +87,37 @@ on it.
 - Video decode: `intel-media-driver` (VA-API) on Intel; `libva-nvidia-driver` when an
   application runs on NVIDIA.
 
+## Hardware support: detected
+
+Amadeus began as a single-laptop prototype. It now detects x86_64 hardware broadly and
+installs what each device needs, from proven per-device rules (MIT-licensed source, with
+its license shipped in the desktop package):
+
+- **Same choices per device.** Microcode by processor maker; Vulkan and VA-API by graphics
+  maker; NVIDIA Turing and newer (device ID 0x1e00 and up, GSP firmware) on the open
+  module, Maxwell to Volta on the 580xx branch, older cards on nouveau; Intel `thermald`
+  on laptops from Sandy Bridge, `intel-lpmd` on Alder Lake and newer hybrid laptops, Sound
+  Open Firmware where an Intel audio DSP is present; full `linux-firmware` everywhere, so
+  no Wi-Fi or Bluetooth chip misses its firmware. Model fixes (Macs, Surface, ASUS, Dell,
+  Framework, Lenovo, Tuxedo, Intel Wi-Fi 7, Broadcom Wi-Fi, Elgato Cam Link) are included.
+- **Adapted where Amadeus differs.** NVIDIA modules come prebuilt for `linux-cachyos`
+  (`linux-cachyos-nvidia-open`, `linux-cachyos-nvidia-580xx`) instead of DKMS. Kernel
+  options go into systemd-boot entries, not Limine drop-ins. Detection reads sysfs, so
+  asking about the hardware never wakes a suspended NVIDIA card.
+- **Everything on the medium.** The install medium carries every
+  driver for every supported device, so any computer installs with working graphics,
+  Wi-Fi and Bluetooth offline. This costs about 1 GB of medium size; each installed system
+  still receives only its own hardware's packages (plus the full firmware, about 350 MB
+  more than the earlier Intel/Realtek-only firmware).
+- **Two more repositories, only where needed.** A few devices need packages only
+  the hardware repository (signed, key bundled in `desktop/hardware/hardware-repo.gpg`) or the T2
+  Mac repository (published unsigned by that project) carry. Each is added after every
+  other repository, so it never replaces a package they have, and only on a computer
+  whose hardware needs it. On the medium both are used at build time to collect those
+  packages.
+- Not included: ARM platforms (Apple Silicon, Snapdragon, NVIDIA N1x and GB10),
+  and archinstall clean-ups that do not apply to Amadeus's own installer.
+
 ## Compositor: Hyprland
 
 The compositor is what the AI rearranges, so the deciding questions are: can a bad
