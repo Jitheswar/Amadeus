@@ -23,6 +23,7 @@ require("default.hypr.input")
 require("default.hypr.windows")
 require("default.hypr.pop")
 require("default.hypr.dictation-backend")
+require("default.hypr.assistant")
 
 -- Current theme overrides.
 require_optional.module("amadeus.current.theme.hyprland")
