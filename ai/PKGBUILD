@@ -11,14 +11,14 @@ options=(!debug)
 
 package() {
   local src="$startdir"
-  install -d "$pkgdir/usr/share/amadeus" "$pkgdir/usr/lib/amadeus" "$pkgdir/usr/bin" "$pkgdir/usr/share/doc/amadeus"
-  cp -r "$src/amadeus" "$src/shell" "$src/examples" "$src/skill" "$pkgdir/usr/share/amadeus/"
+  install -d "$pkgdir/usr/share/amadeus-ai" "$pkgdir/usr/lib/amadeus" "$pkgdir/usr/bin" "$pkgdir/usr/share/doc/amadeus"
+  cp -r "$src/amadeus" "$src/shell" "$src/examples" "$src/skill" "$pkgdir/usr/share/amadeus-ai/"
   # The built-in agent skill, where Claude Code looks for skills in every new user's home.
   install -d "$pkgdir/etc/skel/.claude/skills"
-  ln -s /usr/share/amadeus/skill/amadeus "$pkgdir/etc/skel/.claude/skills/amadeus"
+  ln -s /usr/share/amadeus-ai/skill/amadeus "$pkgdir/etc/skel/.claude/skills/amadeus"
   find "$pkgdir" -name __pycache__ -type d -exec rm -rf {} +
   install -Dm755 "$src/priv/amadeus-priv" "$src/priv/root-mode" -t "$pkgdir/usr/lib/amadeus/"
-  printf '#!/usr/bin/python3\nimport sys\nsys.path.insert(0, "/usr/share/amadeus")\nfrom amadeus.cli import main\nmain()\n' >"$pkgdir/usr/bin/ama"
+  printf '#!/usr/bin/python3\nimport sys\nsys.path.insert(0, "/usr/share/amadeus-ai")\nfrom amadeus.cli import main\nmain()\n' >"$pkgdir/usr/bin/ama"
   chmod 755 "$pkgdir/usr/bin/ama"
   sed 's|@AMA@|/usr/bin/ama|' "$src/systemd/amadeusd.service" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/amadeusd.service"
   # Failed services and a nearly full disk are reported to the session daemon.
