@@ -139,13 +139,15 @@ else
   echo "CacheDir = $T/var/cache/pacman/pkg/"
   echo "$REPOS"
   for r in core extra multilib; do printf '[%s]\nInclude = /etc/pacman.d/mirrorlist\n' "$r"; done
+  # The hardware repository (and the T2 one on those Macs), after every other one.
+  hw repos
 } >"$CONF"
+hw trust /
 fi
-LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps)"
-# Drivers go in with everything else. The medium carries all of them, including those from
-# the hardware or the T2 repository; online, those follow once the new system's repositories are set up.
-if [[ $OFFLINE == yes ]]; then LIST+=" $(hw packages --plain | tr '\n' ' ')"
-else LIST+=" $(hw packages | grep -v ':' | tr '\n' ' ' || true)"; fi
+LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps $SHARE/packages.system)"
+# Drivers go in with everything else, wherever they come from: the medium carries all of them, and
+# an online install has the hardware and T2 repositories configured above.
+LIST+=" $(hw packages --plain | tr '\n' ' ')"
 [[ $EXTRAS == yes ]] && LIST+=" $(pkgs $SHARE/packages.extras)"
 # A stalled download should not end the install: what was fetched is kept, so retry.
 for try in 1 2 3; do
@@ -187,21 +189,10 @@ if "[cachyos]" not in s:            # the pacman.conf that was installed may alr
 open(p, "w").write(s)
 PY
 sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 8/; s/^#Color/Color/' $T/etc/pacman.conf
-# Hardware support no other repository carries, from the hardware or the T2 repository, which are
-# listed last so they never replace a package the others have. Only computers that need them get them.
-THIRD=$(hw packages | grep ':' | sed 's/^[a-z0-9]*://' | tr '\n' ' ' || true)
-if [[ -n ${THIRD// } ]]; then
-  hw repos >>$T/etc/pacman.conf
-  hw trust $T
-  if [[ $OFFLINE == yes ]]; then
-    :  # already installed from the medium
-  elif [[ $ONLINE == yes ]]; then
-    # shellcheck disable=SC2086
-    ch pacman -Sy --needed --noconfirm $THIRD || echo "  Some hardware support could not be installed; connect and run: amadeus-hardware setup"
-  else
-    echo "  This computer needs hardware support from the internet ($THIRD); connect after installing and run: amadeus-hardware setup"
-  fi
-fi
+# The hardware repository (and the T2 one on those Macs) stay on the new system, listed last so
+# they never replace a package the others carry.
+hw repos >>$T/etc/pacman.conf
+hw trust $T
 cp /etc/pacman.d/mirrorlist $T/etc/pacman.d/mirrorlist
 ln -sf ../usr/lib/os-release.amadeus $T/etc/os-release
 echo "$HOSTNAME" >$T/etc/hostname

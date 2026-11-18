@@ -7,7 +7,8 @@ license=(MIT)
 depends=(python-gobject greetd-regreet cage librsvg hyprland uwsm quickshell foot swaylock swayidle polkit-gnome grim slurp hyprpicker satty gpu-screen-recorder ffmpeg wl-clipboard cliphist wtype fastfetch brightnessctl networkmanager wireplumber upower power-profiles-daemon bluez polkit xdg-utils libnotify inter-font ttf-jetbrains-mono dconf mise)
 options=(!debug)
 install=amadeus-desktop.install
-backup=(etc/mise/conf.d/amadeus.toml)
+# System configuration under /etc is the administrator's to change: an update keeps local edits.
+backup=($(cd "$startdir/system" && find etc -path etc/skel -prune -o -type f -print))
 
 package() {
   local src="$startdir"
@@ -23,10 +24,18 @@ package() {
   install -Dm644 "$src"/migrations/*.sh -t "$pkgdir/usr/share/amadeus-os/migrations/"
   install -Dm644 "$src/menu/menu.jsonc" -t "$pkgdir/usr/share/amadeus-os/"
   install -Dm755 "$src/lib/amadeus-menu-providers" -t "$pkgdir/usr/lib/amadeus-os/"
-  install -Dm644 "$src/mise/amadeus.toml" -t "$pkgdir/etc/mise/conf.d/"
   install -d "$pkgdir/usr/bin"
   # Only files: a test run can leave a __pycache__ directory beside the programs.
   find "$src/bin" -maxdepth 1 -type f -exec install -Dm755 {} -t "$pkgdir/usr/bin/" \;
+  # The desktop system: its commands, shell, defaults, themes, and system and user configuration,
+  # laid out as it lands on disk. Its commands are reached from /usr/bin.
+  cp -R --preserve=mode,links "$src/system/." "$pkgdir/"
+  chmod 750 "$pkgdir/etc/sudoers.d"
+  chmod 440 "$pkgdir"/etc/sudoers.d/*
+  local f
+  for f in "$pkgdir"/usr/share/amadeus/bin/*; do
+    ln -sfn "/usr/share/amadeus/bin/${f##*/}" "$pkgdir/usr/bin/${f##*/}"
+  done
   python3 "$src/greeter/render-theme.py" "$src/theme/theme.json" "$pkgdir/usr/share/amadeus-os/greeter"
   install -Dm644 "$src/greeter/profiles.py" "$src/greeter/render-theme.py" "$src"/greeter/*.in -t "$pkgdir/usr/share/amadeus-os/greeter/"
   install -Dm644 "$src/greeter/greetd.toml" -t "$pkgdir/usr/share/amadeus-os/greeter/"

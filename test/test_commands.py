@@ -1417,7 +1417,8 @@ cat >/dev/null
         for p in ("intel-ucode", "linux-cachyos-nvidia-open", "nvidia-utils", "broadcom-wl-dkms", "asusctl", "thermald", "intel-media-driver"):
             self.assertIn(p, pkgs)
         self.assertNotIn("nvidia-580xx-utils", pkgs)
-        self.assertEqual(self.run_cmd("amadeus-hardware", "repos", env=env).stdout, "")
+        repos = self.run_cmd("amadeus-hardware", "repos", env=env).stdout
+        self.assertIn("SigLevel = Required", repos); self.assertNotIn("[arch-mact2]", repos)
         portable = self.run_cmd("amadeus-hardware", "--portable", "packages", env=env).stdout.split()
         self.assertIn("amd-ucode", portable); self.assertIn("vulkan-radeon", portable); self.assertNotIn("asusctl", portable)
         self.assertNotIn("nvidia-utils", self.run_cmd("amadeus-hardware", "--without", "gpu-nvidia", "packages", env=env).stdout.split())

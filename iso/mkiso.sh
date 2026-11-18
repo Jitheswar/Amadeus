@@ -59,11 +59,11 @@ pacman-key --populate cachyos >/dev/null 2>&1
   # holds every driver, so no computer needs the internet to get its own.
   AMADEUS_HARDWARE_SHARE=$SRC/desktop/hardware bash $SRC/desktop/bin/amadeus-hardware --with framework16 --with mac-t2 repos
 } >/tmp/offline.conf
-AMADEUS_HARDWARE_SHARE=$SRC/desktop/hardware bash $SRC/desktop/bin/amadeus-hardware trust / --always
+AMADEUS_HARDWARE_SHARE=$SRC/desktop/hardware bash $SRC/desktop/bin/amadeus-hardware trust /
 pc=(pacman --config /tmp/offline.conf --root $ROOT --dbpath $ROOT/db --noconfirm)
 "${pc[@]}" -Sy >/dev/null
 # shellcheck disable=SC2046
-want=$(grep -hv '^#' $SRC/installer/packages.{base,desktop,apps,extras} | tr '\n' ' ')
+want=$(grep -hv '^#' $SRC/installer/packages.{base,desktop,apps,system,extras} | tr '\n' ' ')
 local_pkgs=$(ls $REPO/*.pkg.tar.zst | grep -vE '/cachyos-(keyring|mirrorlist|v3-mirrorlist)-' || true)
 # Keep downloads across container exits. Only packages selected by this transaction
 # enter the image, even if older versions remain in the builder's cache.

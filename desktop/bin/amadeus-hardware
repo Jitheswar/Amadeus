@@ -156,10 +156,9 @@ cmdline() {
 
 repos() {
   local p; p=$(packages)
-  if grep -q '^hw:' <<<"$p"; then
-    # The hardware repository, after every other one, so it only supplies what nothing else has.
-    printf '\n[omarchy]\nSigLevel = Required DatabaseOptional\nServer = https://pkgs.omarchy.org/stable/$arch\n'
-  fi
+  # The hardware repository, after every other one, so it only supplies what nothing else has.
+  # Every system has it: the desktop's own screenshot tool, wallpaper engine and fonts come from it.
+  printf '\n[omarchy]\nSigLevel = Required DatabaseOptional\nServer = https://pkgs.omarchy.org/stable/$arch\n'
   if grep -q '^t2:' <<<"$p"; then
     # The T2 project publishes this repository unsigned; it is added only on T2 Macs.
     printf '\n[arch-mact2]\nSigLevel = Never\nServer = https://github.com/NoaHimesaka1873/arch-mact2-mirror/releases/download/release\n'
@@ -323,7 +322,6 @@ setup() {
 
 trust() {  # the hardware repository's signing key, bundled, so no keyserver is needed
   local r=${1:-/}
-  grep -q '^hw:' <<<"$(packages)" || [[ ${2:-} == --always ]] || return 0
   if [[ $r == / ]]; then
     pacman-key --add "$SHARE/hardware-repo.gpg" >/dev/null && pacman-key --lsign-key "$HW_REPO_KEY" >/dev/null
   else

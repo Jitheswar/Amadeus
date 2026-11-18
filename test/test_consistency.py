@@ -216,7 +216,7 @@ class PackageListTest(unittest.TestCase):
 
     def test_the_installer_reads_each_list_by_name(self):
         text = read(ROOT / "installer/amadeus-install")
-        for name in ("base", "desktop", "apps", "extras", "aur"):
+        for name in ("base", "desktop", "apps", "system", "extras", "aur"):
             self.assertIn(f"packages.{name}", text, f"amadeus-install never reads packages.{name}")
 
     def test_the_named_kernel_is_installed(self):
