@@ -41,7 +41,7 @@ on it.
   build configuration and scheduler can change; Amadeus does not layer another scheduler on top or claim
   benchmarked gains. Over Arch's `linux` (generic build) and over
   the other CachyOS variants (LTS, hardened, server and real-time builds answer needs
-  this machine does not have).
+  a desktop does not have).
 - **System tuning: `cachyos-settings`** (their sysctl values, I/O scheduler rules and
   related defaults) and `ananicy-cpp` with their rule set, which lowers the priority of
   background work so the foreground stays responsive. That is one more always-running
@@ -125,6 +125,28 @@ its license shipped in the desktop package):
   packages.
 - Not included: ARM platforms (Apple Silicon, Snapdragon, NVIDIA N1x and GB10),
   and archinstall clean-ups that do not apply to Amadeus's own installer.
+
+## Updating: one command, in a fixed order
+
+`amadeus-update` is the only update path, so every step happens every time and in the
+order that makes each one safe:
+
+- **Free space first** (10 GB): packages are unpacked before old ones go, and the snapshot
+  keeps the old ones too. Running out halfway leaves a half-updated system.
+- **Cache pruned before the snapshot** (`paccache -rk2`): the cache is inside the
+  snapshotted subvolume, so pruning afterwards frees nothing until the snapshot expires.
+- **Keyrings before packages**, so packages signed by a new key install in the same run.
+- **Migrations after packages**: each is written against the new packages and runs once
+  per user (`amadeus-migrate`). A fresh install marks them all done, since it is already
+  current. This is how a change to settings reaches systems installed before it.
+- **Orphans removed**, **missing drivers installed** (`amadeus-hardware`), then AUR apps
+  and mise tools, which build or run against the upgraded system.
+- **A restart is offered** only when the running kernel's modules were replaced.
+- One update at a time (a lock), the password asked once and kept fresh, sleep inhibited,
+  and the whole run logged, because a long update must not stall on a prompt or a lid.
+
+mise keeps old tool versions during an upgrade (`upgrade.auto_prune = false`), so an
+open session is never cut off from the version it is running.
 
 ## Compositor: Hyprland
 

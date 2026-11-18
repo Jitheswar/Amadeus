@@ -246,11 +246,18 @@ verification policy. The ISO compressor does not traverse temporary mounted file
 
 ## Hardware policy
 
-Automatic mode configures Intel rendering and per-app NVIDIA offload. An explicit GPU
-preference can change that policy at the next login. The launcher and AI desktop tools
-honor those choices; status reads use sysfs instead of waking the NVIDIA card to inspect it.
+`amadeus-hardware` detects the processor, graphics, Wi-Fi and laptop model from sysfs and
+looks up what each needs in `desktop/hardware/packages.list`. The installer installs that
+set and applies its settings and kernel options; `amadeus-hardware setup` and
+`amadeus-update` do the same later on an installed system. The install medium carries
+every listed package, so any supported computer installs offline.
+
+With two GPUs, automatic mode renders on the one the screen is wired to and offloads
+single applications to the other, through PRIME on NVIDIA or `DRI_PRIME` on AMD and Intel.
+An explicit GPU preference changes that at the next login. The launcher and AI desktop
+tools honor those choices; status reads use sysfs instead of waking the NVIDIA card.
 
 The selected driver packages, firmware and power settings are configuration choices, not
-proof of real-machine behavior. Vulkan and video-decode paths are provisioned for the
-target GPUs; CUDA is optional and applies to NVIDIA. Suspend, runtime power-down, Dynamic
+proof of real-machine behavior. Vulkan and video-decode paths are provisioned for each
+detected GPU; CUDA is optional and applies to NVIDIA. Suspend, runtime power-down, Dynamic
 Boost and the explicit GPU modes still need hardware validation.

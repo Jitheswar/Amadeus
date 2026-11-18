@@ -20,8 +20,10 @@ that exists now.
 - Install, remove or upgrade with `pkg_manage`. It needs root mode, asks the user, and
   attempts a snapshot before and after. Report the snapshot numbers it actually
   returns; a snapshot attempt can fail.
-- A full update is `amadeus-update`, run as the user in a terminal. It snapshots first
-  and updates repository packages, AUR packages and tools together.
+- A full update is `amadeus-update`, run as the user in a terminal. It prunes the
+  package cache, snapshots, refreshes keyrings, updates packages, runs pending migrations,
+  removes orphans, installs missing drivers, then updates AUR packages and tools. Its log is
+  `~/.local/state/amadeus/update.log`.
 - After installing a graphical application, confirm it appears with `desktop_apps`.
 
 ## Pitfalls

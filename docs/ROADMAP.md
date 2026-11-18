@@ -60,10 +60,15 @@ The steps for the first run on the target machine are written out in
 0. On the target machine, try the copy and paste shortcuts by hand, the automatic display
    choice, theme changes across real applications, and the themed login screen.
 1. Install on the target machine and measure NVIDIA runtime power-down, PRIME offload,
-   Dynamic Boost, Wi-Fi, Bluetooth, battery use and suspend/resume.
+   Dynamic Boost, Wi-Fi, Bluetooth, battery use and suspend/resume, and confirm the
+   touchpad binds at boot (`hyprctl devices` lists a touchpad, not a PS/2 mouse).
+1a. Install on machines other than the reference laptop: AMD graphics, a pre-Turing
+   NVIDIA card, and any of the models with fixes in `amadeus-hardware`.
 2. Exercise live subscription sign-in and API endpoints, including cancellation, approvals
    and quota collection. The VM results do not establish vendor-account compatibility.
-3. Test full system updates and mirror changes in the VM, plus structured root-mode
+3. Run `./build.sh test` on the image with hardware detection, the generalised GPU modes
+   and the new update pipeline (cache pruning, migrations, orphans, drivers). Then test
+   full system updates and mirror changes in the VM, plus structured root-mode
    actions beyond the existing refusal and helper checks.
 4. Walk through the guided installer and desktop controls by hand. The automated installer
    test uses the backend; preview images do not verify real compositor motion. Include the
