@@ -204,8 +204,8 @@ while read -r line; do
   esac
 done < <(as python3 /usr/local/bin/amadeus-e2e 2>&1; echo "E2E-PROCESS-STATUS $?")
 [[ $e2e_status == 0 ]] && ok "AI integration program completed" || bad "AI integration program completed" "exit status: $e2e_status"
-echo "--- applications outside the Arch repositories"
-for p in brave-origin-bin herdr-bin localsend-bin; do t "$p installed" pacman -Q $p; done
+echo "--- optional extras"
+for p in brave-origin-bin herdr-bin localsend; do t "$p installed" pacman -Q $p; done
 echo "--- ama doctor"
 as ama doctor || true
 echo "--- resources"

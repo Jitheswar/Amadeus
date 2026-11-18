@@ -131,7 +131,7 @@ note "The base desktop and default apps are installed either way, including btop
      "Steam and chat clients are available later from Gaming and Chat in the Amadeus menu." \
      "Claude Desktop is optional under Install > AI; Claude Code is under Install > Harness."
 echo
-note "Brave Origin, herdr and LocalSend are packaged from their publishers' releases."
+note "Brave Origin and LocalSend come from the CachyOS repositories; herdr is packaged from its publisher's release."
 extras=$(gum choose --header "  Install Brave Origin, herdr and LocalSend?" \
   "Include them" "Leave them out") || exit 1
 case $extras in

@@ -20,7 +20,7 @@ for d in ai desktop; do
   (cd /tmp/pkgsrc/$d && sudo -u build env PKGDEST=$REPO makepkg -f --nodeps >/dev/null)
 done
 
-echo "==> Packaging applications that are not in the Arch repositories (from their AUR recipes)"
+echo "==> Packaging applications that are in no system repository (from their AUR recipes)"
 for p in $(grep -hv '^#' $SRC/installer/packages.aur); do
   if ! bash /src/iso/aur-build.sh "$p" "$REPO" "$OUT/pkgcache"; then
     echo "Could not build $p for the installer's optional extras. Check the package build output and run ./build.sh iso again." >&2
@@ -59,7 +59,7 @@ pacman-key --populate cachyos >/dev/null 2>&1
 pc=(pacman --config /tmp/offline.conf --root $ROOT --dbpath $ROOT/db --noconfirm)
 "${pc[@]}" -Sy >/dev/null
 # shellcheck disable=SC2046
-want=$(grep -hv '^#' $SRC/installer/packages.{base,desktop,apps,nvidia} | tr '\n' ' ')
+want=$(grep -hv '^#' $SRC/installer/packages.{base,desktop,apps,nvidia,extras} | tr '\n' ' ')
 local_pkgs=$(ls $REPO/*.pkg.tar.zst | grep -vE '/cachyos-(keyring|mirrorlist|v3-mirrorlist)-' || true)
 # Keep downloads across container exits. Only packages selected by this transaction
 # enter the image, even if older versions remain in the builder's cache.

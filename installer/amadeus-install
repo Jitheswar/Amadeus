@@ -137,6 +137,7 @@ else
 fi
 LIST="$(pkgs $SHARE/packages.base $SHARE/packages.desktop $SHARE/packages.apps)"
 [[ $NVIDIA == yes ]] && LIST+=" $(pkgs $SHARE/packages.nvidia)"
+[[ $EXTRAS == yes ]] && LIST+=" $(pkgs $SHARE/packages.extras)"
 # A stalled download should not end the install: what was fetched is kept, so retry.
 for try in 1 2 3; do
   # shellcheck disable=SC2086

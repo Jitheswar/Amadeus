@@ -32,8 +32,10 @@ The package lists say what is on the system, and `installer/amadeus-install` say
 - **AI coding harnesses are not packages.** They are installed per user through mise
   (`desktop/bin/amadeus-harness`); do not add one to a package list.
   Do not download a default harness during setup or first login either.
-- **Applications outside the Arch repositories** go in the list for those. Each must have
-  a recipe that downloads the publisher's own release; read the recipe before adding it.
+- **Optional extras come from the system repositories when CachyOS or Arch carries them**
+  (`installer/packages.extras`). Only an extra no repository carries goes in the AUR list,
+  and it must have a recipe that downloads the publisher's own release; read the recipe
+  before adding it.
   Beyond the selected CachyOS and Arch repositories, do not add another binary
   repository to supply an optional application.
 - **The installer erases a disk.** Interactive runs must make the user type the disk

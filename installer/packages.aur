@@ -1,4 +1,5 @@
-# Applications that are not in the Arch repositories. Each is built from its AUR recipe,
+# Optional extras that are in no system repository. Each is built from its AUR recipe,
 # which downloads the publisher's own release, into the repository on the ISO.
+# Anything CachyOS packages belongs in packages.extras instead.
 # AI coding harnesses (Claude Code, Codex, ...) are not here: they are installed per user through mise.
-brave-origin-bin herdr-bin localsend-bin
+herdr-bin

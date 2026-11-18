@@ -37,10 +37,11 @@ The base desktop and default applications are installed whether the installer's
 [application list](installer/packages.apps) are the authoritative package sets.
 
 The yes/no choice controls only Brave Origin, herdr and LocalSend, the
-[optional publisher-app bundle](installer/packages.aur).
-The installer names that bundle and shows its selection separately from base apps in
-the final summary. Those releases are packaged through AUR recipes; they are separate
-from the official repository packages.
+optional extras bundle. Brave Origin and LocalSend come from the CachyOS repositories
+([extras list](installer/packages.extras)); herdr, which no repository carries, is
+packaged from its publisher's release through an AUR recipe
+([AUR list](installer/packages.aur)). The installer names that bundle and shows its
+selection separately from base apps in the final summary.
 
 Gaming and Chat are directly in the Amadeus menu. Steam is optional under **Gaming**;
 Discord and Telegram are optional under **Chat**. Their catalogues use explicitly named

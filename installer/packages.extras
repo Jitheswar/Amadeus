@@ -1,0 +1,3 @@
+# Optional extras the CachyOS repositories carry, installed with pacman when the extras are chosen.
+# They are collected onto the ISO with the other packages, so they also install without internet.
+brave-origin-bin localsend

@@ -216,7 +216,7 @@ class PackageListTest(unittest.TestCase):
 
     def test_the_installer_reads_each_list_by_name(self):
         text = read(ROOT / "installer/amadeus-install")
-        for name in ("base", "desktop", "apps", "nvidia"):
+        for name in ("base", "desktop", "apps", "nvidia", "extras", "aur"):
             self.assertIn(f"packages.{name}", text, f"amadeus-install never reads packages.{name}")
 
     def test_the_named_kernel_is_installed(self):
@@ -261,7 +261,7 @@ class BuildReferenceTest(unittest.TestCase):
 class CatalogueTest(unittest.TestCase):
     def test_optional_clients_are_absent_from_default_package_lists(self):
         defaults = set()
-        for name in ("apps", "aur"):
+        for name in ("apps", "extras", "aur"):
             for line in read(ROOT / ("installer/packages." + name)).splitlines():
                 if not line.startswith("#"):
                     defaults.update(line.split())
