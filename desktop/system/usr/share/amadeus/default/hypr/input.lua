@@ -3,7 +3,7 @@
 local keyboard = require("default.hypr.keyboard")
 
 -- Layouts that can't type Latin letters. Keep in sync with the list in
--- etc/mkinitcpio.conf.d/amadeus_hooks.conf.
+-- etc/mkinitcpio.conf.d/os-amadeus_hooks.conf.
 local non_latin_layouts =
   " af am ara bd bg by et ge gr il in iq ir kg kh kz la lk mk mm mn mv np rs ru sy th tj ua "
 -- us variants that can't type Latin letters either: Russian phonetic and Cherokee.

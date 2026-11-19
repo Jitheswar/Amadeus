@@ -6,7 +6,7 @@
 # etc/mkinitcpio.conf.d/00-amadeus-hooks.conf
 #   Sets each platform's HOOKS baseline (amadeus-hw-platform), and leaves alone
 #   a Mac whose own mkinitcpio.conf carries asahi or busybox encrypt.
-# etc/mkinitcpio.conf.d/amadeus_hooks.conf
+# etc/mkinitcpio.conf.d/os-amadeus_hooks.conf
 #   Only filters kms for NVIDIA and handles the vconsole hooks, from the
 #   machine's own devices and configuration.
 # etc/mkinitcpio.conf.d/thunderbolt_module.conf

@@ -16,7 +16,7 @@ amadeus-pkg-drop linux linux-headers linux-aarch64 linux-aarch64-headers
 # drivers/hid, so add the I2C controller and I2C-HID transport to type the disk
 # passphrase.
 mkdir -p /etc/mkinitcpio.conf.d
-cat > /etc/mkinitcpio.conf.d/amadeus-n1x-input.conf <<'CONF'
+cat > /etc/mkinitcpio.conf.d/os-amadeus-n1x-input.conf <<'CONF'
 # N1x: the internal keyboard is I2C-HID behind the MediaTek I2C controllers;
 # see install/hardware/n1x.sh.
 MODULES+=(i2c_mt65xx i2c_hid_acpi)
@@ -99,7 +99,7 @@ CONF
   cat > /etc/mkinitcpio.conf.d/nvidia.conf <<'CONF'
 MODULES+=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)
 CONF
-  cat > /etc/mkinitcpio.conf.d/amadeus-n1x-nvidia-firmware.conf <<'CONF'
+  cat > /etc/mkinitcpio.conf.d/os-amadeus-n1x-nvidia-firmware.conf <<'CONF'
 # N1x: the Blackwell GPU boots its GSP from the ga10x firmware. The nvidia
 # module also lists Turing's (tu10x), which only Turing GPUs load: leave it out
 # of the initramfs, about 32 MB. mkinitcpio sources this file again after the
@@ -164,7 +164,7 @@ run_hook() {
 HOOK
   cat > /etc/mkinitcpio.conf.d/zz-amadeus-n1x-boot-brightness.conf <<'CONF'
 # N1x: light the panel for Plymouth's LUKS prompt; see install/hardware/n1x.sh.
-# Sorts after amadeus_hooks.conf so HOOKS is already set.
+# Sorts after os-amadeus_hooks.conf so HOOKS is already set.
 _amadeus_n1x_hooks=()
 for _amadeus_n1x_hook in "${HOOKS[@]}"; do
   _amadeus_n1x_hooks+=("$_amadeus_n1x_hook")
@@ -177,7 +177,7 @@ else
   echo "N1x firmware $bios_version: GPU firmware cannot boot on this BIOS; keeping the NVIDIA stack unloaded"
   rm -f /etc/limine-entry-tool.d/00-amadeus-n1x-gpu.conf \
     /etc/mkinitcpio.conf.d/zz-amadeus-n1x-boot-brightness.conf \
-    /etc/mkinitcpio.conf.d/amadeus-n1x-nvidia-firmware.conf
+    /etc/mkinitcpio.conf.d/os-amadeus-n1x-nvidia-firmware.conf
   cat > /etc/modprobe.d/amadeus-n1x-nvidia-disable.conf <<'CONF'
 # N1x: the NVIDIA stack cannot drive this panel here; see install/hardware/n1x.sh.
 blacklist nvidia

@@ -4,7 +4,7 @@
 
 SYS_POWER_PATH="${AMADEUS_SYS_POWER_PATH:-/sys/power}"
 SWAPS_PATH="${AMADEUS_SWAPS_PATH:-/proc/swaps}"
-RESUME_CONF_PATH="${AMADEUS_RESUME_CONF_PATH:-/etc/mkinitcpio.conf.d/amadeus_resume.conf}"
+RESUME_CONF_PATH="${AMADEUS_RESUME_CONF_PATH:-/etc/mkinitcpio.conf.d/os-amadeus_resume.conf}"
 
 if [[ ! -r $SYS_POWER_PATH/state || ! -r $SYS_POWER_PATH/image_size ]]; then
   exit 1

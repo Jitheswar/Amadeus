@@ -3,7 +3,7 @@
 # amadeus:summary=Remove hibernation setup including swap and boot resume settings
 # amadeus:requires-sudo=true
 
-MKINITCPIO_CONF="/etc/mkinitcpio.conf.d/amadeus_resume.conf"
+MKINITCPIO_CONF="/etc/mkinitcpio.conf.d/os-amadeus_resume.conf"
 
 # Check if hibernation is configured
 if [[ ! -f $MKINITCPIO_CONF ]] || ! grep -q "^HOOKS+=(resume)$" "$MKINITCPIO_CONF"; then

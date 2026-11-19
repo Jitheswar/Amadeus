@@ -528,7 +528,7 @@ rebuild_next_boot() {
     # offset when it is absent, so a surviving one bakes the old swapfile's
     # offset into the rebuilt UKI and breaks resume.
     if [[ ! -f $next/swap/swapfile ]]; then
-      rm -f "$next/etc/mkinitcpio.conf.d/amadeus_resume.conf" \
+      rm -f "$next/etc/mkinitcpio.conf.d/os-amadeus_resume.conf" \
         "$next/etc/limine-entry-tool.d/resume.conf"
     fi
     if ! chroot "$next" env AMADEUS_PATH=/usr/share/amadeus \

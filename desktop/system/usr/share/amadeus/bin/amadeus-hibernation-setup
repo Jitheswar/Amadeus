@@ -37,7 +37,7 @@ if ! $NO_REBUILD && amadeus-cmd-missing limine-mkinitcpio; then
   exit 0
 fi
 
-MKINITCPIO_CONF="/etc/mkinitcpio.conf.d/amadeus_resume.conf"
+MKINITCPIO_CONF="/etc/mkinitcpio.conf.d/os-amadeus_resume.conf"
 SWAP_FILE="/swap/swapfile"
 RESUME_DROP_IN="/etc/limine-entry-tool.d/resume.conf"
 RESUME_REBUILD_PENDING="/var/lib/amadeus/hibernation-resume-rebuild"
