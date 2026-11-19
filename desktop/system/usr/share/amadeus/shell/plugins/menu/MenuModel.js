@@ -455,7 +455,6 @@ var GUARD_READERS = [
   "amadeus-bar get amadeus.clock format",
   "amadeus-bar get amadeus.clock verticalFormat",
   "amadeus-bar position",
-  "amadeus-channel-current",
   "amadeus-default-agent",
   "amadeus-default-browser",
   "amadeus-default-editor",

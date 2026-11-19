@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "ערוץ"
-  },
   "update.config": {
     "label": "תצורה",
     "title": "איפוס לברירת מחדל"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "שעה"
-  },
-  "update.channel.stable": {
-    "label": "יציב"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

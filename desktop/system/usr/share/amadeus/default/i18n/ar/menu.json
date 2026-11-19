@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "القناة"
-  },
   "update.config": {
     "label": "التكوين",
     "title": "إعادة تعيين إلى الافتراضي"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "الوقت"
-  },
-  "update.channel.stable": {
-    "label": "مستقر"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

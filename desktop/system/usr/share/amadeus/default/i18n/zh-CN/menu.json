@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "渠道"
-  },
   "update.config": {
     "label": "配置",
     "title": "重置为默认"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "时间"
-  },
-  "update.channel.stable": {
-    "label": "稳定版"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

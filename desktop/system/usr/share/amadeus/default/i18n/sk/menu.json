@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "Kanál"
-  },
   "update.config": {
     "label": "Konfigurácia",
     "title": "Obnoviť predvolené"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "Čas"
-  },
-  "update.channel.stable": {
-    "label": "Stabilný"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

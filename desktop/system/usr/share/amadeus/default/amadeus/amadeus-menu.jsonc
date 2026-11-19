@@ -451,7 +451,6 @@
 
   // Update
   "update.amadeus": {"icon":"","iconFont":"amadeus","label":"Amadeus","action":"amadeus-launch-floating-terminal-with-presentation amadeus-update"},
-  "update.channel": {"icon":"󰔫","label":"Channel"},
   "update.kernel": {"icon":"","label":"Kernel","when":"(( $(amadeus-kernel list | wc -l) > 1 ))","provider":"kernels"},
   "update.config": {"icon":"","label":"Config","title":"Reset to default"},
   "update.themes": {"icon":"󰸌","label":"Extra Themes","when":"amadeus-theme-extras","action":"amadeus-launch-floating-terminal-with-presentation amadeus-theme-update"},
@@ -462,10 +461,6 @@
   "update.password": {"icon":"","label":"Password"},
   "update.timezone": {"icon":"","label":"Timezone","action":"amadeus-menu-timezone"},
   "update.time": {"icon":"","label":"Time","action":"amadeus-launch-floating-terminal-with-presentation amadeus-update-time"},
-  "update.channel.stable": {"icon":"🟢","label":"Stable","checked":"[[ \"$(amadeus-channel-current)\" == \"stable\" ]]","action":"amadeus-launch-floating-terminal-with-presentation 'amadeus-channel-set stable'"},
-  "update.channel.rc": {"icon":"🟡","label":"RC","checked":"[[ \"$(amadeus-channel-current)\" == \"rc\" ]]","action":"amadeus-launch-floating-terminal-with-presentation 'amadeus-channel-set rc'"},
-  "update.channel.edge": {"icon":"🟠","label":"Edge","checked":"[[ \"$(amadeus-channel-current)\" == \"edge\" ]]","action":"amadeus-launch-floating-terminal-with-presentation 'amadeus-channel-set edge'"},
-  "update.channel.dev": {"icon":"🔴","label":"Dev","checked":"[[ \"$(amadeus-channel-current)\" == \"dev\" ]]","action":"amadeus-launch-floating-terminal-with-presentation 'amadeus-channel-set dev'"},
   "update.process.hyprsunset": {"icon":"","label":"Hyprsunset","action":"amadeus-restart-hyprsunset"},
   "update.process.shell": {"icon":"󰍜","label":"Shell","action":"amadeus-restart-shell"},
   "update.config.hyprland": {"icon":"","label":"Hyprland","action":"amadeus-launch-floating-terminal-with-presentation amadeus-refresh-hyprland"},

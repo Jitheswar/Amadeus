@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "頻道"
-  },
   "update.config": {
     "label": "設定",
     "title": "重設為預設"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "時間"
-  },
-  "update.channel.stable": {
-    "label": "穩定版"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "開發版"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

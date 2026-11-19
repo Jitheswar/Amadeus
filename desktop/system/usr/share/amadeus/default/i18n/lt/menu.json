@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "Kanalas"
-  },
   "update.config": {
     "label": "Konfigūracija",
     "title": "Atstatyti numatytąjį"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "Laikas"
-  },
-  "update.channel.stable": {
-    "label": "Stabilus"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

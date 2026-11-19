@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "Kanal"
-  },
   "update.config": {
     "label": "Konfigurasi",
     "title": "Atur Ulang ke Bawaan"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "Waktu"
-  },
-  "update.channel.stable": {
-    "label": "Stabil"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

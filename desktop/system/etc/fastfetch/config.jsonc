@@ -86,12 +86,6 @@
       "text": "amadeus-version-branch"
     },
     {
-      "type": "command",
-      "key": "│ ├󰔫",
-      "keyColor": "blue",
-      "text": "channel=$(amadeus-version-channel); echo \"$channel\""
-    },
-    {
       "type": "kernel",
       "key": "│ ├",
       "keyColor": "blue"

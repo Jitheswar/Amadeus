@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "چینل"
-  },
   "update.config": {
     "label": "کنفگ",
     "title": "طے شدہ پر ری سیٹ"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "وقت"
-  },
-  "update.channel.stable": {
-    "label": "مستحکم"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

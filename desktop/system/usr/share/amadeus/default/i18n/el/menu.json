@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "Κανάλι"
-  },
   "update.config": {
     "label": "Ρυθμίσεις",
     "title": "Επαναφορά προεπιλογής"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "Ώρα"
-  },
-  "update.channel.stable": {
-    "label": "Σταθερό"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "சேனல்"
-  },
   "update.config": {
     "label": "உள்ளமைவு",
     "title": "இயல்புநிலைக்கு மீட்டமை"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "நேரம்"
-  },
-  "update.channel.stable": {
-    "label": "நிலையானது"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

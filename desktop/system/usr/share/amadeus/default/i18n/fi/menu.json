@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "Kanava"
-  },
   "update.config": {
     "label": "Määritykset",
     "title": "Palauta oletukseksi"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "Aika"
-  },
-  "update.channel.stable": {
-    "label": "Vakaa"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

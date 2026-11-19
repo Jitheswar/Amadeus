@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "Kanal"
-  },
   "update.config": {
     "label": "Konfiguration",
     "title": "Nulstil til standard"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "Tid"
-  },
-  "update.channel.stable": {
-    "label": "Stabil"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

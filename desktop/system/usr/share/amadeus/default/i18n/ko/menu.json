@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "채널"
-  },
   "update.config": {
     "label": "설정",
     "title": "기본값으로 초기화"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "시간"
-  },
-  "update.channel.stable": {
-    "label": "안정"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

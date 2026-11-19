@@ -1,30 +1,22 @@
 #!/bin/bash
 
-# amadeus:summary=Reinstall all default Amadeus packages from the stable channel, or on Apple Silicon the edge channel
+# amadeus:summary=Reinstall every default Amadeus package and the drivers this computer needs
 # amadeus:requires-sudo=true
 
 set -e
 
-# Reinstall all default Amadeus packages from the platform's default channel
-# (stable, or edge on Apple Silicon) and downgrade any packages that are too new.
-
-# Set the package repository to the platform's default channel
-source "$AMADEUS_PATH/install/helpers/pacman.sh"
-platform=$(amadeus-hw-platform)
-channel=$(amadeus_pacman_default_channel "$platform")
-amadeus-refresh-pacman "$channel"
-
-# Downgrade any packages to that channel's setup
-amadeus-update-pacman -Suu --noconfirm
-
-# Ensure this platform's default packages are installed
+# Ensure this computer's default packages are installed (the installer's lists, shipped
+# with the desktop package), then the drivers and fixes amadeus-hardware picks for it.
 default_packages=$(amadeus-pkg-defaults)
+
 # pipewire-jack conflicts with jack and jack2, and --ask 4 below would remove
 # them for it, so a machine that kept either keeps it.
 if amadeus-pkg-present jack2 || amadeus-pkg-present jack; then
   default_packages=$(grep -vx pipewire-jack <<<"$default_packages")
 fi
+
 mapfile -t packages <<<"$default_packages"
-# --ask 4 accepts removing a stock package a default replaces, such as
-# power-profiles-daemon for omarchy-power-profiles-daemon.
+
+# --ask 4 accepts removing a stock package a default replaces.
 amadeus-update-pacman -Syu --noconfirm --ask 4 --needed "${packages[@]}"
+amadeus-hardware setup

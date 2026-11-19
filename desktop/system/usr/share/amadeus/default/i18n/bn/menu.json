@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "চ্যানেল"
-  },
   "update.config": {
     "label": "কনফিগ",
     "title": "ডিফল্টে রিসেট"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "সময়"
-  },
-  "update.channel.stable": {
-    "label": "স্থিতিশীল"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

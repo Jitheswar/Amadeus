@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "Rás"
-  },
   "update.config": {
     "label": "Stillingar",
     "title": "Endurstilla í sjálfgildi"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "Tími"
-  },
-  "update.channel.stable": {
-    "label": "Stöðugt"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

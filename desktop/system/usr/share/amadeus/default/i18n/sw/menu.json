@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "Kituo"
-  },
   "update.config": {
     "label": "Usanidi",
     "title": "Weka upya kwa chaguomsingi"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "Muda"
-  },
-  "update.channel.stable": {
-    "label": "Imara"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

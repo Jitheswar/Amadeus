@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "ช่องทาง"
-  },
   "update.config": {
     "label": "การตั้งค่า",
     "title": "รีเซ็ตเป็นค่าเริ่มต้น"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "เวลา"
-  },
-  "update.channel.stable": {
-    "label": "เสถียร"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"

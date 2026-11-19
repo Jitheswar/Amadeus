@@ -1048,9 +1048,6 @@
   "update.amadeus": {
     "label": "Amadeus"
   },
-  "update.channel": {
-    "label": "Kênh"
-  },
   "update.config": {
     "label": "Cấu hình",
     "title": "Đặt lại về mặc định"
@@ -1077,18 +1074,6 @@
   },
   "update.time": {
     "label": "Thời gian"
-  },
-  "update.channel.stable": {
-    "label": "Ổn định"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
   },
   "update.process.hyprsunset": {
     "label": "Hyprsunset"
