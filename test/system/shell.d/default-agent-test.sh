@@ -1,0 +1,1296 @@
+#!/bin/bash
+
+set -euo pipefail
+
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
+
+test_tmp=$(mktemp -d)
+trap 'rm -rf "$test_tmp"' EXIT
+
+mock_bin="$test_tmp/bin"
+test_home="$test_tmp/home"
+agent_file="$test_home/.config/amadeus/defaults/agent"
+notification_history="$test_tmp/notification-history"
+agent_open_log="$test_tmp/agent-open"
+launch_log="$test_tmp/launch"
+inline_log="$test_tmp/inline"
+mise_log="$test_tmp/mise"
+mise_history="$test_tmp/mise-history"
+stub_log="$test_tmp/stubs"
+terminal_log="$test_tmp/terminal"
+menu_log="$test_tmp/menu"
+muse_login_log="$test_tmp/muse-login"
+clipboard_log="$test_tmp/clipboard"
+mkdir -p "$mock_bin" "$test_home"
+
+cat >"$mock_bin/amadeus-install-chromium-claude" <<'SH'
+#!/bin/bash
+echo claude-extension >>"$AMADEUS_TEST_STUB_LOG"
+if [[ ${AMADEUS_TEST_EXTENSION_FAIL:-false} == "true" ]]; then
+  echo "Extension installation failed" >&2
+  exit 1
+fi
+SH
+
+cat >"$mock_bin/amadeus-notification-send" <<'SH'
+#!/bin/bash
+printf '%s\0' "$@" >>"$AMADEUS_TEST_NOTIFICATION_HISTORY"
+SH
+
+cat >"$mock_bin/wl-copy" <<'SH'
+#!/bin/bash
+cat >"$AMADEUS_TEST_CLIPBOARD"
+SH
+
+cat >"$mock_bin/amadeus-cmd-missing" <<'SH'
+#!/bin/bash
+[[ $1 == ${AMADEUS_TEST_MISSING_COMMAND:-} ]]
+SH
+
+cat >"$mock_bin/amadeus-launch-tui" <<'SH'
+#!/bin/bash
+printf '%s\0' "$@" >"$AMADEUS_TEST_AGENT_LAUNCH_LOG"
+SH
+
+cat >"$mock_bin/amadeus-launch-floating-terminal-with-presentation" <<'SH'
+#!/bin/bash
+printf '%s\0' "$@" >"$AMADEUS_TEST_AGENT_TERMINAL_LOG"
+SH
+
+cat >"$mock_bin/opencode" <<'SH'
+#!/bin/bash
+printf '%s\0' opencode "$@" >"$AMADEUS_TEST_AGENT_INLINE_LOG"
+SH
+
+cat >"$mock_bin/amadeus-mise-install" <<'SH'
+#!/bin/bash
+printf '%s\n' "$*" >>"$AMADEUS_TEST_STUB_LOG"
+SH
+
+cat >"$mock_bin/mise" <<'SH'
+#!/bin/bash
+printf '%s\0' "$@" >"$AMADEUS_TEST_MISE_LOG"
+printf '%s\n' "$*" >>"$AMADEUS_TEST_MISE_HISTORY"
+if [[ -n ${MISE_PRERELEASES:-} ]]; then
+  printf 'prereleases=%s %s\n' "$MISE_PRERELEASES" "$*" >>"$AMADEUS_TEST_MISE_HISTORY"
+fi
+
+if [[ $1 == "tool" && $3 == "--backend" ]]; then
+  case "$2" in
+  npm:*) printf '%s\n' "$2" ;;
+  amp) printf '%s\n' "npm:@ampcode/cli" ;;
+  qwen) printf '%s\n' "npm:@qwen-code/qwen-code" ;;
+  *) printf '%s\n' "aqua:example/$2" ;;
+  esac
+  exit 0
+fi
+
+if [[ $1 == "where" || $1 == "which" ]]; then
+  [[ ${AMADEUS_TEST_AGENT_INSTALLED:-false} == "true" ]]
+  exit
+fi
+
+[[ ${AMADEUS_TEST_MISE_FAIL:-false} != "true" ]]
+SH
+
+cat >"$mock_bin/amadeus-menu" <<'SH'
+#!/bin/bash
+printf '%s\0' "$@" >"$AMADEUS_TEST_AGENT_MENU_LOG"
+SH
+
+cat >"$mock_bin/amadeus-pkg-add" <<'SH'
+#!/bin/bash
+echo "Muse must install through mise" >&2
+exit 1
+SH
+ln -s amadeus-pkg-add "$mock_bin/amadeus-pkg-aur-add"
+
+cat >"$mock_bin/muse" <<'SH'
+#!/bin/bash
+if [[ ${1:-} == "login" ]]; then
+  printf 'muse %s\n' "$*" >>"$AMADEUS_TEST_MUSE_LOGIN_LOG"
+else
+  printf '%s\0' muse "$@" >"$AMADEUS_TEST_AGENT_INLINE_LOG"
+fi
+SH
+
+cat >"$mock_bin/amadeus-test-noop" <<'SH'
+#!/bin/bash
+exit 0
+SH
+
+cat >"$mock_bin/sudo" <<'SH'
+#!/bin/bash
+exec "$@"
+SH
+
+for command in gum hyprctl amadeus-webapp-remove-all amadeus-tui-remove-all amadeus-pkg-drop; do
+  ln -s amadeus-test-noop "$mock_bin/$command"
+done
+
+chmod +x "$mock_bin"/*
+
+export HOME="$test_home"
+export PATH="$mock_bin:$ROOT/bin:$PATH"
+export AMADEUS_TEST_NOTIFICATION_HISTORY="$notification_history"
+export AMADEUS_TEST_AGENT_OPEN_LOG="$agent_open_log"
+export AMADEUS_TEST_AGENT_LAUNCH_LOG="$launch_log"
+export AMADEUS_TEST_AGENT_INLINE_LOG="$inline_log"
+export AMADEUS_TEST_MISE_LOG="$mise_log"
+export AMADEUS_TEST_MISE_HISTORY="$mise_history"
+export AMADEUS_TEST_STUB_LOG="$stub_log"
+export AMADEUS_TEST_AGENT_TERMINAL_LOG="$terminal_log"
+export AMADEUS_TEST_AGENT_MENU_LOG="$menu_log"
+export AMADEUS_TEST_MUSE_LOGIN_LOG="$muse_login_log"
+export AMADEUS_TEST_CLIPBOARD="$clipboard_log"
+export AMADEUS_PATH="$ROOT"
+export AMADEUS_MISE_CONFIG_PATH="$test_tmp/etc/mise/config.toml"
+
+grok_package="grok"
+omp_package="oh-my-pi"
+crush_package="crush"
+agy_package="antigravity-cli"
+ori_package="ori"
+kimi_package="npm:@moonshot-ai/kimi-code"
+qwen_package="qwen"
+dsh_package="npm:@deepseek-ai/dsh"
+# Amadeus declares a tool with backend options under its bare name; the
+# bracketed package is what a user without the declarations gets.
+mcode_tool="npm:@minimax-ai/code"
+mcode_package="$mcode_tool[allow_builds=better-sqlite3]"
+kiro_cli_tool="http:kiro-cli"
+kiro_cli_package="$kiro_cli_tool[platforms_linux_x64_url=https://prod.download.cli.kiro.dev/stable/{{version}}/kirocli-x86_64-linux.tar.gz,platforms_linux_arm64_url=https://prod.download.cli.kiro.dev/stable/{{version}}/kirocli-aarch64-linux.tar.gz,version_list_url=https://prod.download.cli.kiro.dev/stable/latest/manifest.json,version_json_path=.version]"
+freebuff_package="npm:freebuff"
+kilo_package="npm:@kilocode/cli"
+devin_tool="http:devin"
+devin_package="$devin_tool[platforms_linux_x64_url=https://static.devin.ai/cli/{{ version }}/devin-{{ version }}-x86_64-unknown-linux.tar.gz,platforms_linux_arm64_url=https://static.devin.ai/cli/{{ version }}/devin-{{ version }}-aarch64-unknown-linux.tar.gz,bin_path=bin,version_list_url=https://static.devin.ai/cli/current/manifest.json,version_json_path=.version]"
+amp_package="amp"
+commandcode_package="npm:command-code"
+cursor_agent_package="cursor-agent"
+muse_package="muse"
+
+assert_lazy_stub() {
+  local package=$1
+  local command=$2
+
+  : >"$mise_history"
+  "$ROOT/bin/amadeus-mise-install" "$package" "$command"
+  "$test_home/.local/bin/$command" --version
+  mapfile -t mise_calls <"$mise_history"
+
+  [[ ${mise_calls[0]} == "use -g --quiet $package" && ${mise_calls[1]} == "x $package -- $command --version" ]] ||
+    fail "$command lazy stub preserves its mise package"
+}
+
+assert_lazy_stub "$grok_package" grok
+assert_lazy_stub "$omp_package" omp
+assert_lazy_stub "$crush_package" crush
+assert_lazy_stub "$ori_package" ori
+assert_lazy_stub "$kimi_package" kimi
+assert_lazy_stub "$cursor_agent_package" cursor-agent
+assert_lazy_stub "$muse_package" muse
+pass "custom agent lazy stubs preserve their mise packages"
+
+: >"$stub_log"
+source "$ROOT/install/user/mise.sh"
+[[ ! -s $stub_log ]] || fail "user setup must not create handwritten mise wrappers"
+pass "user setup leaves ordinary lazy wrappers to mise"
+
+"$ROOT/bin/amadeus-mise-install" "$muse_package" muse
+"$ROOT/bin/amadeus-mise-install" "$kimi_package" kimi
+"$ROOT/bin/amadeus-mise-install" "$cursor_agent_package" cursor-agent
+"$ROOT/bin/amadeus-mise-install" "$grok_package" grok
+"$ROOT/bin/amadeus-mise-install" "$omp_package" omp
+"$ROOT/bin/amadeus-mise-install" "$crush_package" crush
+touch "$test_home/.local/bin/agy" "$test_home/.local/bin/ori"
+amadeus-remove-preinstalls >/dev/null
+for command in agy omp ori grok crush cursor-agent muse kimi; do
+  [[ ! -e $test_home/.local/bin/$command ]] || fail "Remove Preinstalls deletes the $command lazy stub"
+done
+pass "Remove Preinstalls deletes every optional agent lazy stub"
+
+# Cursor's installer links the same path, so anything but the mise wrapper is
+# the user's own install.
+touch "$test_home/.local/bin/cursor-agent.official"
+ln -s cursor-agent.official "$test_home/.local/bin/cursor-agent"
+amadeus-remove-preinstalls >/dev/null
+[[ -L $test_home/.local/bin/cursor-agent ]] || fail "Remove Preinstalls keeps an official Cursor CLI install"
+rm -f "$test_home/.local/bin/cursor-agent" "$test_home/.local/bin/cursor-agent.official"
+pass "Remove Preinstalls keeps an official Cursor CLI install"
+printf '#!/bin/bash\necho user-muse\n' >"$test_home/.local/bin/muse"
+chmod +x "$test_home/.local/bin/muse"
+amadeus-remove-preinstalls >/dev/null
+[[ $("$test_home/.local/bin/muse") == "user-muse" ]] || fail "Remove Preinstalls deletes a user-managed Muse"
+rm "$test_home/.local/bin/muse"
+pass "Remove Preinstalls keeps a user-managed Muse install"
+
+
+[[ -z $(amadeus-default-agent) ]] || fail "default agent is unset until one is chosen"
+pass "default agent is unset until one is chosen"
+
+: >"$launch_log"
+if amadeus-agent >"$test_tmp/no-agent-output" 2>&1; then
+  fail "agent launcher refuses to launch without a default"
+fi
+grep -Fq "Choose default agent with" "$test_tmp/no-agent-output" ||
+  fail "agent launcher explains that no default is set"
+[[ ! -s $launch_log ]] || fail "agent launcher starts nothing without a default"
+pass "agent launcher refuses to launch without a default"
+
+# The agents panel launches a running local model whether or not a default was
+# chosen; it opens in an agent with an overlay all the same.
+cat >"$mock_bin/amadeus-agent-local" <<'SH'
+#!/bin/bash
+[[ $1 == "overlay" ]] && printf '%s\n' "/overlays/$2-local.config" amadeus-local test-model
+SH
+chmod +x "$mock_bin/amadeus-agent-local"
+: >"$launch_log"
+amadeus-agent --local-model test-model >"$test_tmp/local-output" 2>&1 ||
+  fail "agent launcher opens a local model without a default: $(<"$test_tmp/local-output")"
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == *"/overlays/"*"-local.config"* ]] ||
+  fail "agent launcher points the local model's agent at its overlay: ${launch_args[*]}"
+rm "$mock_bin/amadeus-agent-local"
+pass "agent launcher opens a local model without a default"
+
+# Qwen Code opens on a local model from an amadeus-local-ai that writes its
+# overlay: the endpoint and model as flags, the key read from its file inside
+# the terminal, never on a command line. An older one leaves it to pi.
+printf 'local-secret-key' >"$test_tmp/local-key"
+cat >"$mock_bin/amadeus-agent-local" <<'SH'
+#!/bin/bash
+if [[ $1 == "overlay" && $2 == "--help" ]]; then
+  [[ -n ${AMADEUS_TEST_QWEN_OVERLAY:-} ]] && echo "agent {opencode,pi,qwen}" || echo "agent {opencode,pi}"
+elif [[ $1 == "overlay" && $2 == "qwen" ]]; then
+  printf '{"baseUrl": "http://127.0.0.1:11435/v1", "model": "test-model", "keyFile": "%s"}\n' "$AMADEUS_TEST_KEY_FILE" >"$AMADEUS_TEST_QWEN_FILE"
+  printf '%s\n' "$AMADEUS_TEST_QWEN_FILE" amadeus-local test-model
+elif [[ $1 == "overlay" ]]; then
+  printf '%s\n' "/overlays/$2-local.config" amadeus-local test-model
+fi
+SH
+chmod +x "$mock_bin/amadeus-agent-local"
+printf '#!/bin/bash\nprintf "key=%%s args=%%s\\n" "$OPENAI_API_KEY" "$*"\n' >"$mock_bin/qwen"
+chmod +x "$mock_bin/qwen"
+: >"$launch_log"
+AMADEUS_TEST_QWEN_OVERLAY=1 AMADEUS_TEST_KEY_FILE="$test_tmp/local-key" AMADEUS_TEST_QWEN_FILE="$test_tmp/qwen-overlay.json" \
+  amadeus-agent --agent qwen --local-model test-model >"$test_tmp/qwen-local-output" 2>&1 ||
+  fail "agent launcher opens Qwen Code on a local model: $(<"$test_tmp/qwen-local-output")"
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} != *"local-secret-key"* ]] || fail "agent launcher keeps the local key off Qwen Code's command line"
+qwen_output=$("${launch_args[@]:1}")
+[[ $qwen_output == "key=local-secret-key args=--yolo --auth-type openai --openai-base-url http://127.0.0.1:11435/v1 --model test-model" ]] ||
+  fail "Qwen Code gets the local endpoint and model as flags and the key in its environment: $qwen_output"
+: >"$launch_log"
+AMADEUS_TEST_KEY_FILE="$test_tmp/local-key" amadeus-agent --agent qwen --local-model test-model >"$test_tmp/qwen-old-output" 2>&1 ||
+  fail "agent launcher falls back from Qwen Code on an older amadeus-local-ai: $(<"$test_tmp/qwen-old-output")"
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == *"/overlays/"*"-local.config"* && ${launch_args[*]} != *"--auth-type"* ]] ||
+  fail "an amadeus-local-ai without Qwen Code's overlay opens the local model in pi or OpenCode: ${launch_args[*]}"
+rm "$mock_bin/amadeus-agent-local" "$mock_bin/qwen" "$test_tmp/local-key"
+pass "agent launcher opens Qwen Code on a local model, keeping its key off the command line"
+
+# The keybinding uses --pick, where an error on stderr nobody sees would make
+# the keypress look broken. It offers the choice instead.
+: >"$launch_log"
+: >"$menu_log"
+amadeus-agent --pick
+mapfile -d '' -t menu_args <"$menu_log"
+[[ ${menu_args[*]} == "summon agent.harness" ]] ||
+  fail "--pick opens the agent defaults menu when none is set"
+[[ ! -s $launch_log ]] || fail "--pick starts nothing when no agent is set"
+pass "--pick opens the agent defaults menu when none is set"
+
+source "$ROOT/default/bash/aliases"
+[[ $(alias a) == "alias a='amadeus-agent --inline'" ]] ||
+  fail "terminal alias launches the default agent inline"
+pass "terminal alias launches the default agent inline"
+
+grep -Fq 'o.bind("SUPER + SHIFT + CTRL + A", "Agent", "amadeus-agent --pick")' \
+  "$ROOT/default/hypr/bindings/utilities.lua" ||
+  fail "agent launcher has a keyboard shortcut"
+pass "agent launcher has a keyboard shortcut"
+
+cat >"$mock_bin/amadeus-agent" <<'SH'
+#!/bin/bash
+printf '%s\0' amadeus-agent "$@" >"$AMADEUS_TEST_AGENT_OPEN_LOG"
+SH
+chmod +x "$mock_bin/amadeus-agent"
+hash -r
+
+declare -A expected_agents=(
+  [pi]="pi"
+  [omp]="omp"
+  [oh-my-pi]="omp"
+  [opencode]="opencode"
+  [open-code]="opencode"
+  [ori]="ori"
+  [openrouter]="ori"
+  [claude]="claude"
+  [claude-code]="claude"
+  [codex]="codex"
+  [crush]="crush"
+  [grok]="grok"
+  [agy]="agy"
+  [antigravity]="agy"
+  [antigravity-cli]="agy"
+  [gemini]="agy"
+  [gemini-cli]="agy"
+  [copilot]="copilot"
+  [github-copilot]="copilot"
+  [kimi]="kimi"
+  [kimi-code]="kimi"
+  [qwen]="qwen"
+  [qwen-code]="qwen"
+  [dsh]="dsh"
+  [deepseek]="dsh"
+  [deepseek-harness]="dsh"
+  [mcode]="mcode"
+  [minimax-code]="mcode"
+  [minimax]="mcode"
+  [kiro-cli]="kiro-cli"
+  [kiro]="kiro-cli"
+  [freebuff]="freebuff"
+  [kilo]="kilo"
+  [kilocode]="kilo"
+  [kilo-code]="kilo"
+  [devin]="devin"
+  [devin-cli]="devin"
+  [amp]="amp"
+  [ampcode]="amp"
+  [commandcode]="commandcode"
+  [command-code]="commandcode"
+  [cmdc]="commandcode"
+  [cursor]="cursor-agent"
+  [cursor-agent]="cursor-agent"
+  [muse]="muse"
+  [muse-code]="muse"
+  [musecode]="muse"
+)
+
+declare -A expected_packages=(
+  [pi]="pi"
+  [omp]="$omp_package"
+  [opencode]="opencode"
+  [ori]="$ori_package"
+  [claude]="claude"
+  [codex]="codex"
+  [crush]="$crush_package"
+  [grok]="$grok_package"
+  [agy]="$agy_package"
+  [copilot]="copilot"
+  [kimi]="$kimi_package"
+  [qwen]="$qwen_package"
+  [dsh]="$dsh_package"
+  [mcode]="$mcode_package"
+  [kiro-cli]="$kiro_cli_package"
+  [freebuff]="$freebuff_package"
+  [kilo]="$kilo_package"
+  [devin]="$devin_package"
+  [amp]="$amp_package"
+  [commandcode]="$commandcode_package"
+  [cursor-agent]="$cursor_agent_package"
+  [muse]="$muse_package"
+)
+
+for selection in "${!expected_agents[@]}"; do
+  expected=${expected_agents[$selection]}
+  : >"$agent_open_log"
+  : >"$stub_log"
+  AMADEUS_TEST_AGENT_INSTALLED=true amadeus-default-agent "$selection"
+  [[ $(amadeus-default-agent) == $expected ]] || fail "default agent canonicalizes $selection"
+
+  if [[ $expected == "claude" ]]; then
+    grep -qx claude-extension "$stub_log" || fail "Claude selection installs the browser extension"
+  else
+    [[ ! -s $stub_log ]] || fail "other agents do not install the Claude extension"
+  fi
+
+  mapfile -d '' -t mise_args <"$mise_log"
+  [[ ${mise_args[0]} == "use" && ${mise_args[1]} == "-g" ]] ||
+    fail "default agent installs $selection globally through mise"
+  case ${mise_args[2]} in
+    "${expected_packages[$expected]}") ;;
+    *) fail "default agent preserves $selection backend options" ;;
+  esac
+
+  mapfile -d '' -t agent_open_args <"$agent_open_log"
+  [[ ${#agent_open_args[@]} == 1 && ${agent_open_args[0]} == "amadeus-agent" ]] ||
+    fail "default agent opens $selection after selecting it"
+
+  launcher="$test_home/.local/share/applications/amadeus-agent-$expected.desktop"
+  grep -qx "Exec=amadeus-agent --agent $expected --app-id=org.amadeus.$expected" "$launcher" 2>/dev/null ||
+    fail "installing $expected adds a launcher that starts it"
+  icon=$(sed -n 's/^Icon=//p' "$launcher")
+  [[ -f $ROOT/icons/papercraft/$icon.svg.tpl && -f $ROOT/icons/arcade/$icon.svg.tpl && -f $ROOT/applications/icons/$icon.png ]] ||
+    fail "the $expected launcher's icon is in the icon sets"
+done
+pass "default agent selects and opens every supported provider and alias"
+pass "each installed harness gets a launcher with its icon in the icon sets"
+[[ -f $agent_file && ! -e $test_home/.local/state/amadeus/defaults/agent ]] ||
+  fail "default agent stores its selection in Amadeus user config"
+pass "default agent stores its selection in Amadeus user config"
+
+AMADEUS_TEST_AGENT_INSTALLED=true amadeus-default-agent pi
+: >"$agent_open_log"
+AMADEUS_TEST_AGENT_INSTALLED=true AMADEUS_TEST_EXTENSION_FAIL=true amadeus-default-agent claude >"$test_tmp/extension-failure" 2>&1
+[[ $(amadeus-default-agent) == "claude" ]] || fail "extension installation failure still selects Claude"
+mapfile -d '' -t agent_open_args <"$agent_open_log"
+[[ ${agent_open_args[*]} == "amadeus-agent" ]] || fail "extension installation failure still launches Claude"
+[[ ! -s $test_tmp/extension-failure ]] || fail "extension installation failure is silent"
+pass "extension installation failure silently continues selecting and launching Claude"
+AMADEUS_TEST_AGENT_INSTALLED=true amadeus-default-agent pi
+: >"$notification_history"
+: >"$agent_open_log"
+: >"$terminal_log"
+amadeus-default-agent github-copilot
+mapfile -d '' -t terminal_args <"$terminal_log"
+[[ ${terminal_args[0]} == "amadeus-default-agent" && ${terminal_args[1]} == "--install" && ${terminal_args[2]} == "copilot" ]] ||
+  fail "missing agent installation opens in a terminal"
+[[ ! -s $notification_history ]] || fail "missing agent installation skips notifications"
+[[ ! -s $agent_open_log ]] || fail "missing agent installation waits to open the agent"
+[[ $(amadeus-default-agent) == "pi" ]] || fail "missing agent installation waits to change the selection"
+
+amadeus-default-agent --install github-copilot >"$test_tmp/install-output"
+mapfile -d '' -t mise_args <"$mise_log"
+[[ ${mise_args[0]} == "use" && ${mise_args[1]} == "-g" && ${mise_args[2]} == "copilot" ]] ||
+  fail "visible agent installation activates the provider globally through mise"
+[[ $(amadeus-default-agent) == "copilot" ]] || fail "visible agent installation changes the selection after mise succeeds"
+[[ ! -s $notification_history ]] || fail "visible agent installation leaves progress to the terminal"
+[[ $(<"$test_tmp/install-output") == $'\033[2J\033[3J\033[H' ]] ||
+  fail "visible agent installation clears its terminal before opening the agent"
+mapfile -d '' -t agent_open_args <"$agent_open_log"
+[[ ${#agent_open_args[@]} == 2 && ${agent_open_args[0]} == "amadeus-agent" && ${agent_open_args[1]} == "--inline" ]] ||
+  fail "newly installed agent opens in the installation terminal"
+pass "missing agents install visibly and open in the same terminal"
+
+rm "$mock_bin/hyprctl"
+cat >"$mock_bin/hyprctl" <<SH
+#!/bin/bash
+if [[ \$1 == "clients" ]]; then
+  echo '[{"pid": $$, "address": "0xc0ffee", "workspace": {"name": "special:qconsole"}}]'
+else
+  printf '%s\n' "\$*" >>"$test_tmp/dispatch"
+fi
+SH
+chmod +x "$mock_bin/hyprctl"
+: >"$agent_open_log"
+amadeus-default-agent --install github-copilot >/dev/null
+[[ ! -s $agent_open_log ]] || fail "an install from the Quake console leaves its floating terminal"
+grep -qF 'hl.dsp.exec_cmd("amadeus-agent --prefer-local", { workspace = "special:qconsole silent" })' "$test_tmp/dispatch" ||
+  fail "an install from the Quake console opens the agent tiled in the console"
+grep -qF 'window = "address:0xc0ffee"' "$test_tmp/dispatch" ||
+  fail "an install from the Quake console closes its floating terminal"
+pass "an agent installed from the Quake console opens tiled in the console"
+
+# A terminal serving every window from one process matches them all by PID, so
+# the installer names its own window. The mock applies whatever title the
+# installer printed to the console window alone, as the terminal would.
+cat >"$mock_bin/hyprctl" <<SH
+#!/bin/bash
+if [[ \$1 == "clients" ]]; then
+  title=\$(grep -ao 'amadeus-default-agent-[0-9]*' "$test_tmp/installer-tty" 2>/dev/null | head -n1)
+  echo "[{\"pid\": $$, \"address\": \"0xdead\", \"title\": \"shell\", \"workspace\": {\"name\": \"1\"}},
+        {\"pid\": $$, \"address\": \"0xc0ffee\", \"title\": \"\$title\", \"workspace\": {\"name\": \"special:qconsole\"}}]"
+else
+  printf '%s\n' "\$*" >>"$test_tmp/dispatch"
+fi
+SH
+: >"$test_tmp/dispatch"
+: >"$agent_open_log"
+amadeus-default-agent --install github-copilot >"$test_tmp/installer-tty"
+[[ ! -s $agent_open_log ]] || fail "an install from a shared terminal process leaves its floating terminal"
+grep -qF 'window = "address:0xc0ffee"' "$test_tmp/dispatch" ||
+  fail "an install from a shared terminal process closes its own window"
+! grep -qF 'address:0xdead' "$test_tmp/dispatch" ||
+  fail "an install from a shared terminal process leaves the terminal's other windows alone"
+rm "$mock_bin/hyprctl"
+ln -s amadeus-test-noop "$mock_bin/hyprctl"
+pass "an install from a terminal sharing one process across windows finds its own window"
+
+: >"$notification_history"
+: >"$agent_open_log"
+: >"$terminal_log"
+AMADEUS_TEST_AGENT_INSTALLED=true amadeus-default-agent github-copilot
+[[ ! -s $terminal_log ]] || fail "installed agent selection skips the terminal"
+[[ ! -s $notification_history ]] || fail "installed agent selection skips notifications"
+mapfile -d '' -t mise_args <"$mise_log"
+[[ ${mise_args[0]} == "use" && ${mise_args[1]} == "-g" && ${mise_args[2]} == "copilot" ]] ||
+  fail "default agent still activates an installed provider globally through mise"
+mapfile -d '' -t agent_open_args <"$agent_open_log"
+[[ ${#agent_open_args[@]} == 1 && ${agent_open_args[0]} == "amadeus-agent" ]] ||
+  fail "installed agent opens in a new terminal after selection"
+pass "installed agents select and open without notifications"
+
+# Cursor's installer links the wrapper's path, and the mise shims precede
+# ~/.local/bin, so a mise copy would shadow the user's own install.
+touch "$test_home/.local/bin/cursor-agent.official"
+chmod +x "$test_home/.local/bin/cursor-agent.official"
+ln -s cursor-agent.official "$test_home/.local/bin/cursor-agent"
+: >"$terminal_log"
+: >"$mise_log"
+: >"$agent_open_log"
+amadeus-default-agent cursor-agent
+[[ ! -s $terminal_log ]] || fail "an official Cursor CLI install needs no install terminal"
+[[ ! -s $mise_log ]] || fail "an official Cursor CLI install is left to itself by mise"
+[[ $(<"$agent_file") == "cursor-agent" ]] || fail "an official Cursor CLI install becomes the default"
+mapfile -d '' -t agent_open_args <"$agent_open_log"
+[[ ${#agent_open_args[@]} == 1 && ${agent_open_args[0]} == "amadeus-agent" ]] ||
+  fail "an official Cursor CLI install opens after selection"
+rm -f "$test_home/.local/bin/cursor-agent" "$test_home/.local/bin/cursor-agent.official"
+printf '%s\n' copilot >"$agent_file"
+pass "selecting an official Cursor CLI install skips mise"
+
+# A file nothing can run is not an install; the wrapper is still wanted.
+touch "$test_home/.local/bin/cursor-agent"
+: >"$terminal_log"
+amadeus-default-agent cursor-agent
+mapfile -d '' -t terminal_args <"$terminal_log"
+[[ ${terminal_args[*]} == "amadeus-default-agent --install cursor-agent" ]] ||
+  fail "a dead file at the wrapper's path still installs Cursor CLI"
+rm -f "$test_home/.local/bin/cursor-agent"
+pass "a dead file at the wrapper's path does not pass for an install"
+
+: >"$agent_open_log"
+if amadeus-default-agent unsupported >"$test_tmp/invalid-output" 2>&1; then
+  fail "default agent rejects unsupported providers"
+fi
+grep -F "Usage: amadeus-default-agent" "$test_tmp/invalid-output" >/dev/null ||
+  fail "default agent explains supported providers"
+[[ $(amadeus-default-agent) == "copilot" ]] || fail "invalid selection preserves the current default agent"
+[[ ! -s $agent_open_log ]] || fail "invalid selection does not open an agent"
+pass "default agent rejects unsupported providers without changing the selection"
+
+# --installed answers for one harness, as the launcher migration asks it,
+# without selecting, installing or opening anything.
+: >"$agent_open_log"
+: >"$terminal_log"
+AMADEUS_TEST_AGENT_INSTALLED=true amadeus-default-agent --installed kilo || fail "--installed reports an installed harness"
+if AMADEUS_TEST_AGENT_INSTALLED=false amadeus-default-agent --installed kilo; then
+  fail "--installed reports a missing harness"
+fi
+[[ $(amadeus-default-agent) == "copilot" && ! -s $agent_open_log && ! -s $terminal_log ]] ||
+  fail "--installed selects, installs and opens nothing"
+pass "--installed tells whether a harness is installed and changes nothing"
+
+: >"$notification_history"
+: >"$agent_open_log"
+if AMADEUS_TEST_MISE_FAIL=true amadeus-default-agent --install codex >"$test_tmp/install-failure-output" 2>&1; then
+  fail "default agent rejects a failed mise installation"
+fi
+[[ $(amadeus-default-agent) == "copilot" ]] || fail "failed installation preserves the current default agent"
+grep -F "Could not install Codex with mise" "$test_tmp/install-failure-output" >/dev/null ||
+  fail "default agent reports a failed mise installation in the terminal"
+[[ ! -s $notification_history ]] || fail "failed visible agent installation skips notifications"
+[[ ! -s $agent_open_log ]] || fail "failed installation does not open an agent"
+pass "default agent opens only after mise installs the provider"
+
+: >"$notification_history"
+: >"$agent_open_log"
+if AMADEUS_TEST_AGENT_INSTALLED=true AMADEUS_TEST_MISE_FAIL=true amadeus-default-agent codex >"$test_tmp/setup-failure-output" 2>&1; then
+  fail "default agent rejects a failed mise activation"
+fi
+[[ $(amadeus-default-agent) == "copilot" ]] || fail "failed activation preserves the current default agent"
+grep -F "Could not set Codex as the default coding agent" "$test_tmp/setup-failure-output" >/dev/null ||
+  fail "default agent reports a failed activation for an installed provider"
+[[ ! -s $notification_history ]] || fail "failed activation skips notifications"
+[[ ! -s $agent_open_log ]] || fail "failed activation does not open an agent"
+pass "default agent reports mise failures without notifications"
+
+# Muse follows the shared mise installation and launch path.
+: >"$notification_history"
+: >"$agent_open_log"
+: >"$terminal_log"
+amadeus-default-agent muse
+mapfile -d '' -t terminal_args <"$terminal_log"
+[[ ${terminal_args[0]} == "amadeus-default-agent" && ${terminal_args[1]} == "--install" && ${terminal_args[2]} == "muse" ]] ||
+  fail "missing Muse installation opens in a terminal"
+[[ ! -s $notification_history ]] || fail "missing Muse installation skips notifications"
+[[ ! -s $agent_open_log ]] || fail "missing Muse installation waits to open the agent"
+[[ $(amadeus-default-agent) == "copilot" ]] || fail "missing Muse installation waits to change the selection"
+
+if AMADEUS_TEST_MISE_FAIL=true amadeus-default-agent --install muse >"$test_tmp/muse-install-failure-output" 2>&1; then
+  fail "missing Muse rejects a failed mise installation"
+fi
+[[ $(amadeus-default-agent) == "copilot" ]] || fail "failed Muse installation preserves the current default"
+[[ ! -s $muse_login_log && ! -s $agent_open_log ]] || fail "failed Muse installation skips login and launch"
+grep -F "Could not install Muse Code with mise" "$test_tmp/muse-install-failure-output" >/dev/null ||
+  fail "failed Muse installation identifies mise"
+pass "failed Muse mise installation preserves the selection and skips login"
+
+# Without Amadeus's declarations nothing declares Muse, so selecting it adds it
+# to the user's config.
+: >"$mise_history"
+amadeus-default-agent --install muse >/dev/null
+grep -Fx "use -g $muse_package" "$mise_history" >/dev/null ||
+  fail "Muse selection adds Muse to the user config when no system config declares it"
+rm -f "$agent_file"
+
+# mise skips the declarations for a user who removed the preinstalls, so the
+# same applies.
+mkdir -p "$(dirname "$AMADEUS_MISE_CONFIG_PATH")" "$test_home/.config/mise"
+cp "$ROOT/etc/mise/conf.d/amadeus-tools.toml" "$AMADEUS_MISE_CONFIG_PATH"
+printf 'ignored_config_paths = ["%s"]\n' "$AMADEUS_MISE_CONFIG_PATH" >"$test_home/.config/mise/miserc.toml"
+: >"$mise_history"
+amadeus-default-agent --install muse >/dev/null
+grep -Fx "use -g $muse_package" "$mise_history" >/dev/null ||
+  fail "Muse selection adds Muse to the user config after Remove Preinstalls"
+# Every DSH release is a prerelease, which `mise use` skips unless told otherwise.
+: >"$mise_history"
+amadeus-default-agent --install dsh >/dev/null
+grep -Fx "prereleases=true use -g $dsh_package" "$mise_history" >/dev/null ||
+  fail "DSH selection lets mise pick a prerelease after Remove Preinstalls"
+: >"$mise_history"
+amadeus-default-agent --install kilo >/dev/null
+grep -q '^prereleases=' "$mise_history" && fail "other agents install only stable releases after Remove Preinstalls"
+# An npm-backed agent brings node along here too, since node may still be
+# declared without being installed; Muse isn't npm-backed and doesn't.
+node_line=$(grep -nx "install node" "$mise_history" | cut -d: -f1)
+kilo_line=$(grep -nFx "use -g $kilo_package" "$mise_history" | cut -d: -f1)
+[[ -n $node_line && -n $kilo_line ]] && (( node_line < kilo_line )) ||
+  fail "an npm-backed agent installs node before it after Remove Preinstalls"
+: >"$mise_history"
+amadeus-default-agent --install muse >/dev/null
+grep -qx "install node" "$mise_history" && fail "an agent that isn't npm-backed installs no node after Remove Preinstalls"
+rm -f "$agent_file" "$test_home/.config/mise/miserc.toml"
+
+# With Amadeus's system config, installing is enough; the user config stays alone.
+: >"$mise_history"
+: >"$stub_log"
+amadeus-default-agent --install muse >"$test_tmp/muse-install-output"
+grep -Fx "install $muse_package" "$mise_history" >/dev/null || fail "visible Muse installation uses the registry shorthand"
+grep -q '^use ' "$mise_history" && fail "Muse selection leaves the user config alone when the system config declares it"
+[[ ! -s $stub_log ]] || fail "Muse selection recreates its preinstalled wrapper"
+[[ ! -s $muse_login_log ]] || fail "Muse selection runs a separate login flow"
+[[ $(amadeus-default-agent) == "muse" ]] || fail "visible Muse installation changes the selection"
+mapfile -d '' -t agent_open_args <"$agent_open_log"
+[[ ${#agent_open_args[@]} == 2 && ${agent_open_args[0]} == "amadeus-agent" && ${agent_open_args[1]} == "--inline" ]] ||
+  fail "newly installed Muse opens in the installation terminal"
+pass "Muse installs visibly through mise and opens directly"
+
+saved_agent=$(<"$agent_file")
+for agent in qwen dsh mcode kiro-cli freebuff kilo devin amp commandcode; do
+  tool_var="${agent//-/_}_tool"
+  package_var="${agent//-/_}_package"
+  declared_tool=${!tool_var:-${!package_var}}
+  : >"$mise_history"
+  amadeus-default-agent --install "$agent" >/dev/null
+  # npm-backed agents bring node along, which a fresh machine doesn't have yet.
+  case "$agent" in
+  kiro-cli | devin) expected_install="install $declared_tool" ;;
+  *) expected_install="install node $declared_tool" ;;
+  esac
+  grep -Fx "$expected_install" "$mise_history" >/dev/null || fail "visible $agent installation installs Amadeus's declaration (expected: $expected_install)"
+  : >"$mise_history"
+  AMADEUS_TEST_AGENT_INSTALLED=true amadeus-default-agent "$agent" >/dev/null
+  grep -Fx "where $declared_tool" "$mise_history" >/dev/null || fail "$agent selection looks for Amadeus's declaration"
+  grep -q '^use ' "$mise_history" && fail "$agent selection leaves the user config alone when the system config declares it"
+  [[ $(amadeus-default-agent) == "$agent" ]] || fail "visible $agent installation changes the selection"
+done
+printf '%s\n' "$saved_agent" >"$agent_file"
+pass "the added agents install through Amadeus's mise declarations"
+
+: >"$terminal_log"
+: >"$muse_login_log"
+: >"$agent_open_log"
+AMADEUS_TEST_AGENT_INSTALLED=true amadeus-default-agent muse-code
+[[ ! -s $terminal_log ]] || fail "installed Muse selection skips the terminal"
+[[ ! -s $muse_login_log ]] || fail "installed Muse selection skips the login"
+[[ $(amadeus-default-agent) == "muse" ]] || fail "default agent canonicalizes muse-code"
+mapfile -d '' -t agent_open_args <"$agent_open_log"
+[[ ${#agent_open_args[@]} == 1 && ${agent_open_args[0]} == "amadeus-agent" ]] ||
+  fail "installed Muse opens in a new terminal after selection"
+pass "installed Muse selects and opens directly"
+
+AMADEUS_TEST_AGENT_INSTALLED=true amadeus-default-agent pi
+: >"$agent_open_log"
+if AMADEUS_TEST_AGENT_INSTALLED=true AMADEUS_TEST_MISE_FAIL=true amadeus-default-agent musecode >"$test_tmp/muse-failure-output" 2>&1; then
+  fail "default agent rejects a failed Muse activation"
+fi
+[[ $(amadeus-default-agent) == "pi" ]] || fail "failed Muse activation preserves the current default agent"
+grep -F "Could not set Muse Code as the default coding agent" "$test_tmp/muse-failure-output" >/dev/null ||
+  fail "default agent reports a failed Muse activation"
+[[ ! -s $agent_open_log ]] || fail "failed Muse activation does not open an agent"
+pass "default agent reports Muse mise failures without changing the selection"
+
+# A manually installed launcher belongs to the user; selecting it must not
+# install a second copy or replace it with the Amadeus wrapper.
+printf '#!/bin/bash\necho user-muse\n' >"$test_home/.local/bin/muse"
+chmod +x "$test_home/.local/bin/muse"
+: >"$mise_history"
+: >"$stub_log"
+: >"$terminal_log"
+amadeus-default-agent muse
+[[ $(amadeus-default-agent) == "muse" ]] || fail "a user-installed Muse can be selected"
+[[ ! -s $mise_history && ! -s $stub_log && ! -s $terminal_log ]] || fail "a user-installed Muse skips installation and wrapper creation"
+[[ $("$test_home/.local/bin/muse") == "user-muse" ]] || fail "a user-installed Muse is preserved"
+rm "$test_home/.local/bin/muse"
+pass "selecting a user-installed Muse preserves its launcher"
+
+rm "$mock_bin/amadeus-agent"
+hash -r
+
+assert_launched() {
+  local agent=$1
+  local description=$2
+  shift 2
+  # Every agent window launches under the same app-id, whichever agent is
+  # default, so window rules and themes see one class for all of them.
+  local expected=(--app-id=org.amadeus.agent "$@")
+
+  mapfile -d '' -t actual <"$launch_log"
+
+  (( ${#actual[@]} == ${#expected[@]} )) ||
+    fail "$agent launch $description" "expected: ${expected[*]}\nactual: ${actual[*]}"
+
+  for ((index = 0; index < ${#expected[@]}; index++)); do
+    case ${actual[$index]} in
+    "${expected[$index]}") ;;
+    *) fail "$agent launch $description" "expected: ${expected[*]}\nactual: ${actual[*]}" ;;
+    esac
+  done
+}
+
+assert_launch() {
+  local agent=$1
+  shift
+
+  printf '%s\n' "$agent" >"$agent_file"
+  amadeus-agent-prompt "Review this" project
+  assert_launched "$agent" "forwards the interactive prompt" "$@"
+}
+
+assert_bypass() {
+  local agent=$1
+  shift
+
+  printf '%s\n' "$agent" >"$agent_file"
+  amadeus-agent
+  assert_launched "$agent" "skips permission prompts" "$@"
+}
+
+assert_launch pi pi "Review this project"
+assert_launch omp omp --auto-approve -- "Review this project"
+assert_launch opencode opencode --auto --prompt "Review this project"
+assert_launch ori ori code --interactive --prompt "Review this project"
+assert_launch claude env -u CLAUDE_CONFIG_DIR AMADEUS_AGENT_CLAUDE_HOME= claude --permission-mode auto -- "Review this project"
+assert_launch codex env -u CODEX_HOME AMADEUS_AGENT_CODEX_HOME= codex --approve-for-me -- "Review this project"
+assert_launch muse muse --approval-mode never -- "Review this project"
+assert_launch crush crush run "Review this project"
+assert_launch grok env -u GROK_HOME AMADEUS_AGENT_GROK_HOME= grok --permission-mode bypassPermissions -- "Review this project"
+assert_launch cursor-agent cursor-agent --yolo --trust agent -- "Review this project"
+assert_launch hermes env -u HERMES_SESSION_SOURCE hermes chat --yolo --tui "--query=Review this project"
+assert_launch agy agy --dangerously-skip-permissions --prompt-interactive "Review this project"
+assert_launch copilot copilot --allow-all --interactive "Review this project"
+assert_launch kimi kimi --prompt "Review this project"
+assert_launch qwen qwen --yolo "--prompt-interactive=Review this project"
+printf '%s\n' qwen >"$agent_file"
+amadeus-agent-prompt '-n --help; echo literal'
+assert_launched qwen "keeps an option-like prompt literal" qwen --yolo "--prompt-interactive=-n --help; echo literal"
+# DSH's browser UI takes no prompt, and its headless profile would run one with
+# full access in a window that closes with the answer.
+: >"$notification_history"
+printf '%s\n' dsh >"$agent_file"
+amadeus-agent-prompt '-n --help; echo literal'
+assert_launched dsh "opens its browser UI for a prompt" env DSH_PERMISSION_MODE=danger-full-access dsh web
+[[ $(<"$clipboard_log") == '-n --help; echo literal' ]] || fail "DSH launcher puts the prompt on the clipboard"
+mapfile -d '' -t notification_args <"$notification_history"
+[[ ${notification_args[*]} == *"DeepSeek Harness takes no starting prompt"* ]] || fail "DSH launcher says where the prompt went"
+assert_launch mcode mcode -- "Review this project"
+assert_launch kiro-cli kiro-cli chat --trust-all-tools -- "Review this project"
+: >"$notification_history"
+assert_launch freebuff freebuff
+assert_launch kilo kilo --auto "--prompt=Review this project"
+assert_launch devin devin --permission-mode dangerous --respect-workspace-trust false -- "Review this project"
+assert_launch amp bash -c 'printf "%s\n" "$1" | exec "$0" --dangerously-allow-all' amp "Review this project"
+assert_launch commandcode commandcode --yolo -- "Review this project"
+[[ $(<"$clipboard_log") == "Review this project" ]] || fail "Freebuff launcher puts the prompt on the clipboard"
+mapfile -d '' -t notification_args <"$notification_history"
+[[ ${notification_args[*]} == *"Freebuff takes no starting prompt"* ]] || fail "Freebuff launcher says where the prompt went"
+pass "agent launcher adapts initial prompts for every supported agent"
+
+literal_muse_prompt=$'--disable-sandbox !Crash {$(touch must-not-run)}\ntrailing\\ '
+printf '%s\n' "muse" >"$agent_file"
+amadeus-agent-prompt "$literal_muse_prompt"
+assert_launched muse "separates prompt text from options" muse --approval-mode never -- "$literal_muse_prompt"
+pass "Muse receives option-like prompts as one literal argument"
+
+literal_hermes_prompt=$' --help !Crash /quit {$(touch must-not-run)}\ntrailing\\ '
+printf '%s\n' "hermes" >"$agent_file"
+amadeus-agent-prompt "$literal_hermes_prompt"
+assert_launched hermes "binds its literal initial prompt" env -u HERMES_SESSION_SOURCE \
+  hermes chat --yolo --tui "--query=$literal_hermes_prompt"
+pass "Hermes receives prompted launches as one literal query argument"
+
+assert_bypass pi pi
+assert_bypass omp omp --auto-approve
+assert_bypass opencode opencode --auto
+assert_bypass ori ori code
+assert_bypass claude env -u CLAUDE_CONFIG_DIR AMADEUS_AGENT_CLAUDE_HOME= claude --permission-mode auto
+assert_bypass codex env -u CODEX_HOME AMADEUS_AGENT_CODEX_HOME= codex --approve-for-me
+assert_bypass muse muse --approval-mode never
+assert_bypass crush crush --yolo
+assert_bypass grok env -u GROK_HOME AMADEUS_AGENT_GROK_HOME= grok --permission-mode bypassPermissions
+assert_bypass cursor-agent cursor-agent --yolo --trust
+assert_bypass hermes hermes --yolo
+assert_bypass agy agy --dangerously-skip-permissions
+assert_bypass copilot copilot --allow-all
+assert_bypass kimi kimi --yolo
+assert_bypass qwen qwen --yolo
+assert_bypass dsh env DSH_PERMISSION_MODE=danger-full-access dsh web
+assert_bypass mcode mcode
+assert_bypass kiro-cli kiro-cli chat --trust-all-tools
+: >"$clipboard_log"
+: >"$notification_history"
+assert_bypass freebuff freebuff
+assert_bypass kilo kilo --auto
+assert_bypass devin devin --permission-mode dangerous --respect-workspace-trust false
+assert_bypass amp amp --dangerously-allow-all
+assert_bypass commandcode commandcode --yolo
+[[ ! -s $clipboard_log && ! -s $notification_history ]] || fail "Freebuff launcher leaves the clipboard alone without a prompt"
+pass "agent launcher skips permission prompts for every supported agent"
+
+printf '%s\n' "opencode" >"$agent_file"
+amadeus-agent
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == "--app-id=org.amadeus.agent opencode --auto" ]] ||
+  fail "agent launcher starts the selected agent without an initial prompt"
+pass "agent launcher starts the selected agent without an initial prompt"
+
+amadeus-agent-prompt --inline "Review this project"
+mapfile -d '' -t inline_args <"$inline_log"
+[[ ${inline_args[*]} == "opencode --auto --prompt Review this project" ]] ||
+  fail "inline agent launcher runs in the current terminal"
+pass "inline agent launcher runs in the current terminal"
+
+# The prompt route exists so the router can tell a prompt from a subcommand, so
+# cover the public routes and not only the binaries behind them.
+: >"$launch_log"
+amadeus agent
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == "--app-id=org.amadeus.agent opencode --auto" ]] ||
+  fail "amadeus agent routes to the launcher"
+
+# With an agent chosen there is nothing to pick, so the keybinding launches.
+: >"$launch_log"
+: >"$menu_log"
+amadeus-agent --pick
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == "--app-id=org.amadeus.agent opencode --auto" ]] ||
+  fail "--pick launches once an agent is chosen"
+[[ ! -s $menu_log ]] || fail "--pick opens no menu once an agent is chosen"
+pass "--pick launches once an agent is chosen"
+
+# The Quake console seeds with --prefer-local: the local model when one is
+# running, the usual agent otherwise. The mock reports whatever status the test
+# writes to AMADEUS_TEST_LOCAL_STATUS, and no status at all when it is unset.
+cat >"$mock_bin/amadeus-agent-local" <<'SH'
+#!/bin/bash
+case $1 in
+status) [[ -n ${AMADEUS_TEST_LOCAL_STATUS:-} ]] && printf '%s\n' "$AMADEUS_TEST_LOCAL_STATUS" || exit 1 ;;
+overlay) printf '%s\n' "/overlays/$2-${3:-last}.config" amadeus-local "${3:-last}" ;;
+esac
+SH
+chmod +x "$mock_bin/amadeus-agent-local"
+prefer_local_launch() {
+  : >"$launch_log"
+  AMADEUS_TEST_LOCAL_STATUS=$1 amadeus-agent --pick --prefer-local
+  mapfile -d '' -t launch_args <"$launch_log"
+}
+
+prefer_local_launch '{"last":"big","models":{"big":{"unit":"active","sub_state":"running"}}}'
+[[ ${launch_args[*]} == *"OPENCODE_CONFIG=/overlays/opencode-big.config"*"opencode --auto --standalone" ]] ||
+  fail "--prefer-local opens the running local model: ${launch_args[*]}"
+
+prefer_local_launch '{"last":"big","models":{"big":{"unit":"inactive","sub_state":"dead"},"small":{"unit":"active","sub_state":"running"}}}'
+[[ ${launch_args[*]} == *"/overlays/opencode-small.config"* ]] ||
+  fail "--prefer-local opens whichever model is running when the last one is stopped: ${launch_args[*]}"
+
+prefer_local_launch '{"last":"big","models":{"big":{"unit":"activating","sub_state":"start"}}}'
+[[ ${launch_args[*]} == "--app-id=org.amadeus.agent opencode --auto" ]] ||
+  fail "--prefer-local opens the usual agent while the model is still loading: ${launch_args[*]}"
+
+prefer_local_launch ''
+[[ ${launch_args[*]} == "--app-id=org.amadeus.agent opencode --auto" ]] ||
+  fail "--prefer-local opens the usual agent without a local model: ${launch_args[*]}"
+
+# A model that is set up but stopped, as one opened from its launcher may be,
+# is started in the agent's own terminal, where its loading shows: the launch
+# reruns itself inline there, and the inline run warms the model up before
+# the agent opens on it. A warm-up that fails opens nothing.
+stopped='{"last":"big","models":{"big":{"unit":"inactive","sub_state":"dead"}}}'
+: >"$launch_log"
+AMADEUS_TEST_LOCAL_STATUS=$stopped amadeus-agent --local-model big --app-id=org.amadeus.local.big
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == "--app-id=org.amadeus.local.big amadeus-agent --inline --local-model big --app-id=org.amadeus.local.big" ]] ||
+  fail "a stopped local model is opened by rerunning the launch inside its terminal: ${launch_args[*]}"
+
+: >"$launch_log"
+AMADEUS_TEST_LOCAL_STATUS=$stopped amadeus-agent --local
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == "--app-id=org.amadeus.agent amadeus-agent --inline --local" ]] ||
+  fail "--local on a stopped model starts the one last used: ${launch_args[*]}"
+
+printf '#!/bin/bash\nprintf "%%s\\n" "warmup $*" >>"$AMADEUS_TEST_WARMUP_LOG"\nexit "${AMADEUS_TEST_WARMUP_STATUS:-0}"\n' >"$mock_bin/amadeus-agent-local-warmup"
+chmod +x "$mock_bin/amadeus-agent-local-warmup"
+export AMADEUS_TEST_WARMUP_LOG="$test_tmp/warmup"
+: >"$inline_log"
+AMADEUS_TEST_LOCAL_STATUS=$stopped amadeus-agent --inline --local-model big
+mapfile -d '' -t inline_args <"$inline_log"
+[[ $(<"$AMADEUS_TEST_WARMUP_LOG") == "warmup big" && ${inline_args[*]} == "opencode --auto --standalone" ]] ||
+  fail "an inline launch warms a stopped model up, then opens the agent on it: $(<"$AMADEUS_TEST_WARMUP_LOG") / ${inline_args[*]}"
+
+: >"$inline_log"
+if AMADEUS_TEST_WARMUP_STATUS=1 AMADEUS_TEST_LOCAL_STATUS=$stopped amadeus-agent --inline --local-model big; then
+  fail "a model that didn't start fails the launch"
+fi
+[[ ! -s $inline_log ]] || fail "a model that didn't start opens no agent"
+
+: >"$AMADEUS_TEST_WARMUP_LOG"
+: >"$launch_log"
+AMADEUS_TEST_LOCAL_STATUS='{"last":"big","models":{"big":{"unit":"active","sub_state":"running"}}}' amadeus-agent --local-model big
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ! -s $AMADEUS_TEST_WARMUP_LOG && ${launch_args[*]} == *"/overlays/opencode-big.config"*"opencode --auto --standalone" ]] ||
+  fail "a running local model opens at once: ${launch_args[*]}"
+rm "$mock_bin/amadeus-agent-local-warmup"
+pass "a stopped local model is started in the agent's terminal before the agent opens"
+
+# A default that can't take the overlay, with no pi or OpenCode to stand in,
+# still opens rather than failing as --local would.
+printf '%s\n' "codex" >"$agent_file"
+: >"$notification_history"
+printf '#!/bin/bash\nexit 1\n' >"$mock_bin/amadeus-cmd-present"
+chmod +x "$mock_bin/amadeus-cmd-present"
+prefer_local_launch '{"last":"big","models":{"big":{"unit":"active","sub_state":"running"}}}'
+[[ ${launch_args[*]} == *"codex --approve-for-me" && ${launch_args[*]} != *overlays* ]] ||
+  fail "--prefer-local falls back to a default that can't take the overlay: ${launch_args[*]}"
+[[ ! -s $notification_history ]] || fail "--prefer-local falling back raises no notification"
+printf '%s\n' "opencode" >"$agent_file"
+rm "$mock_bin/amadeus-agent-local" "$mock_bin/amadeus-cmd-present"
+pass "--prefer-local opens the running local model, and the usual agent otherwise"
+
+: >"$launch_log"
+amadeus agent prompt "Review this project"
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == "--app-id=org.amadeus.agent opencode --auto --prompt Review this project" ]] ||
+  fail "amadeus agent prompt routes the prompt to the launcher"
+
+: >"$launch_log"
+if amadeus agent Review this project >"$test_tmp/positional-output" 2>&1; then
+  fail "amadeus agent rejects a positional prompt"
+fi
+grep -F "amadeus agent prompt" "$test_tmp/positional-output" >/dev/null ||
+  fail "amadeus agent points a positional prompt at the prompt route"
+[[ ! -s $launch_log ]] || fail "amadeus agent starts nothing for a positional prompt"
+if amadeus agent prompt '' >"$test_tmp/empty-prompt-output" 2>&1; then
+  fail "amadeus agent prompt rejects an empty prompt"
+fi
+[[ $(<"$test_tmp/empty-prompt-output") == "Usage: amadeus agent prompt [--inline] <prompt...>" ]] ||
+  fail "amadeus agent prompt answers an empty prompt with its usage" "$(<"$test_tmp/empty-prompt-output")"
+[[ ! -s $launch_log ]] || fail "amadeus agent prompt starts nothing for an empty prompt"
+pass "amadeus agent keeps prompts on the prompt route"
+
+printf '%s\n' "missing" >"$agent_file"
+if AMADEUS_TEST_MISSING_COMMAND=missing amadeus-agent >"$test_tmp/missing-output" 2>&1; then
+  fail "agent launcher rejects a missing default command"
+fi
+grep -F "missing is not installed" "$test_tmp/missing-output" >/dev/null ||
+  fail "agent launcher explains when the default command is missing"
+pass "agent launcher reports a missing default command"
+
+# OpenClaw is its own self-updating runtime, not mise's: choosing it must route
+# through amadeus-install-openclaw-cli and never touch a mise environment.
+# openclaw-cli-test.sh covers the installer itself.
+cat >"$mock_bin/amadeus-install-openclaw-cli" <<'SH'
+#!/bin/bash
+if [[ $1 == "--check" ]]; then
+  [[ ${AMADEUS_TEST_OPENCLAW_INSTALLED:-false} == "true" ]]
+else
+  printf '%s\n' "install-openclaw-cli $*" >>"$AMADEUS_TEST_STUB_LOG"
+fi
+SH
+cat >"$mock_bin/amadeus-launch-openclaw" <<'SH'
+#!/bin/bash
+printf '%s\0' amadeus-launch-openclaw "$@" >"$AMADEUS_TEST_AGENT_INLINE_LOG"
+SH
+cat >"$mock_bin/openclaw" <<'SH'
+#!/bin/bash
+exit 0
+SH
+chmod +x "$mock_bin/amadeus-install-openclaw-cli" \
+  "$mock_bin/amadeus-launch-openclaw" "$mock_bin/openclaw"
+
+: >"$launch_log"
+: >"$terminal_log"
+: >"$mise_history"
+AMADEUS_TEST_OPENCLAW_INSTALLED=true amadeus-default-agent openclaw
+read -r chosen <"$agent_file"
+[[ $chosen == openclaw ]] || fail "choosing OpenClaw records it as the default agent"
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == "--app-id=org.amadeus.agent amadeus-launch-openclaw --tui" ]] ||
+  fail "choosing OpenClaw launches its terminal UI"
+[[ ! -s $terminal_log ]] || fail "an installed OpenClaw needs no install terminal"
+! grep -q 'use -g openclaw' "$mise_history" || fail "OpenClaw never installs through mise"
+pass "choosing OpenClaw uses its runtime and launches its terminal UI"
+
+: >"$terminal_log"
+AMADEUS_TEST_OPENCLAW_INSTALLED=false amadeus-default-agent openclaw
+mapfile -d '' -t terminal_args <"$terminal_log"
+[[ ${terminal_args[*]} == "amadeus-default-agent --install openclaw" ]] ||
+  fail "a missing OpenClaw routes through the install terminal"
+pass "a missing OpenClaw routes through the install terminal"
+
+: >"$stub_log"
+: >"$inline_log"
+AMADEUS_TEST_OPENCLAW_INSTALLED=false amadeus-default-agent --install openclaw >/dev/null
+grep -Fx "install-openclaw-cli --now" "$stub_log" >/dev/null ||
+  fail "installing OpenClaw as default agent sets up its runtime"
+mapfile -d '' -t inline_args <"$inline_log"
+[[ ${inline_args[*]} == "amadeus-launch-openclaw --tui" ]] ||
+  fail "installing OpenClaw as default agent hands over to its terminal UI"
+pass "installing OpenClaw as default agent sets up its runtime"
+
+: >"$launch_log"
+amadeus agent prompt "Review this project"
+mapfile -d '' -t launch_args <"$launch_log"
+# Element-wise: the prompt must travel as one argv entry, which a space-joined
+# comparison could not tell apart from a prompt split into words.
+[[ ${#launch_args[@]} == 5 &&
+  ${launch_args[0]} == "--app-id=org.amadeus.agent" &&
+  ${launch_args[1]} == "amadeus-launch-openclaw" &&
+  ${launch_args[2]} == "--tui" &&
+  ${launch_args[3]} == "--message" &&
+  ${launch_args[4]} == "Review this project" ]] ||
+  fail "OpenClaw receives prompts through --message" "argv: ${launch_args[*]}"
+pass "OpenClaw receives prompts through --message"
+
+# With the package and no openclaw command, the launcher sets OpenClaw up, so
+# the agent hands over to it rather than calling OpenClaw missing.
+cat >"$mock_bin/amadeus-pkg-present" <<'SH'
+#!/bin/bash
+[[ " ${AMADEUS_TEST_PACKAGES:-} " == *" $1 "* ]]
+SH
+chmod +x "$mock_bin/amadeus-pkg-present"
+: >"$launch_log"
+AMADEUS_TEST_MISSING_COMMAND=openclaw AMADEUS_TEST_PACKAGES=openclaw amadeus-agent >/dev/null 2>&1 ||
+  fail "OpenClaw's agent launches with the package and no command yet"
+mapfile -d '' -t launch_args <"$launch_log"
+[[ ${launch_args[*]} == "--app-id=org.amadeus.agent amadeus-launch-openclaw --tui" ]] ||
+  fail "OpenClaw's agent hands a missing command to its launcher when the package is there" "argv: ${launch_args[*]}"
+: >"$launch_log"
+if AMADEUS_TEST_MISSING_COMMAND=openclaw AMADEUS_TEST_PACKAGES= amadeus-agent >/dev/null 2>&1; then
+  fail "OpenClaw's agent without the package is still missing"
+fi
+[[ ! -s $launch_log ]] || fail "OpenClaw's agent without the package starts nothing"
+pass "OpenClaw's agent hands a missing command to its launcher only when the package is there"
+
+# Native lazy shims can precede ~/.local/bin. The agent launcher must still run
+# the official command when the default-agent selector recognized one, for
+# every agent and whether or not it is wrapped in env or bash.
+lazy_shims="$test_tmp/lazy-shims"
+mkdir -p "$lazy_shims"
+for agent in cursor-agent muse claude kiro-cli devin amp dsh hermes; do
+  printf '#!/bin/bash\nprintf "official %s\\n"\n' "$agent" >"$test_home/.local/bin/$agent"
+  printf '#!/bin/bash\nprintf "lazy shim %s\\n"\n' "$agent" >"$lazy_shims/$agent"
+  chmod +x "$test_home/.local/bin/$agent" "$lazy_shims/$agent"
+  printf '%s\n' "$agent" >"$agent_file"
+  output=$(PATH="$lazy_shims:$PATH" "$ROOT/bin/amadeus-agent" --inline)
+  [[ $output == "official $agent" ]] || fail "agent launcher preserves the user-installed $agent ahead of a mise shim"
+  output=$(PATH="$lazy_shims:$PATH" amadeus-agent-prompt --inline "Review this project")
+  [[ $output == "official $agent" ]] || fail "prompted agent launcher preserves the user-installed $agent ahead of a mise shim"
+  # Once mise has its own copy installed, a terminal runs that one, so the
+  # launcher does too rather than a leftover install in ~/.local/bin.
+  output=$(AMADEUS_TEST_AGENT_INSTALLED=true PATH="$lazy_shims:$PATH" "$ROOT/bin/amadeus-agent" --inline)
+  [[ $output == "lazy shim $agent" ]] || fail "agent launcher runs mise's installed $agent over a leftover ~/.local/bin copy"
+  # An older wrapper set its variable on the install line; it is still a
+  # wrapper, not the user's own install.
+  printf '#!/bin/bash\nMISE_MINIMUM_RELEASE_AGE=0 mise use -g --quiet "%s" || exit 1\nprintf "old wrapper %s\\n"\n' "$agent" "$agent" >"$test_home/.local/bin/$agent"
+  output=$(PATH="$lazy_shims:$PATH" "$ROOT/bin/amadeus-agent" --inline)
+  [[ $output == "lazy shim $agent" ]] || fail "agent launcher treats an older one-line mise wrapper for $agent as a wrapper"
+  rm "$test_home/.local/bin/$agent" "$lazy_shims/$agent"
+done
+pass "agent launcher runs user-installed agents ahead of native lazy shims"
+
+# Each local model that is set up gets a launcher of its own, and the warm-up
+# behind it starts a stopped model before its agent opens.
+applications="$HOME/.local/share/applications"
+icons="$HOME/.local/share/icons/hicolor/scalable/apps"
+status_file="$test_tmp/status.json"
+export AMADEUS_TEST_STATUS_FILE="$status_file"
+export AMADEUS_TEST_START_LOG="$test_tmp/start"
+
+# The engine as the commands see it: status is whatever the test wrote, and a
+# start marks the model running, or fails with the engine's reason.
+cat >"$mock_bin/amadeus-agent-local" <<'SH'
+#!/bin/bash
+case $1 in
+status) cat "$AMADEUS_TEST_STATUS_FILE" ;;
+start)
+  printf '%s\n' "$2" >>"$AMADEUS_TEST_START_LOG"
+  if [[ -n ${AMADEUS_TEST_START_FAILS:-} ]]; then
+    echo "Error: Not enough memory to start $2"
+    exit 1
+  fi
+  ;;
+esac
+SH
+printf '#!/bin/bash\n' >"$mock_bin/update-desktop-database"
+chmod +x "$mock_bin"/*
+
+model() {
+  jq -nc --arg recipe "$1" --arg name "$2" --arg vendor "$3" --arg unit "$4" --arg sub "${5:-dead}" \
+    '{($recipe): {recipe: $recipe, name: $name, vendor: $vendor, unit: $unit, sub_state: $sub, expected_load_seconds: 76.0}}'
+}
+
+write_status() {
+  jq -sc '{last: "qwen-fast", models: add}' <<<"$*" >"$status_file"
+}
+
+launchers() {
+  (cd "$applications" && printf '%s\n' amadeus-agent-local-*.desktop | sort | paste -sd' ')
+}
+
+# Each model that is set up gets a launcher with its name and its vendor's
+# logo, which opens an agent on it. One still downloading has nothing to open.
+write_status "$(model qwen-fast "Qwen3.8 Flash Next" qwen inactive)" "$(model glm-5.3 "GLM-5.3 Flash" zai active running)" \
+  "$(model nemotron "Nemotron 3.5 Bolt" nvidia installing)"
+amadeus-agent-local-launchers
+[[ $(launchers) == "amadeus-agent-local-glm-5.3.desktop amadeus-agent-local-qwen-fast.desktop" ]] ||
+  fail "each model that is set up gets a launcher, and one still installing none" "$(launchers)"
+entry=$(<"$applications/amadeus-agent-local-qwen-fast.desktop")
+[[ $entry == *$'\nName=Qwen3.8 Flash Next\n'* ]] || fail "the launcher carries the model's name" "$entry"
+[[ $entry == *$'\nExec=amadeus-agent --local-model qwen-fast --app-id=org.amadeus.local.qwen-fast\n'* ]] ||
+  fail "the launcher opens an agent on its model" "$entry"
+[[ $entry == *$'\nIcon=amadeus-agent-local-qwen\n'* && $entry == *$'\nStartupWMClass=org.amadeus.local.qwen-fast\n'* ]] ||
+  fail "the launcher has its vendor's icon and a window class of its own" "$entry"
+pass "each local model that is set up gets a launcher of its own"
+
+# An image model's launcher opens Fantasi on it, since no agent runs on one.
+jq -c '.models += {"klein": {recipe: "klein", name: "FLUX.2 Klein 4B", vendor: "bfl", kind: "image", unit: "active"}}' "$status_file" >"$status_file.new" && mv "$status_file.new" "$status_file"
+amadeus-agent-local-launchers
+entry=$(<"$applications/amadeus-agent-local-klein.desktop")
+[[ $entry == *$'\nExec=fantasi open --model klein\n'* && $entry == *$'\nStartupWMClass=fantasi\n'* ]] ||
+  fail "an image model's launcher opens Fantasi on it" "$entry"
+[[ $entry != *'Exec=amadeus-agent'* ]] || fail "an image model's launcher starts no agent" "$entry"
+pass "an image model's launcher opens Fantasi on it"
+
+# The icon is the vendor's logo on a tile: the logo's paths, scaled to fit,
+# with the fill a logo keeps on its root.
+[[ $(<"$icons/amadeus-agent-local-qwen.svg") == *'fill="#6D44E8"'* ]] || fail "the icon holds the vendor's logo"
+grep -q '<g transform="translate([0-9. -]*) scale([0-9.]*)" fill="#fff" fill-rule="evenodd">' "$icons/amadeus-agent-local-zai.svg" ||
+  fail "a logo filled from its root keeps that fill on the tile" "$(<"$icons/amadeus-agent-local-zai.svg")"
+if amadeus-cmd-present xmllint; then
+  for icon in "$icons"/amadeus-agent-local-*.svg; do
+    xmllint --noout "$icon" || fail "the icon is well-formed: $icon"
+  done
+fi
+pass "the launcher's icon is the model's vendor logo"
+
+# A vendor without a logo gets the local model's, and names that could reach
+# a command line or a path are not written anywhere.
+write_status "$(model qwen-fast "Qwen3.8 Flash Next" qwen inactive)" "$(model odd "Odd One" ../mystery inactive)" \
+  "$(model 'bad; rm -rf ~' "Bad" qwen inactive)"
+amadeus-agent-local-launchers
+[[ $(launchers) == "amadeus-agent-local-odd.desktop amadeus-agent-local-qwen-fast.desktop" ]] ||
+  fail "a recipe that isn't a plain id gets no launcher" "$(launchers)"
+grep -q '^Icon=amadeus-agent-local-local$' "$applications/amadeus-agent-local-odd.desktop" ||
+  fail "a vendor without a logo gets the local model's icon"
+[[ -f $icons/amadeus-agent-local-local.svg ]] || fail "the local model's icon is drawn"
+pass "a vendor without a logo gets the local model's icon"
+
+# Removing a model takes its launcher, and an icon no launcher uses, with it.
+# Launchers that aren't a local model's are never touched.
+touch "$applications/amadeus-agent-claude.desktop" "$icons/amadeus-agent-claude.svg"
+write_status "$(model qwen-fast "Qwen3.8 Flash Next" qwen inactive)" "$(model glm-5.3 "GLM-5.3 Flash" zai removing)"
+amadeus-agent-local-launchers
+[[ $(launchers) == "amadeus-agent-local-qwen-fast.desktop" ]] || fail "a removed model loses its launcher" "$(launchers)"
+[[ ! -e $icons/amadeus-agent-local-zai.svg && ! -e $icons/amadeus-agent-local-local.svg && -f $icons/amadeus-agent-local-qwen.svg ]] ||
+  fail "an icon no launcher uses goes with it" "$(ls "$icons")"
+[[ -f $applications/amadeus-agent-claude.desktop && -f $icons/amadeus-agent-claude.svg ]] ||
+  fail "launchers that aren't a local model's are left alone"
+echo '{"models":{}}' >"$status_file"
+amadeus-agent-local-launchers
+[[ $(launchers) == "amadeus-agent-local-*.desktop" ]] || fail "the last model removed leaves no launcher" "$(launchers)"
+pass "removing a local model removes its launcher"
+
+# A reading that fails says nothing about which models are gone, so it leaves
+# every launcher where it was and says so.
+write_status "$(model qwen-fast "Qwen3.8 Flash Next" qwen inactive)"
+amadeus-agent-local-launchers
+echo "not json" >"$status_file"
+if amadeus-agent-local-launchers 2>/dev/null; then
+  fail "a status that can't be read fails the sync"
+fi
+[[ $(launchers) == "amadeus-agent-local-qwen-fast.desktop" && -f $icons/amadeus-agent-local-qwen.svg ]] ||
+  fail "a status that can't be read leaves the launchers alone" "$(launchers)"
+pass "a status that can't be read leaves the launchers alone"
+
+# The warm-up starts a stopped model before its agent opens. Without a
+# terminal it draws nothing and just waits.
+write_status "$(model qwen-fast "Qwen3.8 Flash Next" qwen inactive)"
+: >"$AMADEUS_TEST_START_LOG"
+amadeus-agent-local-warmup qwen-fast </dev/null >"$test_tmp/warmup-output" 2>&1 ||
+  fail "the warm-up starts a stopped model" "$(<"$test_tmp/warmup-output")"
+[[ $(<"$AMADEUS_TEST_START_LOG") == "qwen-fast" ]] || fail "the warm-up starts the model it was given"
+: >"$AMADEUS_TEST_START_LOG"
+amadeus-agent-local-warmup </dev/null >/dev/null 2>&1 || fail "the warm-up starts the model last used when given none"
+[[ $(<"$AMADEUS_TEST_START_LOG") == "qwen-fast" ]] || fail "the warm-up defaults to the model last used"
+pass "the warm-up starts a stopped model"
+
+write_status "$(model qwen-fast "Qwen3.8 Flash Next" qwen active running)"
+: >"$AMADEUS_TEST_START_LOG"
+amadeus-agent-local-warmup qwen-fast </dev/null >/dev/null 2>&1 || fail "the warm-up passes a running model"
+[[ ! -s $AMADEUS_TEST_START_LOG ]] || fail "a running model is not started again"
+pass "the warm-up leaves a running model alone"
+
+write_status "$(model qwen-fast "Qwen3.8 Flash Next" qwen inactive)"
+if AMADEUS_TEST_START_FAILS=1 amadeus-agent-local-warmup qwen-fast </dev/null >"$test_tmp/warmup-output" 2>&1; then
+  fail "a model that didn't start fails the warm-up"
+fi
+[[ $(<"$test_tmp/warmup-output") == *"Qwen3.8 Flash Next didn't start."*"Not enough memory to start qwen-fast"* ]] ||
+  fail "the warm-up says why the model didn't start" "$(<"$test_tmp/warmup-output")"
+if amadeus-agent-local-warmup missing </dev/null >"$test_tmp/warmup-output" 2>&1; then
+  fail "a model that isn't set up fails the warm-up"
+fi
+[[ $(<"$test_tmp/warmup-output") == *"missing is not set up"* ]] || fail "the warm-up says a model isn't set up" "$(<"$test_tmp/warmup-output")"
+pass "the warm-up reports a model that didn't start"
+
+# A model someone else is already starting is waited for, not started again:
+# the panel's status file says when it is up.
+write_status "$(model qwen-fast "Qwen3.8 Flash Next" qwen activating start)"
+state_file="$HOME/.local/state/amadeus/agent-local/status.json"
+mkdir -p "${state_file%/*}"
+cp "$status_file" "$state_file"
+: >"$AMADEUS_TEST_START_LOG"
+(
+  sleep 1.5
+  jq -c '.models["qwen-fast"] += {unit: "active", sub_state: "running"}' "$status_file" >"$state_file.tmp"
+  mv "$state_file.tmp" "$state_file"
+) &
+amadeus-agent-local-warmup qwen-fast </dev/null >/dev/null 2>&1 || fail "the warm-up waits for a model that is already loading"
+wait
+[[ ! -s $AMADEUS_TEST_START_LOG ]] || fail "a model already loading is not started again"
+pass "the warm-up waits for a model that is already loading"
+
+# In a terminal the wait is a show: the model's name, how far along it is,
+# and the terminal handed back as it was found.
+if amadeus-cmd-present script; then
+  write_status "$(model qwen-fast "Qwen3.8 Flash Next" qwen inactive)"
+  cat >"$mock_bin/amadeus-agent-local" <<'SH'
+#!/bin/bash
+case $1 in
+status) cat "$AMADEUS_TEST_STATUS_FILE" ;;
+start) sleep 1 ;;
+esac
+SH
+  script -qec "stty rows 30 cols 100; amadeus-agent-local-warmup qwen-fast" "$test_tmp/show" </dev/null >/dev/null ||
+    fail "the warm-up's show ends well once the model is up"
+  show=$(sed -E $'s/\e\\[[0-9;?]*[A-Za-z]//g' "$test_tmp/show")
+  [[ $show == *"Q W E N 3 . 8   F L A S H   N E X T"* && $show == *"... 1%"* && $show == *"Qwen3.8 Flash Next is ready"* ]] ||
+    fail "the show names the model, how far along it is and when it is ready"
+  grep -q $'\e\\[?1049h' "$test_tmp/show" && grep -q $'\e\\[?25h\e\\[?1049l' "$test_tmp/show" ||
+    fail "the show takes the alternate screen and gives the terminal back"
+  pass "the warm-up puts on a show in a terminal"
+else
+  skip "the warm-up puts on a show in a terminal (no script command)"
+fi
+rm "$mock_bin/amadeus-agent-local" "$mock_bin/update-desktop-database"

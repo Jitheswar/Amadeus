@@ -1,0 +1,137 @@
+#!/bin/bash
+
+set -euo pipefail
+
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
+
+TMPDIR=""
+
+export PATH="$ROOT/bin:$PATH"
+
+cleanup() {
+  if [[ -n $TMPDIR && -d $TMPDIR ]]; then
+    rm -rf "$TMPDIR"
+  fi
+}
+trap cleanup EXIT
+
+TMPDIR=$(mktemp -d)
+test_home="$TMPDIR/home"
+flag="$test_home/.local/state/amadeus/toggles/example"
+bar_flag="$test_home/.local/state/amadeus/toggles/bar-off"
+
+HOME="$test_home" amadeus-toggle example on
+[[ -f $flag ]] || fail "generic toggle enables explicit on state"
+pass "generic toggle enables explicit on state"
+
+HOME="$test_home" amadeus-toggle example on
+[[ -f $flag ]] || fail "generic toggle on is idempotent"
+pass "generic toggle on is idempotent"
+
+HOME="$test_home" amadeus-toggle example off
+[[ ! -f $flag ]] || fail "generic toggle disables explicit off state"
+pass "generic toggle disables explicit off state"
+
+HOME="$test_home" amadeus-toggle example
+[[ -f $flag ]] || fail "generic toggle flips disabled state on"
+pass "generic toggle flips disabled state on"
+
+HOME="$test_home" amadeus-toggle example toggle
+[[ ! -f $flag ]] || fail "generic toggle flips enabled state off"
+pass "generic toggle flips enabled state off"
+
+HOME="$test_home" amadeus-toggle-bar on
+[[ -f $bar_flag ]] || fail "bar on enables bar-off toggle"
+pass "bar on enables bar-off toggle"
+
+HOME="$test_home" amadeus-toggle-bar on
+[[ -f $bar_flag ]] || fail "bar on is idempotent"
+pass "bar on is idempotent"
+
+HOME="$test_home" amadeus-toggle-bar off
+[[ ! -f $bar_flag ]] || fail "bar off disables bar-off toggle"
+pass "bar off disables bar-off toggle"
+
+# The gaps half of full screen copies a flag file in and reloads Hyprland, so
+# give it this checkout to copy from and a hyprctl that answers without a
+# compositor.
+export AMADEUS_PATH="$ROOT"
+stub_bin="$TMPDIR/bin"
+mkdir -p "$stub_bin"
+printf '#!/bin/bash\nexit 0\n' >"$stub_bin/hyprctl"
+chmod +x "$stub_bin/hyprctl"
+export PATH="$stub_bin:$PATH"
+
+gaps_flag="$test_home/.local/state/amadeus/toggles/hypr/window-no-gaps.lua"
+
+HOME="$test_home" amadeus-toggle-fullscreen-desktop
+[[ -f $bar_flag && -f $gaps_flag ]] || fail "fullscreen toggle hides the bar and the gaps together"
+pass "fullscreen toggle hides the bar and the gaps together"
+
+HOME="$test_home" amadeus-toggle-fullscreen-desktop
+[[ ! -f $bar_flag && ! -f $gaps_flag ]] || fail "fullscreen toggle restores the bar and the gaps together"
+pass "fullscreen toggle restores the bar and the gaps together"
+
+HOME="$test_home" amadeus-toggle-bar on
+HOME="$test_home" amadeus-toggle-fullscreen-desktop
+[[ -f $bar_flag && -f $gaps_flag ]] || fail "fullscreen toggle pulls a half-hidden desktop into full screen"
+pass "fullscreen toggle pulls a half-hidden desktop into full screen"
+
+HOME="$test_home" amadeus-toggle-fullscreen-desktop off
+[[ ! -f $bar_flag && ! -f $gaps_flag ]] || fail "fullscreen off leaves full screen"
+pass "fullscreen off leaves full screen"
+
+HOME="$test_home" amadeus-toggle-fullscreen-desktop on
+[[ -f $bar_flag && -f $gaps_flag ]] || fail "fullscreen on enters full screen"
+pass "fullscreen on enters full screen"
+
+# The flag records animations being off, so on and off are the other way round.
+printf '#!/bin/bash\nexit 0\n' >"$stub_bin/amadeus-notification-send"
+chmod +x "$stub_bin/amadeus-notification-send"
+animations_flag="$test_home/.local/state/amadeus/toggles/hypr/no-animations.lua"
+
+HOME="$test_home" amadeus-toggle-animations off
+[[ -f $animations_flag ]] || fail "animations off places the no-animations flag"
+HOME="$test_home" amadeus-toggle-animations on
+[[ ! -f $animations_flag ]] || fail "animations on removes the no-animations flag"
+HOME="$test_home" amadeus-toggle-animations
+[[ -f $animations_flag ]] || fail "toggling animations flips the flag"
+pass "animations toggle turns the no-animations flag the right way round"
+
+# A session that renders on the CPU has animations off without the flag;
+# turning them on there is remembered, and turning them off forgets it.
+cpu_runtime="$TMPDIR/run"
+mkdir -p "$cpu_runtime/hypr/cpu"
+touch "$cpu_runtime/hypr/cpu/amadeus-software-rendering"
+without_gpu="$test_home/.local/state/amadeus/toggles/animations-without-gpu"
+cpu_session() {
+  HOME="$test_home" XDG_RUNTIME_DIR="$cpu_runtime" HYPRLAND_INSTANCE_SIGNATURE=cpu "$@"
+}
+rm -f "$animations_flag"
+cpu_session amadeus-hyprland-animations-off || fail "a CPU session counts animations as off without the flag"
+cpu_session amadeus-toggle-animations
+[[ -f $without_gpu && ! -f $animations_flag ]] || fail "turning animations on in a CPU session is remembered"
+! cpu_session amadeus-hyprland-animations-off || fail "animations turned on in a CPU session count as on"
+cpu_session amadeus-toggle-animations
+[[ ! -f $without_gpu && -f $animations_flag ]] || fail "turning animations off again forgets the choice"
+rm -f "$animations_flag"
+printf '#!/bin/bash\necho %s\n' "'{\"bool\": true}'" >"$stub_bin/hyprctl"
+! cpu_session amadeus-hyprland-animations-off || fail "animations the user's looknfeel.lua kept on in a CPU session count as on"
+printf '#!/bin/bash\nexit 0\n' >"$stub_bin/hyprctl"
+pass "the animations toggle works in a session that renders on the CPU"
+
+# A VM install starts without animations; other machines keep them.
+for virt in vm none; do
+  rm -rf "$test_home/.local/state/amadeus/toggles/hypr"
+  printf '#!/bin/bash\n[[ %s == vm ]]\n' "$virt" >"$stub_bin/amadeus-hw-vm"
+  chmod +x "$stub_bin/amadeus-hw-vm"
+  HOME="$test_home" AMADEUS_PATH="$ROOT" bash "$ROOT/install/user/hardware/vm-no-animations.sh" >/dev/null
+  if [[ $virt == "vm" ]]; then
+    [[ -f $animations_flag ]] || fail "a VM install turns animations off"
+    [[ -f ${animations_flag%/*}/window-opaque.lua ]] || fail "a VM install starts with opaque windows"
+  else
+    [[ ! -f $animations_flag ]] || fail "a machine that is not a VM keeps its animations"
+    [[ ! -f ${animations_flag%/*}/window-opaque.lua ]] || fail "a machine that is not a VM keeps transparent windows"
+  fi
+done
+pass "a VM install starts without animations and with opaque windows"

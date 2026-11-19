@@ -38,9 +38,10 @@ for f in files:
 
 # 2. Every program describes itself in its first comment after the interpreter line, which is
 #    what ama discover shows ("# amadeus:summary=..." in the desktop system's commands).
-#    Fragments that are only sourced or read by another program are not programs.
+#    Fragments that are only sourced or read by another program are not programs, and the desktop
+#    system's own test suite (test/system) is run by its runner, not discovered.
 for f in scripts:
-    if not os.access(f, os.X_OK):
+    if not os.access(f, os.X_OK) or f.startswith("test/system/"):
         continue
     first = next((l for l in open(f, errors="replace").read().splitlines()[1:8] if l.strip()), "")
     if not re.match(r"#\s*\S.{15,}", first):

@@ -6,6 +6,7 @@
 #   ./build.sh preview draw the Amadeus panel and login screen headless; pictures land in out/preview/
 #   ./build.sh usb /dev/sdX   install onto a USB drive: the guided installer runs in a window, the VM sees only that drive
 #   ./build.sh check   fast checks without a container: syntax, unit tests, guides match the repo
+#   ./build.sh system  the desktop system's own test suite, in the container (optional: test file names)
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 [[ ${1:-} == check ]] && exec python3 "$here/test/check.py"
@@ -17,6 +18,7 @@ run=("${docker[@]}" run --rm --privileged --device /dev/kvm -v "$here:/src:ro" -
 case ${1:-iso} in
   iso)   "${run[@]}" -e "ARCH_SNAPSHOT=${ARCH_SNAPSHOT:-}" amadeus-builder bash /src/iso/mkiso.sh ;;
   test)  "${run[@]}" amadeus-builder python3 /src/test/vm-test.py "${@:2}" ;;
+  system) "${run[@]}" -u build amadeus-builder bash /src/test/system.sh "${@:2}" ;;
   preview) "${run[@]}" amadeus-builder bash /src/test/preview.sh ;;
   usb)
     dev=${2:?name the USB drive, for example /dev/sdb}
@@ -29,5 +31,5 @@ case ${1:-iso} in
       -v "$xdg/$wl:/tmp/xdg/$wl" -e XDG_RUNTIME_DIR=/tmp/xdg -e WAYLAND_DISPLAY="$wl" -e GDK_BACKEND=wayland \
       amadeus-builder bash /src/iso/usb-install.sh "$dev" ;;
   shell) "${run[@]}" -it amadeus-builder bash ;;
-  *)     sed -n 2,8p "$0"; exit 1 ;;
+  *)     sed -n 2,9p "$0"; exit 1 ;;
 esac
