@@ -17,6 +17,7 @@ if _G.amadeus_default_bindings ~= false then
   require("default.hypr.bindings.tiling")
   require("default.hypr.bindings.utilities")
   require("default.hypr.bindings.dictation")
+  require("default.hypr.bindings.assistant")
   require_optional.module("default.hypr.bindings.applications")
 end
 if _G.amadeus_default_gestures ~= false then

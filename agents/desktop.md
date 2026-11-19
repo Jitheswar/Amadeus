@@ -18,8 +18,9 @@ rollback, and the launcher and search the assistant uses.
   update depend on editing a user's file; a change that must reach existing users is a
   migration in `desktop/migrations/`.
 - **Hyprland is modules.** `default/hypr/amadeus.lua` requires each module; add a module
-  rather than growing an unrelated one. The assistant's shortcuts and window rules live in
-  `default/hypr/assistant.lua`. Every shortcut is made with `o.bind` and carries a
+  rather than growing an unrelated one. The assistant's shortcuts live in
+  `default/hypr/bindings/assistant.lua` (so `amadeus_default_bindings = false` turns them off
+  with the rest) and its window rules in `default/hypr/assistant.lua`. Every shortcut is made with `o.bind` and carries a
   description; a key may run several actions within one module, but two modules must not
   claim the same key (`./build.sh check` enforces both).
 - **The compositor config must load.** Check it with `Hyprland --verify-config` against
