@@ -46,6 +46,7 @@ export GUM_INPUT_PLACEHOLDER_FOREGROUND=$DIM GUM_FILTER_PLACEHOLDER_FOREGROUND=$
 
 # ---- welcome
 screen 0
+[[ -r /usr/share/amadeus/logo.txt ]] && gum style --margin "0 2" --foreground "$ACCENT" "$(cat /usr/share/amadeus/logo.txt)"
 gum style --margin "1 2" --padding "1 3" --border thick --border-foreground "$ACCENT" --foreground "$FG" \
   "This installs Amadeus OS on this computer." "" \
   "Six short questions, then about ten minutes of installing." "Nothing changes on any disk until you confirm at the end."
@@ -142,9 +143,13 @@ esac
 
 # ---- summary
 screen 7 "Ready"
-gum style --margin "0 2" --border thick --border-foreground "$ACCENT" --padding "1 3" --foreground "$FG" \
-  "Name          $FULL ($USERNAME)" "Computer      $HOSTNAME" "Keyboard      $KEYMAP" "Time zone     $TIMEZONE" \
-  "Disk          $line" "Encrypted     $ENCRYPT" "Base apps     always installed" "Optional extras $([[ $EXTRAS == yes ]] && echo included || echo "left out")"
+# What the installer found, so the drivers it is about to install are no surprise.
+hardware=$(amadeus-hardware 2>/dev/null | sed -n 's/^gpu-\(intel\|amd\|nvidia\|nvidia-legacy\)$/\1/p' | sed 's/nvidia-legacy/NVIDIA (older)/; s/nvidia/NVIDIA/; s/intel/Intel/; s/amd/AMD/' | paste -sd+ | sed 's/+/ + /g')
+row() { printf '%s  %s' "$(gum style --foreground "$DIM" "$(printf '%-16s' "$1")")" "$(gum style --foreground "$FG" "$2")"; }
+gum style --margin "0 2" --border thick --border-foreground "$ACCENT" --padding "1 3" \
+  "$(row Name "$FULL ($USERNAME)")" "$(row Computer "$HOSTNAME")" "$(row Keyboard "$KEYMAP")" "$(row "Time zone" "$TIMEZONE")" \
+  "$(row Disk "$line")" "$(row Encrypted "$ENCRYPT")" "$(row Graphics "${hardware:-built-in}")" \
+  "$(row "Optional extras" "$([[ $EXTRAS == yes ]] && echo included || echo "left out")")"
 echo
 gum style --margin "0 2" --foreground "$BAD" "Everything on ${DISK#/dev/} will be permanently erased."
 confirm=$(input --header "  Type ${DISK#/dev/} to install, or leave empty to go back" --placeholder "${DISK#/dev/}") || exit 1
@@ -159,34 +164,40 @@ LOG=/var/log/amadeus-install.log; : >"$LOG"
 amadeus-install "$answers" >/dev/null 2>&1 & job=$!
 # The installer announces each phase with a "==>" line; these are the ones shown, in order.
 PHASES=("Partitioning:Preparing the disk" "Encrypting:Encrypting" "Installing packages:Installing Amadeus OS" "Configuring:Setting it up for you"
-        "Boot loader:Making it start" "Snapshots:Turning on snapshots" "Package lists:Preparing optional software downloads")
-frame=0 spin='◐◓◑◒' start=$SECONDS
-clear
+        "Boot loader:Making it start" "Snapshots and services:Turning on the desktop and snapshots" "Package lists:Preparing optional software")
+# Drawn with plain terminal codes, twice a second: no helper programs are started per frame.
+esc() { printf '\e[38;2;%d;%d;%dm' "0x${1:1:2}" "0x${1:3:2}" "0x${1:5:2}"; }
+A=$(esc "$ACCENT") F=$(esc "$FG") G=$(esc "$DIM") R=$'\e[0m' B=$'\e[1m'
+frame=0 spin='◐◓◑◒' start=$SECONDS shown=${#PHASES[@]}
+[[ $ENCRYPT == yes ]] || shown=$((shown - 1))
+clear; screen 7 "Installing"; printf '\e[s'
 while kill -0 "$job" 2>/dev/null; do
   now=$(grep -a '==>' "$LOG" | tail -1 | sed 's/\x1b\[[0-9;]*m//g; s/.*==> //')
   last=$(tail -c 4000 "$LOG" | tr '\r' '\n' | sed 's/\x1b\[[0-9;]*m//g' | grep -av '^\s*$' | tail -1 | cut -c1-70)
-  printf '\e[H'
-  NOCLEAR=1 screen 7 "Installing"
-  reached=-1
+  reached=-1 done=0
   for i in "${!PHASES[@]}"; do [[ $now == "${PHASES[$i]%%:*}"* ]] && reached=$i; done
+  out='\e[u'
   for i in "${!PHASES[@]}"; do
-    p=${PHASES[$i]#*:}
     [[ $i == 1 && $ENCRYPT != yes ]] && continue
-    if (( i < reached )); then gum style --margin "0 4" --foreground "$ACCENT" "●  $p"
-    elif (( i == reached )); then gum style --margin "0 4" --foreground "$FG" --bold "${spin:frame%4:1}  $p"
-    else gum style --margin "0 4" --foreground "$DIM" "○  $p"; fi
+    p=${PHASES[$i]#*:}
+    if (( i < reached )); then out+="    ${A}●  $p${R}\e[K\n"; done=$((done + 1))
+    elif (( i == reached )); then out+="    ${F}${B}${spin:frame%4:1}  $p${R}\e[K\n"
+    else out+="    ${G}○  $p${R}\e[K\n"; fi
   done
-  echo
-  gum style --margin "0 4" --foreground "$DIM" "$(printf '%d:%02d' $(( (SECONDS - start) / 60 )) $(( (SECONDS - start) % 60 )))   ${last:- }"
-  printf '\e[J'
-  frame=$((frame + 1)); sleep 0.25
+  width=40 fill=$(( done * width / shown ))
+  bar=$(printf '%*s' "$fill" '' | tr ' ' '█')$(printf '%*s' "$((width - fill))" '' | tr ' ' '░')
+  out+="\n    ${A}${bar}${R}  ${F}$(( done * 100 / shown ))%${R}\e[K\n"
+  out+="\n    ${G}$(printf '%d:%02d' $(( (SECONDS - start) / 60 )) $(( (SECONDS - start) % 60 )))   ${last:- }${R}\e[K\e[J"
+  printf '%b' "$out"
+  frame=$((frame + 1)); sleep 0.5
 done
 wait "$job"; code=$?
 rm -f "$answers"
 if (( code == 0 )); then
   screen 7 "Installed"
   gum style --margin "0 2" --padding "1 3" --border thick --border-foreground "$ACCENT" --foreground "$FG" \
-    "Amadeus OS is on ${DISK#/dev/}." "" "Remove the USB stick, then restart." "The first start asks for the password you chose."
+    "Amadeus OS is on ${DISK#/dev/}." "" "Remove the USB stick, then restart." \
+    "$([[ $ENCRYPT == yes ]] && echo "At the first start, type your password to unlock the disk; the desktop opens straight after." || echo "At the first start, sign in with the password you chose.")"
   gum style --margin "0 2" --foreground "$DIM" --italic "El Psy Kongroo."
   echo; gum confirm --affirmative "Restart now" --negative "Stay here" "  " && reboot
 else
