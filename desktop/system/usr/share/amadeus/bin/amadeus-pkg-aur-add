@@ -4,7 +4,7 @@
 # amadeus:args=<packages...>
 
 if amadeus-pkg-missing "$@"; then
-  yay -S --noconfirm --needed -- "$@" || exit 1
+  amadeus-aur install "$@" || exit 1
 fi
 
 for pkg in "$@"; do
