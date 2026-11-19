@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Phần cứng"
   },
-  "trigger.tests": {
-    "label": "Kiểm tra tốc độ"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Rung bàn di chuột"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Nhận"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Kiểm tra tốc độ mạng"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Kiểm tra tốc độ đĩa"
   },
   "setup.input": {
     "label": "Đầu vào"

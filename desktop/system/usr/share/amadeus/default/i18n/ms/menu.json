@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Perkakasan"
   },
-  "trigger.tests": {
-    "label": "Ujian Kelajuan"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Haptik Pad Sentuh"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Terima"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Ujian Kelajuan Rangkaian"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Ujian Kelajuan Cakera"
   },
   "setup.input": {
     "label": "Input"

@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Aparatūra"
   },
-  "trigger.tests": {
-    "label": "Ātruma tests"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Skārienpaliktņa vibrācija"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Saņemt"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Tīkla ātruma tests"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Diska ātruma tests"
   },
   "setup.input": {
     "label": "Ievade"

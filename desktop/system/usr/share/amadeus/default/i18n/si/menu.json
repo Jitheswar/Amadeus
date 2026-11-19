@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "දෘඪාංග"
   },
-  "trigger.tests": {
-    "label": "වේග පරීක්ෂණය"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "ටච්පෑඩ් හැප්ටික්ස්"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "ලබාගන්න"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "ජාල වේග පරීක්ෂණය"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "තැටි වේග පරීක්ෂණය"
   },
   "setup.input": {
     "label": "ආදානය"

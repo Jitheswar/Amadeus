@@ -190,7 +190,6 @@
   "trigger.transcode": {"icon":"󰧸","label":"Transcode","action":"amadeus-transcode"},
   "trigger.share": {"icon":"","label":"Share","aliases":["share"]},
   "trigger.hardware": {"icon":"","label":"Hardware","aliases":["hardware","hw"]},
-  "trigger.tests": {"icon":"󰓅","label":"Speed Test"},
   "trigger.hardware.laptop-display-on": {"icon":"󰛧","label":"Laptop Display On","when":"amadeus-hw-laptop && amadeus-hyprland-toggle-enabled internal-monitor-disable","action":"amadeus-hyprland-monitor-internal toggle"},
   "trigger.hardware.laptop-display-off": {"icon":"󰛧","label":"Laptop Display Off","when":"amadeus-hw-laptop && ! amadeus-hyprland-toggle-enabled internal-monitor-disable","action":"amadeus-hyprland-monitor-internal toggle"},
   "trigger.hardware.mirror-display-on": {"icon":"󰍹","label":"Display Mirroring On","when":"amadeus-hw-laptop && ! amadeus-hyprland-toggle-enabled internal-monitor-mirror","action":"amadeus-hyprland-monitor-internal-mirror toggle"},
@@ -212,8 +211,6 @@
   "trigger.share.file": {"icon":"","label":"File","action":"amadeus-menu-share file"},
   "trigger.share.folder": {"icon":"","label":"Folder","action":"amadeus-menu-share folder"},
   "trigger.share.receive": {"icon":"󰥦","label":"Receive","action":"uwsm-app -- localsend"},
-  "trigger.tests.network-speedtest": {"icon":"󰓅","label":"Network Speed Test","action":"amadeus-shell shell summon amadeus.speedtest"},
-  "trigger.tests.disk-speedtest": {"icon":"󰋊","label":"Disk Speed Test","action":"amadeus-shell shell summon amadeus.disk-speedtest"},
 
   // Setup
   "setup.default": {"icon":"","label":"Defaults","aliases":["default","defaults"]},

@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "ハードウェア"
   },
-  "trigger.tests": {
-    "label": "速度テスト"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "タッチパッド振動"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "受信する"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "ネットワーク速度テスト"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "ディスク速度テスト"
   },
   "setup.input": {
     "label": "入力"

@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Laitteisto"
   },
-  "trigger.tests": {
-    "label": "Nopeustesti"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Kosketuslevyn haptiikka"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Vastaanota"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Verkon nopeustesti"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Levyn nopeustesti"
   },
   "setup.input": {
     "label": "Syöttö"

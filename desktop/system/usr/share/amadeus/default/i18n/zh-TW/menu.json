@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "硬體"
   },
-  "trigger.tests": {
-    "label": "測速"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "觸控板觸覺"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "接收"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "網路測速"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "磁碟測速"
   },
   "setup.input": {
     "label": "輸入"

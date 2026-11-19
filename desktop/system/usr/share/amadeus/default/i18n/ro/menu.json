@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Hardware"
   },
-  "trigger.tests": {
-    "label": "Test viteză"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Haptică touchpad"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Primește"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Test viteză rețea"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Test viteză disc"
   },
   "setup.input": {
     "label": "Intrare"

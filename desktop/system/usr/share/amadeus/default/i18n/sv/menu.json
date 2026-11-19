@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Hårdvara"
   },
-  "trigger.tests": {
-    "label": "Hastighetstest"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Styrplattehaptik"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Ta emot"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Nätverkshastighetstest"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Diskhastighetstest"
   },
   "setup.input": {
     "label": "Inmatning"

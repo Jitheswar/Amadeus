@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Perangkat Keras"
   },
-  "trigger.tests": {
-    "label": "Uji Kecepatan"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Haptik Touchpad"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Terima"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Uji Kecepatan Jaringan"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Uji Kecepatan Disk"
   },
   "setup.input": {
     "label": "Masukan"

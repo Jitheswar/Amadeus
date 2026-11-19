@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Обладнання"
   },
-  "trigger.tests": {
-    "label": "Тест швидкості"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Вібрація тачпада"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Отримати"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Тест швидкості мережі"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Тест швидкості диска"
   },
   "setup.input": {
     "label": "Введення"

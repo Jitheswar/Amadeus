@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Hardver"
   },
-  "trigger.tests": {
-    "label": "Sebességteszt"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Érintőpad-rezgés"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Fogadás"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Hálózati sebességteszt"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Lemez sebességteszt"
   },
   "setup.input": {
     "label": "Bevitel"

@@ -127,7 +127,6 @@ Panel {
   // The hero buttons that were showing when the switch began keep their
   // place, disabled, so the name beside them doesn't reflow twice.
   property bool switchHeldQr: false
-  property bool switchHeldSpeed: false
   onActionKindChanged: if (actionKind !== "connect") switchingNetwork = false
 
   // Index into `wifiNetworks` for keyboard navigation. -1 = no selection.
@@ -152,11 +151,9 @@ Panel {
   // "off" beside a perfectly live Ethernet connection.
   readonly property bool canToggleWifi: networkManagerAvailable && wifiStationAvailable
   readonly property int qrHeaderIndex: canShareWifi ? 0 : -1
-  readonly property int speedHeaderIndex: canRunSpeedTest ? (canShareWifi ? 1 : 0) : -1
-  readonly property int toggleHeaderIndex: canToggleWifi ? (canShareWifi ? 1 : 0) + (canRunSpeedTest ? 1 : 0) : -1
-  readonly property int headerActionCount: (canShareWifi ? 1 : 0) + (canRunSpeedTest ? 1 : 0) + (canToggleWifi ? 1 : 0)
+  readonly property int toggleHeaderIndex: canToggleWifi ? (canShareWifi ? 1 : 0) : -1
+  readonly property int headerActionCount: (canShareWifi ? 1 : 0) + (canToggleWifi ? 1 : 0)
   readonly property bool qrHeaderHasCursor: cursorActive && focusSection === "header" && headerIndex === qrHeaderIndex
-  readonly property bool speedHeaderHasCursor: cursorActive && focusSection === "header" && headerIndex === speedHeaderIndex
   readonly property bool toggleHeaderHasCursor: cursorActive && focusSection === "header" && headerIndex === toggleHeaderIndex
   readonly property string toggleHint: Networking.wifiEnabled ? Commons.I18n.t("network.turnWifiOff") : Commons.I18n.t("network.turnWifiOn")
   readonly property var dnsProviders: ["DHCP", "Cloudflare", "Google", "Custom"]
@@ -184,9 +181,6 @@ Panel {
   readonly property bool bandBusy: pendingBand !== ""
   // The DNS pills show a choice the moment it's made, and fall back if it fails.
   readonly property string dnsEffective: pendingDnsProvider !== "" ? pendingDnsProvider : dnsProvider
-  // The speed test needs an interface to test, so its hero action only
-  // appears once there is one.
-  readonly property bool canRunSpeedTest: !!info.iface
   property int bandIndex: 0
   // The band section has up to two cursor rows: the Automatic switch on the
   // header line, then the pills. Same shape as wifiActionFocused.
@@ -242,14 +236,12 @@ Panel {
     // Compat routes for configs that summon the centered cards through the
     // network target; both cards are their own plugins now.
     function showQr() { root.summonWifiQr(true) }
-    function speedTest() { root.summonSpeedTest() }
     function openCaptivePortal() { root.openCaptivePortal() }
     function checkConnectivity() { root.checkConnectivity() }
   }
 
   function activateHeader() {
     if (headerIndex === qrHeaderIndex) summonWifiQr()
-    else if (headerIndex === speedHeaderIndex) summonSpeedTest()
     else if (headerIndex === toggleHeaderIndex) toggleNetwork()
   }
 
@@ -795,19 +787,6 @@ Panel {
     actionProc.running = true
   }
 
-  // The speed test is its own panel plugin (amadeus.speedtest) so a
-  // replacement design can take it over; summon() routes to whichever
-  // implementation is enabled. The payload names the connection when this
-  // panel knows it; the plugin looks it up itself otherwise.
-  function summonSpeedTest() {
-    controller.hide()
-    cancelPasswordPrompt()
-    var connection = ""
-    if (info.type === "wifi") connection = info.ssid || "Wi-Fi"
-    else if (info.type === "ethernet") connection = Commons.I18n.t("network.ethernet")
-    bar.shell.summon("amadeus.speedtest", connection ? JSON.stringify({ connection: connection }) : "{}")
-  }
-
   function dnsCommand(provider) {
     var command = "amadeus-dns"
     if (provider) command += " " + Util.shellQuote(provider)
@@ -864,7 +843,6 @@ Panel {
     actionSsid = ssid
     switchingNetwork = kind === "connect" && root.kind !== "disconnected"
     switchHeldQr = switchingNetwork && canShareWifi
-    switchHeldSpeed = switchingNetwork && canRunSpeedTest
     actionKind = kind
     failureSsid = ""
     failureReason = ""
@@ -1331,21 +1309,6 @@ Panel {
             Layout.alignment: Qt.AlignVCenter
             onHovered: function(on) { if (on) root.setHeaderCursor(root.qrHeaderIndex) }
             onClicked: root.summonWifiQr()
-          }
-
-          PanelActionButton {
-            id: speedAction
-            visible: root.canRunSpeedTest || (root.switchingNetwork && root.switchHeldSpeed)
-            enabled: root.canRunSpeedTest
-            iconText: "󰓅"
-            tooltipText: Commons.I18n.t("network.runSpeedTest")
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-            fontSize: Style.font.subtitle * 1.5
-            hasCursor: root.speedHeaderHasCursor
-            Layout.alignment: Qt.AlignVCenter
-            onHovered: function(on) { if (on) root.setHeaderCursor(root.speedHeaderIndex) }
-            onClicked: root.summonSpeedTest()
           }
 
           ToggleSwitch {

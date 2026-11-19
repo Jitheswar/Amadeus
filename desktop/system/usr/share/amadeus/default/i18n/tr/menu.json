@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Donanım"
   },
-  "trigger.tests": {
-    "label": "Hız Testi"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Dokunmatik Titreşim"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Al"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Ağ Hız Testi"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Disk Hız Testi"
   },
   "setup.input": {
     "label": "Girdi"

@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Хардуер"
   },
-  "trigger.tests": {
-    "label": "Тест на скоростта"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Вибрация тъчпад"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Получи"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Тест мрежа"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Тест диск"
   },
   "setup.input": {
     "label": "Въвеждане"

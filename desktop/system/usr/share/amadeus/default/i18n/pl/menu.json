@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Sprzęt"
   },
-  "trigger.tests": {
-    "label": "Test prędkości"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Haptyka gładzika"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Odbierz"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Test prędkości sieci"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Test prędkości dysku"
   },
   "setup.input": {
     "label": "Wejście"

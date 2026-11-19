@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Hardver"
   },
-  "trigger.tests": {
-    "label": "Test brzine"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Haptika dodirne plohe"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Primi"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Test brzine mreže"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Test brzine diska"
   },
   "setup.input": {
     "label": "Unos"

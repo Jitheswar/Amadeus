@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Maskinvare"
   },
-  "trigger.tests": {
-    "label": "Hastighetstest"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Styreflate-haptikk"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Motta"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Nettverkshastighetstest"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Diskhastighetstest"
   },
   "setup.input": {
     "label": "Inndata"

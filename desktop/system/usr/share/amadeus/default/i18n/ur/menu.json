@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "ہارڈویئر"
   },
-  "trigger.tests": {
-    "label": "رفتار ٹیسٹ"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "ٹچ پیڈ ہیپٹکس"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "وصول کریں"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "نیٹ ورک رفتار ٹیسٹ"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "ڈسک رفتار ٹیسٹ"
   },
   "setup.input": {
     "label": "ان پٹ"

@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Riistvara"
   },
-  "trigger.tests": {
-    "label": "Kiirustest"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Puuteplaadi haptika"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Võta vastu"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Võrgukiiruse test"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Kettakiiruse test"
   },
   "setup.input": {
     "label": "Sisend"

@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "חומרה"
   },
-  "trigger.tests": {
-    "label": "בדיקת מהירות"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "רטט משטח מגע"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "קבלה"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "בדיקת מהירות רשת"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "בדיקת מהירות דיסק"
   },
   "setup.input": {
     "label": "קלט"

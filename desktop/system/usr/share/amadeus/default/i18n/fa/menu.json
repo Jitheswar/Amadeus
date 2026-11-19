@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "سخت‌افزار"
   },
-  "trigger.tests": {
-    "label": "تست سرعت"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "لرزش تاچ‌پد"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "دریافت"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "تست سرعت شبکه"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "تست سرعت دیسک"
   },
   "setup.input": {
     "label": "ورودی"

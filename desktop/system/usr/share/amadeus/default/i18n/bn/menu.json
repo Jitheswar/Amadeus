@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "হার্ডওয়্যার"
   },
-  "trigger.tests": {
-    "label": "গতি পরীক্ষা"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "টাচপ্যাড হ্যাপটিক্স"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "গ্রহণ"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "নেটওয়ার্ক গতি পরীক্ষা"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "ডিস্ক গতি পরীক্ষা"
   },
   "setup.input": {
     "label": "ইনপুট"

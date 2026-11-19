@@ -382,9 +382,6 @@
   "trigger.hardware": {
     "label": "Hardware"
   },
-  "trigger.tests": {
-    "label": "Speed Test"
-  },
   "trigger.hardware.laptop-display-on": {
     "label": "Laptop Display On"
   },
@@ -447,12 +444,6 @@
   },
   "trigger.share.receive": {
     "label": "Receive"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Network Speed Test"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Disk Speed Test"
   },
   "setup.keyboard": {
     "label": "Keyboard"

@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Vélbúnaður"
   },
-  "trigger.tests": {
-    "label": "Hraðapróf"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Snertisvörun flatar"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Taka á móti"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Nethraðapróf"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Diskahraðapróf"
   },
   "setup.input": {
     "label": "Inntak"

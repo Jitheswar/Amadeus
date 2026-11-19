@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Hardware"
   },
-  "trigger.tests": {
-    "label": "Test ng Bilis"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Haptics ng Touchpad"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Tumanggap"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Test ng Bilis ng Network"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Test ng Bilis ng Disk"
   },
   "setup.input": {
     "label": "Input"

@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Aparatinė įranga"
   },
-  "trigger.tests": {
-    "label": "Greitis"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Kilimėlio vibracija"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Gauti"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Tinklo greičio testas"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Disko greičio testas"
   },
   "setup.input": {
     "label": "Įvestis"

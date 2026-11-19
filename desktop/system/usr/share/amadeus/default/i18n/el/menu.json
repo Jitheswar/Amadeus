@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Υλικό"
   },
-  "trigger.tests": {
-    "label": "Δοκιμή ταχύτητας"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Απτικά επιφάνειας"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Λήψη"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Δοκιμή ταχύτητας δικτύου"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Δοκιμή ταχύτητας δίσκου"
   },
   "setup.input": {
     "label": "Είσοδος"

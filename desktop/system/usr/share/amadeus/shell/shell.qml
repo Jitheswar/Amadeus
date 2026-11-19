@@ -393,7 +393,7 @@ ShellRoot {
       "amadeus.audio": ["amadeus.osd"],
       "amadeus.media": ["amadeus.osd"],
       "amadeus.monitor": ["amadeus.osd"],
-      "amadeus.network": ["amadeus.speedtest", "amadeus.wifiqr"]
+      "amadeus.network": ["amadeus.wifiqr"]
     }
     var targets = allowed[sourceId] || []
     return targets.indexOf(String(requestedId || "")) !== -1

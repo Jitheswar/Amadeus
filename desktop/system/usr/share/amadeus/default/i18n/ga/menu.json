@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Crua-earraí"
   },
-  "trigger.tests": {
-    "label": "Tástáil luais"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Tadhall tadhlach"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Glac"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Tástáil luais líonra"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Tástáil luais diosca"
   },
   "setup.input": {
     "label": "Ionchur"

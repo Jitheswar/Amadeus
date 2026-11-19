@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "العتاد"
   },
-  "trigger.tests": {
-    "label": "اختبار السرعة"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "اهتزاز لوحة اللمس"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "استلام"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "اختبار سرعة الشبكة"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "اختبار سرعة القرص"
   },
   "setup.input": {
     "label": "الإدخال"

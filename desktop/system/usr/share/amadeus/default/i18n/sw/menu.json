@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Vifaa"
   },
-  "trigger.tests": {
-    "label": "Jaribio la kasi"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Mtetema wa kiguso"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Pokea"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Jaribio la kasi ya mtandao"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Jaribio la kasi ya diski"
   },
   "setup.input": {
     "label": "Ingizo"

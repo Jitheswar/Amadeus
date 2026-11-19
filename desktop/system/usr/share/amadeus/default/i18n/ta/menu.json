@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "வன்பொருள்"
   },
-  "trigger.tests": {
-    "label": "வேக சோதனை"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "தொடுதள அதிர்வு"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "பெறு"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "வலையமைப்பு வேக சோதனை"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "வட்டு வேக சோதனை"
   },
   "setup.input": {
     "label": "உள்ளீடு"

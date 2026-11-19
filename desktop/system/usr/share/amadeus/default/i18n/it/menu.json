@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Hardware"
   },
-  "trigger.tests": {
-    "label": "Test velocità"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Vibrazione touchpad"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Ricevi"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Test velocità rete"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Test velocità disco"
   },
   "setup.input": {
     "label": "Input"

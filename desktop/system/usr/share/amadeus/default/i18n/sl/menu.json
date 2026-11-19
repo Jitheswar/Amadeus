@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Strojna oprema"
   },
-  "trigger.tests": {
-    "label": "Preizkus hitrosti"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Haptičnost ploščice"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Prejmi"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Hitrost omrežja"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Hitrost diska"
   },
   "setup.input": {
     "label": "Vnos"

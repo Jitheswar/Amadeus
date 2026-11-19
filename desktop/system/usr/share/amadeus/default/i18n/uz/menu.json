@@ -315,9 +315,6 @@
   "trigger.hardware": {
     "label": "Qurilmalar"
   },
-  "trigger.tests": {
-    "label": "Tezlik testi"
-  },
   "trigger.hardware.touchpad-haptics": {
     "label": "Sensor panel tebranishi"
   },
@@ -350,12 +347,6 @@
   },
   "trigger.share.receive": {
     "label": "Qabul qilish"
-  },
-  "trigger.tests.network-speedtest": {
-    "label": "Tarmoq tezligi testi"
-  },
-  "trigger.tests.disk-speedtest": {
-    "label": "Disk tezligi testi"
   },
   "setup.input": {
     "label": "Kiritish"
