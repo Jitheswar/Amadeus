@@ -209,7 +209,11 @@ class BuildReferenceTest(unittest.TestCase):
                                      (ROOT / "desktop/PKGBUILD", "$src", ROOT / "desktop"),
                                      (ROOT / "ai/PKGBUILD", "$src", ROOT / "ai")):
             for ref in self.referenced_paths(path, variable.lstrip("$")):
-                matches = glob.glob(str(base / ref))
+                where = base
+                # The ISO build places the installer's package lists in the desktop package as packages/.
+                if base.name == "desktop" and (ref == "packages" or ref.startswith("packages/")):
+                    where, ref = ROOT / "installer", ref[len("packages/"):] or "."
+                matches = glob.glob(str(where / ref))
                 self.assertTrue(matches, f"{path.name} names {variable}/{ref}, which does not exist")
 
 

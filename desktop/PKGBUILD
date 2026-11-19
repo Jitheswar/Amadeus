@@ -24,6 +24,12 @@ package() {
   cp -R --preserve=mode,links "$src/system/." "$pkgdir/"
   chmod 750 "$pkgdir/etc/sudoers.d"
   chmod 440 "$pkgdir"/etc/sudoers.d/*
+  # The default package set (amadeus-pkg-defaults, amadeus-reinstall-pkgs) is the installer's lists, which the
+  # ISO build places in packages/; drivers are left to amadeus-hardware.
+  if [[ -d $src/packages ]]; then
+    sed 's/#.*//' "$src"/packages/packages.{base,desktop,system} | tr -s ' \t' '\n' | grep . |
+      install -Dm644 /dev/stdin "$pkgdir/usr/share/amadeus/install/amadeus-base.packages"
+  fi
   local f
   for f in "$pkgdir"/usr/share/amadeus/bin/*; do
     ln -sfn "/usr/share/amadeus/bin/${f##*/}" "$pkgdir/usr/bin/${f##*/}"

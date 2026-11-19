@@ -16,6 +16,8 @@ rm -rf $P $REPO /tmp/work /tmp/pkgsrc && mkdir -p $REPO
 
 echo "==> Packaging amadeus and amadeus-desktop"
 mkdir /tmp/pkgsrc && cp -r $SRC/ai $SRC/desktop $SRC/docs $SRC/README.md /tmp/pkgsrc/ && chown -R build /tmp/pkgsrc $REPO
+# The installer's lists are the system's default packages; the desktop package ships them for amadeus-reinstall-pkgs.
+mkdir /tmp/pkgsrc/desktop/packages && cp $SRC/installer/packages.{base,desktop,system} /tmp/pkgsrc/desktop/packages/
 for d in ai desktop; do
   (cd /tmp/pkgsrc/$d && sudo -u build env PKGDEST=$REPO makepkg -f --nodeps >/dev/null)
 done

@@ -1,2 +1,0 @@
-# Base packages with no aarch64 build in any repository Amadeus configures.
-# amadeus-pkg-defaults leaves them out of every aarch64 platform's set.
