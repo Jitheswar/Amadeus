@@ -6,7 +6,6 @@
 # amadeus:examples=amadeus theme install git@github.com:example/amadeus-example-theme.git
 
 if [[ -z $1 ]]; then
-  echo -e "\e[32mSee https://amadeus.org/themes/\n\e[0m"
   REPO_URL=$(gum input --placeholder="$(amadeus-i18n theme.repoPlaceholder)" --header="")
 else
   REPO_URL="$1"

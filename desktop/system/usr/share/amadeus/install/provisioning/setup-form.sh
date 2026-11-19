@@ -313,7 +313,7 @@ amadeus_prompt_hostname() {
 # At limit 1, --selected prints that entry even after another one was picked.
 amadeus_prompt_timezone() {
   local guess status zones
-  # A preset install media names its timezone; otherwise ask geo.amadeus.org,
+  # A preset install media names its timezone; otherwise ask the location service,
   # Amadeus's own lookup of where this network is, and failing that take the
   # caller's fallback, like the language's capital.
   guess=${AMADEUS_FORM_TIMEZONE_DEFAULT:-}

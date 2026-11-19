@@ -51,7 +51,7 @@ function parseActiveApSignal(raw) {
 
 // A known plain-HTTP endpoint lets the network redirect the browser to its
 // login page. Never execute or automatically open an untrusted Location header.
-var captivePortalUrl = "http://ping.archlinux.org/nm-check.txt"
+var captivePortalUrl = "http://connectivity-check.ubuntu.com/"
 
 function connectivityState(kind, connectivity, states, checksEnabled, limitedSettled) {
   if (kind === "disconnected") return "none"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# amadeus:summary=Upload logs to logs.amadeus.org
+# amadeus:summary=Upload logs to a paste service and print the link
 # amadeus:args=<log-file>
 # amadeus:hidden=true
 
@@ -92,7 +92,7 @@ install)
     exit 1
   fi
 
-  echo "Uploading installation log to logs.amadeus.org..."
+  echo "Uploading installation log..."
   ;;
 
 this-boot)
@@ -105,7 +105,7 @@ this-boot)
     exit 1
   fi
 
-  echo "Uploading current boot logs to logs.amadeus.org..."
+  echo "Uploading current boot logs..."
   ;;
 
 last-boot)
@@ -118,7 +118,7 @@ last-boot)
     exit 1
   fi
 
-  echo "Uploading previous boot logs to logs.amadeus.org..."
+  echo "Uploading previous boot logs..."
   ;;
 
 installed|system-info)
@@ -137,7 +137,7 @@ installed|system-info)
     exit 1
   fi
 
-  echo "Uploading system information to logs.amadeus.org..."
+  echo "Uploading system information..."
   ;;
 
 *)
@@ -152,7 +152,7 @@ esac
 
 echo ""
 
-URL=$(curl -sf -F "file=@$TEMP_LOG" -Fexpires=24 https://logs.amadeus.org/)
+URL=$(curl -sf -F "file=@$TEMP_LOG" -Fexpires=24 https://logs.omarchy.org/)
 
 if (( $? == 0 )) && [[ -n $URL ]]; then
   echo "✓ Log uploaded successfully!"

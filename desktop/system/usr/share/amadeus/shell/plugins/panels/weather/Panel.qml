@@ -68,7 +68,7 @@ Panel {
   property var configuredLocationState: ({ name: "", latitude: null, longitude: null })
   readonly property string configuredLocation: configuredLocationState.name
 
-  // With nothing configured, where geo.amadeus.org places this network, in the
+  // With nothing configured, where the location service places this network, in the
   // same shape. Kept when a later lookup fails.
   property var detectedLocationState: ({ name: "", latitude: null, longitude: null })
   property bool detectingLocation: false
@@ -77,7 +77,7 @@ Panel {
 
   // The query is the wttr.in path segment (coordinates when known, else the
   // encoded name); empty means wttr.in's own IP auto-detect, used only when
-  // geo.amadeus.org could not answer.
+  // the location service could not answer.
   readonly property var locationState: Model.effectiveLocation(configuredLocationState, detectedLocationState)
   readonly property string locationQuery: Model.wttrLocationQuery(locationState.name, locationState.latitude, locationState.longitude)
 
@@ -161,7 +161,7 @@ Panel {
     // starve retries for the rest of the session.
     forecastRetries = 0
     dailyForecastRetries = 0
-    // Until geo.amadeus.org answers there is nothing to ask for: wait for it
+    // Until the location service answers there is nothing to ask for: wait for it
     // rather than have wttr.in look this machine up. Its answer, or its
     // failure, refreshes again.
     if (detectingLocation && locationQuery === "") return

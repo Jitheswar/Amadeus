@@ -26,7 +26,7 @@ amadeus version
 amadeus-debug --no-sudo --print
 
 # Interactive variant: `amadeus-debug` offers to upload the log to
-# logs.amadeus.org (expires after 24h) and prints a shareable URL to
+# a paste service (expires after 24h) and prints a shareable URL to
 # include in the issue.
 ```
 

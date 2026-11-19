@@ -4,7 +4,7 @@
 #
 # State lives in ~/.local/state/amadeus/settings/weather.json as
 # {"name": ..., "latitude": ..., "longitude": ...}. A missing file means the
-# location is auto-detected by geo.amadeus.org, which answers in this shape.
+# location is auto-detected by the location service, which answers in this shape.
 # Coordinates make the weather panel exact; a hand-written {"name": "Malibu"}
 # alone works too.
 #

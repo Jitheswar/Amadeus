@@ -21,14 +21,14 @@ function parseLocationFile(raw) {
 }
 
 // True when weather.json names no place: the panel then reports for wherever
-// geo.amadeus.org places this network.
+// the location service places this network.
 function isAutoLocation(state) {
   var s = state || {}
   return String(s.name || "") === "" && (s.latitude === null || s.latitude === undefined)
 }
 
 // The location to report for: the stored one, or with none stored, the one
-// geo.amadeus.org detected. geo.amadeus.org answers in weather.json's shape, so
+// the location service detected. the location service answers in weather.json's shape, so
 // both come from parseLocationFile.
 function effectiveLocation(configured, detected) {
   return isAutoLocation(configured) && detected ? detected : configured

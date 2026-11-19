@@ -8,8 +8,8 @@
 # signature errors in the middle of the main transaction.
 set -euo pipefail
 
-# Amadeus's packaging key comes from Amadeus's own Web Key Directory for
-# pkgs@amadeus.org, never a public keyserver, so it is always the current key
+# The [omarchy] repository's packaging key comes from its Web Key Directory for
+# pkgs@omarchy.org, never a public keyserver, so it is always the current key
 # with its current subkeys. Only the pinned fingerprint is added: a different
 # key there fails the lsign below instead of being trusted.
 # A subshell, so its trap cleans up the temporary keyring and its gpg daemons
@@ -19,7 +19,7 @@ add_amadeus_key() (
   GNUPGHOME=$(mktemp -d)
   export GNUPGHOME
   trap 'gpgconf --kill all 2>/dev/null || true; rm -rf "$GNUPGHOME"' EXIT
-  gpg --batch --quiet --auto-key-locate clear,nodefault,wkd --locate-external-keys pkgs@amadeus.org
+  gpg --batch --quiet --auto-key-locate clear,nodefault,wkd --locate-external-keys pkgs@omarchy.org
   gpg --batch --export 40DFB630FF42BCFFB047046CF0134EE680CAC571 >"$GNUPGHOME/amadeus.gpg"
   sudo pacman-key --add "$GNUPGHOME/amadeus.gpg"
 )
