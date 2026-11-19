@@ -1,19 +1,40 @@
 #!/bin/bash
-# Run your own scripts when something happens: amadeus-hook NAME [ARGS...]
-# Put a script at ~/.config/amadeus/hooks/NAME, or any number in ~/.config/amadeus/hooks/NAME.d/.
-# The system calls these names:
-#   post-update    after amadeus-update finishes
-#   post-boot      once at the start of each login
-#   theme-set      after a theme change (the theme's name is the first argument)
-#   font-set       after a font change (the font's name is the first argument)
-#   battery-low    when the battery runs low (the percentage is the first argument)
-# A failing hook is reported and the others still run. Files ending in .sample are skipped.
-set -euo pipefail
-name=${1:-}
-[[ -n $name && $name != */* && $name != . && $name != .. ]] || { sed -n 2,10p "$0"; exit 1; }
+
+# amadeus:summary=Run a named hook from ~/.config/amadeus/hooks/<name> and ~/.config/amadeus/hooks/<name>.d/.
+# amadeus:args=[name] [args...]
+
+set -e
+
+if (( $# < 1 )); then
+  echo "Usage: amadeus-hook [name] [args...]"
+  exit 1
+fi
+
+HOOK=$1
+
+# Hook names are fixed labels chosen by Amadeus code (post-update, theme-set,
+# font-set). The name becomes a filename under the hooks directory. A slash
+# would turn it into directory levels, and a bare `.` or `..` would point bash
+# at the directory itself or its parent. Refuse those rather than follow them.
+# Dots inside a name (a..b) are fine; once slashes are out, only the whole
+# name being `.` or `..` can leave the directory.
+if [[ -z $HOOK || $HOOK == */* || $HOOK == "." || $HOOK == ".." ]]; then
+  echo "Invalid hook name: $HOOK" >&2
+  exit 2
+fi
+
+HOOK_PATH="$HOME/.config/amadeus/hooks/$1"
+HOOK_DIR="$HOOK_PATH.d"
 shift
-dir=${XDG_CONFIG_HOME:-$HOME/.config}/amadeus/hooks
-for hook in "$dir/$name" "$dir/$name.d"/*; do
-  [[ -f $hook && $hook != *.sample ]] || continue
-  bash "$hook" "$@" || echo "Hook failed: $hook" >&2
-done
+
+if [[ -f $HOOK_PATH ]]; then
+  bash "$HOOK_PATH" "$@" || echo "Hook failed: $HOOK_PATH"
+fi
+
+if [[ -d $HOOK_DIR ]]; then
+  for hook in "$HOOK_DIR"/*; do
+    [[ -f $hook ]] || continue
+    [[ $hook == *.sample ]] && continue
+    bash "$hook" "$@" || echo "Hook failed: $hook"
+  done
+fi

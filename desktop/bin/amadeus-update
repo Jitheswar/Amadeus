@@ -1,117 +1,177 @@
 #!/bin/bash
-# Update the whole system: package cache, snapshot, keyrings, packages, migrations, orphans, drivers, AUR applications and tools.
-#   amadeus-update            ask once, then update everything
-#   amadeus-update -y         no questions: packages are confirmed, a restart is only suggested
-#   amadeus-update firmware   update device firmware (BIOS, docks, drives) through fwupd
+
+# amadeus:summary=Update the whole system: packages, settings changes, drivers, AUR apps and tools, with a snapshot first
+# Steps in order: free space, package cache, snapshot, mirrors and signing keys, system packages,
+# settings changes (amadeus-migrate), orphans, drivers this hardware lacks (amadeus-hardware),
+# service restarts, your post-update hooks, mise tools, AUR apps, a boot check, then a restart offer.
 # In the try session nothing is kept after a restart, so no snapshot is taken there.
-# Run as your user, not as root. Only the newest five snapshots are kept; amadeus-rollback goes back to one.
-set -euo pipefail
-(( EUID != 0 )) || { echo "Run amadeus-update as your user; it asks for the password when needed."; exit 1; }
+# amadeus:alias=amadeus up
+# amadeus:args=[-y]
+# amadeus:examples=amadeus update | amadeus update -y
+# amadeus:requires-sudo=true
 
-if [[ ${1:-} == firmware ]]; then
-  command -v fwupdmgr >/dev/null || sudo pacman -S --needed --noconfirm fwupd
-  fwupdmgr refresh --force
-  exec sudo fwupdmgr update
-fi
-yes=no; [[ ${1:-} == -y ]] && yes=yes
-state=${XDG_STATE_HOME:-$HOME/.local/state}/amadeus
-mkdir -p "$state"
+set -e
 
-# Everything the update prints is kept, so a failure can be read afterwards.
-if [[ -z ${AMADEUS_UPDATE_LOGGED:-} ]] && command -v script >/dev/null; then
-  exec env AMADEUS_UPDATE_LOGGED=1 script -qefc "$(printf '%q ' "$0" "$@")" "$state/update.log"
-fi
-# One update at a time, and the computer does not sleep in the middle of one.
-exec {lock}>"${XDG_RUNTIME_DIR:-/tmp}/amadeus-update.lock"
-flock -n "$lock" || { echo "An update is already running."; exit 1; }
-if [[ -z ${AMADEUS_UPDATE_AWAKE:-} ]] && command -v systemd-inhibit >/dev/null; then
-  exec env AMADEUS_UPDATE_AWAKE=1 systemd-inhibit --what=sleep:idle:handle-lid-switch \
-    --who="Amadeus update" --why="Updating the system" "$0" "$@"
-fi
+update_stay_awake_stopped=0
+sudo_keepalive_pid=""
 
-# Packages are unpacked before old ones are removed, and a snapshot keeps the old ones too.
-avail=$(df --output=avail -B1 / 2>/dev/null | tail -n1)
-if [[ $avail =~ ^[0-9]+$ ]] && (( avail < 10 * 1024 ** 3 )) && [[ ${AMADEUS_UPDATE_FORCE:-} != 1 ]]; then
-  echo "At least 10 GB of free space is needed to update safely; $(( avail / 1024 ** 3 )) GB is free."
-  echo "Free some space, or run AMADEUS_UPDATE_FORCE=1 amadeus-update to try anyway."
-  exit 1
-fi
-if [[ $yes == no && -t 0 ]]; then
-  read -rp "Update the system now? [Y/n] " answer
-  [[ ${answer,,} =~ ^(|y|yes)$ ]] || exit 0
-fi
+# Ask for the password once, then keep sudo's timestamp fresh so long package
+# downloads, migrations, hooks, and mise never outlast it and prompt again.
+# Authorize by running a command rather than sudo -v: under the default
+# verifypw=all, -v prompts even when passwordless sudo is enabled.
+authorize_update() {
+  sudo true || return 1
 
-# Ask for the password once and keep it fresh, so long downloads never ask again.
-sudo true
-( exec {lock}>&-; while sleep 60; do kill -0 $$ 2>/dev/null && sudo -n true 2>/dev/null || exit 0; done ) </dev/null >/dev/null 2>&1 &
-keepalive=$!
-trap 'kill $keepalive 2>/dev/null || true' EXIT
-trap 'echo; echo "The update stopped. Read the messages above (also in $state/update.log), fix the cause and run amadeus-update again." >&2' ERR
+  local update_pid=$$
+  (
+    [[ -z ${AMADEUS_UPDATE_LOCK_FD:-} ]] || exec {AMADEUS_UPDATE_LOCK_FD}>&-
+    sleep_pid=""
+    trap - EXIT HUP INT
+    trap '[[ -z $sleep_pid ]] || kill "$sleep_pid" 2>/dev/null; exit 0' TERM
+    while :; do
+      sleep 60 &
+      sleep_pid=$!
+      wait "$sleep_pid"
+      kill -0 "$update_pid" 2>/dev/null || exit 0
+      sudo -n true 2>/dev/null || exit 0
+    done
+  ) &
+  sudo_keepalive_pid=$!
+}
 
-step() { printf '\n\e[32m%s\e[0m\n' "$1"; }
-confirm=(); [[ $yes == yes ]] && confirm=(--noconfirm)
+end_update_authorization() {
+  if [[ -n $sudo_keepalive_pid ]]; then
+    kill "$sudo_keepalive_pid" 2>/dev/null || true
+    wait "$sudo_keepalive_pid" 2>/dev/null || true
+    sudo_keepalive_pid=""
+  fi
+}
 
-# Before the snapshot: the cache is inside it, so pruning afterwards frees nothing until it expires.
-step "Package cache"
-sudo paccache -rk2 || echo "The package cache could not be pruned; continuing." >&2
+cleanup_update() {
+  local status=$?
+  trap - EXIT HUP INT TERM
+  end_update_authorization
+  if (( update_stay_awake_stopped == 0 )); then
+    amadeus-update-stay-awake stop || status=1
+  fi
+  exit "$status"
+}
 
-if [[ -e ${AMADEUS_TRY_MARKER:-/run/amadeus-try} ]]; then
-  echo "Try session: no snapshot is taken, and everything installed or updated here lasts until you restart."
-else
-  step "Snapshot"
-  sudo snapper -c root create --cleanup-algorithm number --description "before update $(date '+%Y-%m-%d %H:%M')"
-  sudo snapper -c root cleanup number
-  echo "Snapshot taken. If this update breaks something: amadeus-rollback"
-fi
-
-# The first update ranks the official mirrors once: quality first, then measured speed.
-# Later updates skip it until the lists are a month old; a failed ranking keeps the old lists.
-sudo amadeus-mirrors
-
-# New signing keys first, so packages signed with them install in the same update.
-step "Signing keys"
-sudo pacman -Sy --needed --noconfirm archlinux-keyring cachyos-keyring
-
-step "System packages"
-sudo pacman -Su "${confirm[@]}"
-
-# Changes to settings that come with the new packages, each run once.
-step "Settings changes"
-amadeus-migrate
-
-# Packages nothing needs any more: dependencies of something since removed.
-mapfile -t orphans < <(pacman -Qtdq 2>/dev/null || true)
-if (( ${#orphans[@]} )); then
-  step "Packages nothing needs any more"
-  printf '  %s\n' "${orphans[@]}"
-  sudo pacman -Rns "${confirm[@]}" "${orphans[@]}" || echo "Kept them." >&2
-fi
-
-# Drivers new to this release, or for hardware added since the last update.
-if [[ -n $(amadeus-hardware missing 2>/dev/null) ]]; then
-  step "Drivers for this hardware"
-  amadeus-hardware setup
-fi
-
-failed=0
-if ! amadeus-aur update; then
-  echo "The AUR update did not finish. Retry with amadeus-aur update." >&2
-  failed=1
-fi
-if ! amadeus-harness update; then
-  echo "The harness update did not finish. Retry with amadeus-harness update." >&2
-  failed=1
-fi
-kill "$keepalive" 2>/dev/null || true
-amadeus-hook post-update
-
-# A new kernel replaces the running one's modules; new hardware drivers need it to restart too.
-if [[ ! -d /usr/lib/modules/$(uname -r) ]]; then
-  if [[ $yes == no && -t 0 ]]; then
-    read -rp "The kernel was updated. Restart now? [y/N] " answer
-    [[ ${answer,,} =~ ^(y|yes)$ ]] && systemctl reboot
+if [[ -z ${AMADEUS_UPDATE_LOGGED:-} ]]; then
+  # Keep an untrapped shell as the PTY session leader. If script disappears,
+  # its hangup must reach the foreground prompt, not wait on our signal traps.
+  # script uses SHELL to interpret this Bash command; restore the caller's
+  # value inside it so hooks and package builds keep their original environment.
+  if [[ ${SHELL@a} == *x* ]]; then
+    printf -v script_command 'export SHELL=%q; ' "$SHELL"
   else
-    echo "The kernel was updated; restart when you can."
+    script_command='unset SHELL; '
+  fi
+  script_command+="$(printf '%q ' "$0" "$@"); exit \$?"
+  exec env AMADEUS_UPDATE_LOGGED=1 SHELL=/usr/bin/bash script -qefc "$script_command" "/tmp/amadeus-update.log"
+fi
+
+if ! amadeus-update-lock held; then
+  exec amadeus-update-lock run "$0" "$@"
+fi
+
+trap 'echo ""; echo -e "\033[0;31mSomething went wrong during the update!\n\nPlease review the output above carefully, correct the error, and retry the update.\n\nIf you need assistance, get help from the community at https://github.com/Jitheswar/Amadeus/issues"' ERR
+trap cleanup_update EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+amadeus-update-requires-free-space
+
+# -y skips the start confirmation and, unless the caller set
+# AMADEUS_UPDATE_UNATTENDED itself, suppresses Amadeus confirmation prompts;
+# sudo authorization is still required. Interactive review steps report and
+# move on instead of waiting.
+[[ ${1:-} != "-y" ]] || export AMADEUS_UPDATE_UNATTENDED=${AMADEUS_UPDATE_UNATTENDED:-1}
+
+if [[ ${1:-} == "-y" ]] || amadeus-update-confirm; then
+  authorize_update
+
+  # Before the snapshot: the cache is on the snapshotted subvolume, so pruning
+  # after it frees nothing until that snapshot ages out.
+  amadeus-update-pkg-prune
+
+  # 127 means Snapper is deliberately absent. Any other failure already said
+  # what went wrong, and a missing snapshot is not worth blocking an update
+  # over, but it must not pass for one either.
+  if [[ -e ${AMADEUS_TRY_MARKER:-/run/amadeus-try} ]]; then
+    echo "Try session: no snapshot is taken, and everything updated here lasts until you restart."
+  else
+    amadeus-snapshot create || (($? == 127)) ||
+      echo -e "\e[33mContinuing the update without a snapshot.\e[0m" >&2
+  fi
+
+  amadeus-update-stay-awake start
+
+  # The fastest official mirrors (ranked once a month), then any development checkout, then the
+  # Arch, CachyOS and hardware-repository signing keys, so packages signed by a new key install in this run.
+  sudo amadeus-mirrors || echo -e "\e[33mThe mirrors were not ranked again; the current list stays.\e[0m" >&2
+  amadeus-update-dev
+  amadeus-update-keyring
+
+  # Migrations ship with the packages installed here and are written against
+  # them, so everything below waits on this finishing. An upgrade that stopped
+  # takes the update with it rather than migrating against what is still on disk.
+  amadeus-update-system-pkgs
+
+  # Migrations call the shell over IPC, so give them one running current code.
+  if amadeus-migrate --pending >/dev/null; then
+    amadeus-restart-shell || true
+  fi
+  amadeus-migrate
+  amadeus-update-orphan-pkgs -y
+
+  # Drivers new to this release, or for hardware added since the last update.
+  if [[ -n $(amadeus-hardware missing 2>/dev/null) ]]; then
+    amadeus-hardware setup
+  fi
+
+  amadeus-update-analyze-logs
+
+  # The full upgrade went through, so there is no update left to show in the bar.
+  amadeus-shell -q amadeus.system-update clear
+
+  # Service restart helpers can need sudo. The reboot-only phase below
+  # performs no privileged work.
+  amadeus-update-restart --services-only
+
+  amadeus-hook post-update
+  # Optional tool downloads must not skip boot verification or the reboot
+  # prompt after system packages have already been upgraded.
+  mise_updated=1
+  amadeus-update-mise || mise_updated=0
+
+  # AUR packages build against the upgraded system, so they go after it, and
+  # share the update's one authorization like every step before them.
+  amadeus-update-aur-pkgs
+
+  # The last sudo-capable step: the boot files every package step left, AUR
+  # packages' initramfs rebuilds included, must be shown to boot the updated
+  # system. Until it passes, the update neither finishes nor offers a reboot.
+  boot_verified=1
+  amadeus-update-boot || boot_verified=0
+  end_update_authorization
+
+  # The sleep inhibitor covers AUR builds, hooks and mise as well. Release it
+  # before offering a reboot: a confirmed reboot can terminate this
+  # process before its EXIT trap gets a chance to remove the persistent Stay
+  # Awake marker.
+  amadeus-update-stay-awake stop
+  update_stay_awake_stopped=1
+
+  if (( mise_updated == 0 )); then
+    echo -e "\e[33m\nSome mise tools could not be updated. Review the errors above and run 'amadeus update mise' to retry.\e[0m" >&2
+  fi
+
+  if (( boot_verified )); then
+    "$AMADEUS_PATH/bin/amadeus-update-restart" --reboot-only
+  else
+    echo -e "\e[31m\nThe update is not finished: its boot files did not pass verification (see above). Do not reboot until amadeus update completes.\e[0m" >&2
+    exit 1
   fi
 fi
-exit "$failed"

@@ -16,7 +16,8 @@ for a in "$@"; do
   esac
 done
 if (( EUID != 0 )) && [[ $print == no ]]; then
-  exec sudo -- "$(command -v -- "$0")" "$@"
+  [[ -z ${AMADEUS_MIRRORS_SUDO:-} ]] || { echo "Ranking mirrors needs administrator rights; the mirror list was not changed." >&2; exit 1; }
+  exec sudo -- env AMADEUS_MIRRORS_SUDO=1 "$(command -v -- "$0")" "$@"
 fi
 
 lists=("$dir/mirrorlist" "$dir/cachyos-mirrorlist" "$dir/cachyos-v3-mirrorlist")

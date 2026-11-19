@@ -1,13 +1,25 @@
 #!/bin/bash
-# Show which Amadeus OS release this is, and its packages.
-#   amadeus-version           the release (the version of the amadeus-desktop package)
-#   amadeus-version --all     every Amadeus package with its version, then the kernel
-set -euo pipefail
-v=$(pacman -Q amadeus-desktop 2>/dev/null | awk '{print $2}')
-[[ -n $v ]] || { echo "Amadeus OS packages are not installed."; exit 1; }
+# amadeus:summary=Print the installed Amadeus version
+# amadeus-version           the release (the version of the amadeus-desktop package)
+# amadeus-version --all     every Amadeus package with its version, then the kernel
+# Run from a checkout (AMADEUS_PATH pointing elsewhere) it prints "dev" and the commit.
+amadeus_path=${AMADEUS_PATH:-/usr/share/amadeus}
+amadeus_path=${amadeus_path%/}
+if [[ $amadeus_path != "/usr/share/amadeus" ]]; then
+  hash=$(git -C "$amadeus_path" rev-parse --short HEAD 2>/dev/null || true)
+  echo "dev${hash:+ ($hash)}"
+  exit 0
+fi
+
 if [[ ${1:-} == --all ]]; then
   pacman -Q amadeus amadeus-desktop 2>/dev/null
   echo "kernel $(uname -r)"
-else
-  echo "$v"
+  exit 0
 fi
+
+for package in amadeus-desktop amadeus; do
+  version=$(pacman -Q "$package" 2>/dev/null | awk '{ print $2 }')
+  [[ -n $version ]] && break
+done
+[[ -n $version ]] || { echo "Amadeus OS packages are not installed." >&2; exit 1; }
+echo "$version"

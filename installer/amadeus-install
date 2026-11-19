@@ -208,8 +208,6 @@ ch useradd -m -G wheel,video,input -s /bin/bash ${FULLNAME:+-c "$FULLNAME"} "$US
 printf '%s:%s\n' "$USERNAME" "$PASSWORD" | ch chpasswd
 ch passwd -l root >/dev/null
 echo '%wheel ALL=(ALL:ALL) ALL' >$T/etc/sudoers.d/10-wheel; chmod 440 $T/etc/sudoers.d/10-wheel
-# A fresh install already has every settings change in it; amadeus-update runs only later ones.
-ch runuser -u "$USERNAME" -- env HOME="/home/$USERNAME" amadeus-migrate --mark-all
 
 printf '[zram0]\nzram-size = min(ram, 8192)\ncompression-algorithm = zstd\n' >$T/etc/systemd/zram-generator.conf
 printf 'vm.swappiness = 150\nvm.page-cluster = 0\n' >$T/etc/sysctl.d/90-zram.conf

@@ -69,7 +69,7 @@ fi
 # went in, so reinstalling the same one only repeats that populate.
 # An aarch64 machine's Arch Linux ARM repositories are signed with keys of
 # their own, so its keyring is kept current the same way.
-keyrings=(archlinux-keyring omarchy-keyring)
+keyrings=(archlinux-keyring cachyos-keyring omarchy-keyring)
 if amadeus-hw-aarch64 && { amadeus-pkg-present archlinuxarm-keyring || (( alarm_keyring_missing )); }; then
   keyrings+=(archlinuxarm-keyring)
 fi

@@ -1,34 +1,102 @@
 #!/bin/bash
-# Apply the settings changes that came with updated packages, each once for this user.
-#   amadeus-migrate              run the ones not yet run (amadeus-update does this)
-#   amadeus-migrate --pending    list them; fails when there are none
-#   amadeus-migrate --mark-all   record every one as done without running it (a fresh install is current)
-# A migration is a script in /usr/share/amadeus-os/migrations, named by the time it was written, so
-# they run in order. One that fails stops the rest and runs again next time.
-set -euo pipefail
-dir=${AMADEUS_MIGRATIONS:-/usr/share/amadeus-os/migrations}
-done_dir=${XDG_STATE_HOME:-$HOME/.local/state}/amadeus/migrations
 
-pending() {
-  local f
-  for f in "$dir"/*.sh; do
-    [[ -f $f && ! -e $done_dir/$(basename "$f") ]] && basename "$f"
-  done
-  return 0
+# amadeus:summary=Run pending Amadeus migrations.
+# amadeus:args=[--pending]
+
+set -euo pipefail
+
+mode="run"
+
+usage() {
+  echo "Usage: amadeus-migrate [--pending]"
 }
 
-case ${1:-} in
-  --pending) list=$(pending); [[ -n $list ]] && echo "$list" ;;
-  --mark-all) mkdir -p "$done_dir"; for n in $(pending); do touch "$done_dir/$n"; done ;;
-  "")
-    # A migration written against the new packages must not run while pacman is still installing them.
-    for _ in {1..900}; do [[ -e /var/lib/pacman/db.lck ]] || break; sleep 1; done
-    [[ ! -e /var/lib/pacman/db.lck ]] || { echo "A package transaction is still running; the changes will be applied next time."; exit 0; }
-    mkdir -p "$done_dir"
-    for n in $(pending); do
-      echo "Applying: $(sed -n 's/^# //p;q' "$dir/$n")"
-      bash -euo pipefail "$dir/$n"
-      touch "$done_dir/$n"
-    done ;;
-  *) sed -n 2,7p "$0"; exit 1 ;;
-esac
+while (($#)); do
+  case "$1" in
+    --pending|--check)
+      mode="pending"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+AMADEUS_PATH="${AMADEUS_PATH:-/usr/share/amadeus}"
+STATE_DIR="${AMADEUS_MIGRATION_STATE:-$HOME/.local/state/amadeus/migrations}"
+MIGRATIONS_DIR="$AMADEUS_PATH/migrations"
+
+migration_entries() {
+  [[ -d $MIGRATIONS_DIR ]] || return 0
+
+  local file filename
+
+  for file in "$MIGRATIONS_DIR"/*.sh; do
+    [[ -f $file ]] || continue
+    filename=$(basename "$file")
+    printf '%s\t%s\t%s\n' "$filename" "$file" "$STATE_DIR/$filename"
+  done
+}
+
+pending_migrations() {
+  local name file marker
+
+  while IFS=$'\t' read -r name file marker; do
+    [[ -n $name ]] || continue
+    if [[ ! -f $marker ]]; then
+      printf '%s\n' "$name"
+    fi
+  done < <(migration_entries)
+}
+
+if [[ $mode == "pending" ]]; then
+  pending_output=$(pending_migrations)
+  if [[ -n $pending_output ]]; then
+    printf '%s\n' "$pending_output"
+    exit 0
+  else
+    exit 1
+  fi
+fi
+
+wait_for_pacman_transaction() {
+  local lock_file=/var/lib/pacman/db.lck
+
+  [[ -e $lock_file ]] || return 0
+  echo "Waiting for pacman transaction to finish before running Amadeus migrations..."
+
+  for _ in {1..900}; do
+    [[ -e $lock_file ]] || return 0
+    sleep 1
+  done
+
+  echo "Pacman transaction is still running; Amadeus migrations will retry on next login."
+  exit 0
+}
+
+wait_for_pacman_transaction
+
+mkdir -p "$STATE_DIR"
+[[ -d $MIGRATIONS_DIR ]] || exit 0
+
+while IFS=$'\t' read -r name file marker <&3; do
+  [[ -n $name ]] || continue
+
+  if [[ ! -f $marker ]]; then
+    echo -e "\e[32m\nRunning migration (${name%.sh})\e[0m"
+    AMADEUS_PATH="$AMADEUS_PATH" bash -euo pipefail "$file" 3<&-
+    mkdir -p "$(dirname "$marker")"
+    touch "$marker"
+  fi
+done 3< <(migration_entries)
+
+# Clear a login-time notification the user left sitting there and then resolved
+# by running migrations some other way. The substring matches both the current
+# and legacy notification titles.
+amadeus-notification-dismiss "Amadeus Migrations" >/dev/null 2>&1 || true

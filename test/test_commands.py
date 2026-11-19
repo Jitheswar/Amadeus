@@ -540,52 +540,49 @@ esac''')
         self.assertEqual(self.calls_of("git"), [])
 
     # ---- updating ------------------------------------------------------------
-    UPDATE_ENV = {"AMADEUS_UPDATE_LOGGED": "1", "AMADEUS_UPDATE_AWAKE": "1", "AMADEUS_UPDATE_FORCE": "1"}
+    UPDATE_ENV = {"AMADEUS_UPDATE_LOGGED": "1"}
+    UPDATE_STEPS = ("amadeus-update-lock", "amadeus-update-requires-free-space", "amadeus-update-confirm", "amadeus-update-pkg-prune",
+                    "amadeus-snapshot", "amadeus-update-stay-awake", "amadeus-mirrors", "amadeus-update-dev", "amadeus-update-keyring", "amadeus-update-system-pkgs", "amadeus-restart-shell",
+                    "amadeus-update-orphan-pkgs", "amadeus-update-analyze-logs", "amadeus-shell", "amadeus-update-restart", "amadeus-update-mise",
+                    "amadeus-update-aur-pkgs", "amadeus-update-boot", "amadeus-hardware")
 
-    def test_update_prunes_the_cache_then_snapshots_then_updates_keys_and_packages(self):
-        self.stub("amadeus-aur")
-        self.stub("amadeus-harness")
-        self.stub("amadeus-mirrors")
-        p = self.run_cmd("amadeus-update", "-y", env=self.UPDATE_ENV)
+    def update_stubs(self):
+        for name in self.UPDATE_STEPS:
+            self.stub(name)
+        # The update runs its reboot step by path, from the system's own folder.
+        system = self.tmp / "system/bin"; system.mkdir(parents=True, exist_ok=True)
+        (system / "amadeus-update-restart").symlink_to(self.bin / "amadeus-update-restart")
+        return dict(self.UPDATE_ENV, AMADEUS_PATH=str(self.tmp / "system"))
+
+    def test_update_runs_every_step_in_order(self):
+        env = self.update_stubs()
+        p = self.run_cmd("amadeus-update", "-y", env=env)
         self.assert_ok(p)
-        self.assertIn("Snapshot taken", p.stdout)
-        self.assertEqual([c[0] for c in self.calls_of("sudo")], ["true", "paccache", "snapper", "snapper", "amadeus-mirrors", "pacman", "pacman"])
-        self.assertEqual(self.calls_of("sudo")[1], ["paccache", "-rk2"])
-        self.assertEqual(self.calls_of("sudo")[5], ["pacman", "-Sy", "--needed", "--noconfirm", "archlinux-keyring", "cachyos-keyring"])
-        self.assertEqual(self.calls_of("sudo")[-1], ["pacman", "-Su", "--noconfirm"])
+        names = [line.split("\t")[0] for line in self.calls.read_text().splitlines()]
+        order = ["amadeus-update-requires-free-space", "amadeus-update-pkg-prune", "amadeus-snapshot", "amadeus-update-dev", "amadeus-update-keyring",
+                 "amadeus-update-system-pkgs", "amadeus-update-orphan-pkgs", "amadeus-update-restart", "amadeus-update-mise",
+                 "amadeus-update-aur-pkgs", "amadeus-update-boot"]
+        self.assertEqual([n for n in names if n in order], order + ["amadeus-update-restart"])
+        sudo = self.calls_of("sudo")
+        self.assertIn(["amadeus-mirrors"], sudo)
+        self.assertEqual(self.calls_of("amadeus-update-restart")[-1], ["--reboot-only"])
 
-    def test_update_removes_orphans_and_runs_new_migrations_once(self):
-        for n in ("amadeus-aur", "amadeus-harness", "amadeus-mirrors"): self.stub(n)
-        self.stub("pacman", body='[[ $1 == -Qtdq ]] && echo old-dep; true')
-        migrations = self.tmp / "migrations"; migrations.mkdir()
+    def test_update_in_the_try_session_skips_the_snapshot(self):
+        env = self.update_stubs()
+        marker = self.tmp / "try-session"; marker.touch()
+        p = self.run_cmd("amadeus-update", "-y", env=dict(env, AMADEUS_TRY_MARKER=str(marker)))
+        self.assert_ok(p)
+        self.assertIn("Try session", p.stdout)
+        self.assertEqual(self.calls_of("amadeus-snapshot"), [])
+
+    def test_update_runs_new_migrations_once(self):
+        env = self.update_stubs()
+        migrations = self.tmp / "system/migrations"; migrations.mkdir()
         (migrations / "1.sh").write_text(f"# First change\necho ran >>{self.tmp}/ran\n")
-        env = dict(self.UPDATE_ENV, AMADEUS_MIGRATIONS=str(migrations))
         self.assert_ok(self.run_cmd("amadeus-update", "-y", env=env))
-        self.assertIn(["pacman", "-Rns", "--noconfirm", "old-dep"], self.calls_of("sudo"))
         self.assert_ok(self.run_cmd("amadeus-update", "-y", env=env))
         self.assertEqual((self.tmp / "ran").read_text(), "ran\n")
         self.assertNotEqual(self.run_cmd("amadeus-migrate", "--pending", env=env).returncode, 0)
-
-    def test_unreachable_aur_reports_incomplete_update_and_runs_harness_stage(self):
-        self.stub("pacman", output="demo\n")
-        self.stub("curl", rc=22)
-        self.stub("amadeus-harness")
-        p = self.run_cmd("amadeus-update", "-y", env=self.UPDATE_ENV)
-        self.assertNotEqual(p.returncode, 0)
-        self.assertIn("applications from it were not checked", p.stderr)
-        self.assertIn("Retry with amadeus-aur update", p.stderr)
-        self.assertEqual(self.calls_of("amadeus-harness"), [["update"]])
-
-    def test_update_in_the_try_session_skips_the_snapshot(self):
-        marker = self.tmp / "try-session"
-        marker.touch()
-        self.stub("amadeus-aur")
-        self.stub("amadeus-harness")
-        self.stub("amadeus-mirrors")
-        p = self.run_cmd("amadeus-update", "-y", env=dict(self.UPDATE_ENV, AMADEUS_TRY_MARKER=str(marker)))
-        self.assert_ok(p)
-        self.assertIn("Try session", p.stdout)
-        self.assertNotIn("snapper", [c[0] for c in self.calls_of("sudo")])
 
     # ---- mirrors -------------------------------------------------------------
     def mirror_stubs(self, arch=("arch.example",)):
@@ -687,19 +684,6 @@ esac""")
     # ---- Wi-Fi --------------------------------------------------------------
     # ---- the System menu ---------------------------------------------------------
     # ---- the update command -------------------------------------------------
-    def test_update_snapshot_is_numbered_and_tools_update_last(self):
-        self.stub("amadeus-aur")
-        self.stub("amadeus-harness")
-        p = self.run_cmd("amadeus-update", "-y", env=self.UPDATE_ENV)
-        self.assert_ok(p)
-        sudo = self.calls_of("sudo")
-        snap = next(c for c in sudo if c[0] == "snapper")
-        self.assertEqual(snap[:7], ["snapper", "-c", "root", "create", "--cleanup-algorithm", "number", "--description"])
-        self.assertTrue(snap[7].startswith("before update "))
-        self.assertIn(["snapper", "-c", "root", "cleanup", "number"], sudo)
-        names = [line.split("\t")[0] for line in self.calls.read_text().splitlines()]
-        self.assertEqual(names[-2:], ["amadeus-aur", "amadeus-harness"])
-
     # ---- the menu builds commands without running them ----------------------
     # ---- the picker itself and the menu that drives it -----------------------
     # ---- capture, display and small helpers ---------------------------------
@@ -745,7 +729,7 @@ sleep 0.5""")
                 "availableModes": [f"{width}x{height}@60.00Hz"]}
 
     def test_hooks_run_every_script_and_report_failures(self):
-        hooks = self.config / "amadeus/hooks"; (hooks / "post-update.d").mkdir(parents=True)
+        hooks = self.home / ".config/amadeus/hooks"; (hooks / "post-update.d").mkdir(parents=True)
         (hooks / "post-update").write_text(f'echo "main $1" >>{self.tmp}/hooks\n')
         (hooks / "post-update.d/a").write_text(f'echo "a $1" >>{self.tmp}/hooks\n')
         (hooks / "post-update.d/b").write_text("exit 3\n")
@@ -753,7 +737,7 @@ sleep 0.5""")
         p = self.run_cmd("amadeus-hook", "post-update", "x")
         self.assert_ok(p)
         self.assertEqual((self.tmp / "hooks").read_text().splitlines(), ["main x", "a x"])
-        self.assertIn("Hook failed", p.stderr)
+        self.assertIn("Hook failed", p.stdout)
         self.assertNotEqual(self.run_cmd("amadeus-hook", "../escape").returncode, 0)
 
     def test_version_reports_the_desktop_package(self):

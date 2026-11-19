@@ -2,7 +2,7 @@
 
 # amadeus:summary=Update AUR packages if any are installed
 
-# mise exports GOROOT and GOBIN for its own Go. amadeus-upgrade-to-quattro runs
+# mise exports GOROOT and GOBIN for its own Go. A root update step runs
 # this with the system PATH but the caller's environment, so /usr/bin/go would
 # compile with mise's toolchain and every Go PKGBUILD fails with
 # "compile: version ... does not match go tool version". With both unset,

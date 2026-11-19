@@ -242,7 +242,7 @@ raise_own_zero_budgets() {
 
 # The caller's own session: its zeros, its portal, and its audio units. A
 # caller with no session bus is not logged in and has none of the last two;
-# amadeus-upgrade-to-quattro runs its migrations without the user's session
+# a caller run from a root update step has no session
 # environment, so the bus is looked for where the session puts it.
 repair_own_session() {
   local pipewire portal_failed=0
@@ -275,7 +275,7 @@ if amadeus-pkg-missing rtkit || [[ -e $pending ]] || [[ $(id -u) == "0" ]]; then
   repair_machine
 fi
 
-# Root has no desktop session of its own; amadeus-upgrade-to-quattro runs
+# Root has no desktop session of its own; a root update step runs
 # this as root for the machine-wide repair alone.
 if [[ $(id -u) != "0" ]]; then
   repair_own_session

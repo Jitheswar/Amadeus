@@ -15,7 +15,7 @@ package() {
   install -Dm644 "$src"/hardware/* -t "$pkgdir/usr/share/amadeus-os/hardware/"
   install -Dm644 "$src/OMARCHY-LICENSE" "$pkgdir/usr/share/licenses/$pkgname/OMARCHY-LICENSE"
   install -Dm644 "$src/launcher.hides" -t "$pkgdir/usr/share/amadeus-os/"
-  install -Dm644 "$src"/migrations/*.sh -t "$pkgdir/usr/share/amadeus-os/migrations/"
+  install -Dm644 "$src"/migrations/*.sh -t "$pkgdir/usr/share/amadeus/migrations/"
   install -d "$pkgdir/usr/bin"
   # Only files: a test run can leave a __pycache__ directory beside the programs.
   find "$src/bin" -maxdepth 1 -type f -exec install -Dm755 {} -t "$pkgdir/usr/bin/" \;

@@ -20,19 +20,16 @@ if [[ $AMADEUS_PATH != "/usr/share/amadeus" ]]; then
   fi
 fi
 
-package=""
-if pacman -Qq amadeus-desktop >/dev/null 2>&1; then
-  package=amadeus-desktop
-elif pacman -Qq amadeus >/dev/null 2>&1; then
-  package=amadeus
-fi
-
-if [[ -n $package ]]; then
-  update=$(checkupdates --nocolor 2>/dev/null | awk -v package="$package" '$1 == package { print; exit }' || true)
-fi
-
-if [[ -n ${update:-} ]]; then
-  updates+=("$update")
+# Amadeus is two packages, the desktop (amadeus-desktop) and the assistant (amadeus); a new
+# version of either is an Amadeus update. Other packages are left to the update itself.
+packages=()
+for package in amadeus-desktop amadeus; do
+  pacman -Qq "$package" >/dev/null 2>&1 && packages+=("$package")
+done
+if (( ${#packages[@]} > 0 )); then
+  while read -r update; do
+    [[ -n $update ]] && updates+=("$update")
+  done < <(checkupdates --nocolor 2>/dev/null | awk -v names=" ${packages[*]} " 'index(names, " " $1 " ")' || true)
 fi
 
 if (( ${#updates[@]} > 0 )); then

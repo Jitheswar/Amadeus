@@ -89,7 +89,7 @@ fi
 # x)" is not, so the end anchor takes only ours. -Qo re-checks the live database
 # before anything moves.
 mapfile -t leftovers < <(
-  grep -oP '^amadeus(-dev|-settings|-settings-dev)?: \K.+(?= exists in filesystem$)' "$errors" |
+  grep -oP '^amadeus(-desktop)?: \K.+(?= exists in filesystem$)' "$errors" |
     while IFS= read -r path; do pacman -Qo "$path" &>/dev/null || echo "$path"; done
 )
 ((${#leftovers[@]})) || exit 1
