@@ -279,8 +279,6 @@
   "plugin.removeTitle": "Usuń wtyczkę",
   "plugin.removeWhich": "Którą wtyczkę usunąć?",
   "plugin.replacedByClone": "Oryginalna wtyczka została zastąpiona klonem.",
-  "preinstalls.confirmRemove": "Czy na pewno chcesz usunąć wszystkie preinstalowane aplikacje internetowe, nakładki TUI i aplikacje pulpitu?",
-  "preinstalls.confirmRestore": "Czy na pewno chcesz przywrócić wszystkie preinstalowane aplikacje internetowe, nakładki TUI i aplikacje pulpitu?",
   "reminder.cleared": "Wszystkie przypomnienia wyczyszczono",
   "reminder.count": {
     "few": "%1 przypomnienia",

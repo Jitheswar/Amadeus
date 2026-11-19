@@ -277,8 +277,6 @@
   "plugin.removeTitle": "Rimuovi plugin",
   "plugin.removeWhich": "Quale plugin rimuovere?",
   "plugin.replacedByClone": "Il plugin originale è stato sostituito dal clone.",
-  "preinstalls.confirmRemove": "Vuoi davvero rimuovere tutte le web app, i wrapper TUI e le applicazioni desktop preinstallate?",
-  "preinstalls.confirmRestore": "Vuoi davvero ripristinare tutte le web app, i wrapper TUI e le applicazioni desktop preinstallate?",
   "reminder.cleared": "Tutti i promemoria sono stati cancellati",
   "reminder.count": {
     "many": "%1 promemoria",

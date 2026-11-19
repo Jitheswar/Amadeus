@@ -273,8 +273,6 @@
   "plugin.removeTitle": "移除外掛",
   "plugin.removeWhich": "要移除哪個外掛？",
   "plugin.replacedByClone": "原始外掛已被複製版取代。",
-  "preinstalls.confirmRemove": "確定要移除所有預先安裝的網頁應用程式、TUI 包裝器和桌面應用程式嗎？",
-  "preinstalls.confirmRestore": "確定要還原所有預先安裝的網頁應用程式、TUI 包裝器和桌面應用程式嗎？",
   "reminder.cleared": "所有提醒已清除",
   "reminder.count": {
     "other": "%1 個提醒"

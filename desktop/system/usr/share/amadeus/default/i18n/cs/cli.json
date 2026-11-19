@@ -277,8 +277,6 @@
   "plugin.removeTitle": "Odebrat plugin",
   "plugin.removeWhich": "Který plugin odstranit?",
   "plugin.replacedByClone": "Původní plugin byl nahrazen klonem.",
-  "preinstalls.confirmRemove": "Opravdu chcete odstranit všechny předinstalované webové aplikace, TUI wrappery a desktopové aplikace?",
-  "preinstalls.confirmRestore": "Opravdu chcete obnovit všechny předinstalované webové aplikace, TUI wrappery a desktopové aplikace?",
   "reminder.cleared": "Všechny připomínky byly vymazány",
   "reminder.count": {
     "few": "%1 připomínky",

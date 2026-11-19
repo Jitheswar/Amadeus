@@ -277,8 +277,6 @@
   "plugin.removeTitle": "Remover plugin",
   "plugin.removeWhich": "Que plugin remover?",
   "plugin.replacedByClone": "O plugin original foi substituído pelo clone.",
-  "preinstalls.confirmRemove": "Tens a certeza de que queres remover todas as aplicações web, wrappers TUI e aplicações de ambiente de trabalho pré-instaladas?",
-  "preinstalls.confirmRestore": "Tens a certeza de que queres restaurar todas as aplicações web, wrappers TUI e aplicações de ambiente de trabalho pré-instaladas?",
   "reminder.cleared": "Todos os lembretes foram limpos",
   "reminder.count": {
     "many": "%1 lembretes",

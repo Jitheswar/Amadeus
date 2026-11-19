@@ -275,8 +275,6 @@
   "plugin.removeTitle": "ප්ලගීනය ඉවත් කරන්න",
   "plugin.removeWhich": "කොයි ප්ලගීනය ඉවත් කළ යුතුද?",
   "plugin.replacedByClone": "මුල් ප්ලගීනය ක්ලෝනයෙන් ප්‍රතිස්ථාපනය විය.",
-  "preinstalls.confirmRemove": "පෙර ස්ථාපිත වෙබ් යෙදුම්, TUI wrappers සහ ඩෙස්ක්ටොප් යෙදුම් සියල්ල ඉවත් කිරීම ඔබට විශ්වාසද?",
-  "preinstalls.confirmRestore": "පෙර ස්ථාපිත වෙබ් යෙදුම්, TUI wrappers සහ ඩෙස්ක්ටොප් යෙදුම් සියල්ල නැවත පිහිටුවීම ඔබට විශ්වාසද?",
   "reminder.cleared": "සියලුම මතක්කිරීම් හිස් කළා",
   "reminder.count": {
     "one": "%1 මතක්කිරීම",

@@ -277,8 +277,6 @@
   "plugin.removeTitle": "הסרת תוסף",
   "plugin.removeWhich": "איזה תוסף להסיר?",
   "plugin.replacedByClone": "התוסף המקורי הוחלף בשיבוט.",
-  "preinstalls.confirmRemove": "האם אתה בטוח שברצונך להסיר את כל אפליקציות הרשת, מעטפות TUI ויישומי שולחן העבודה המותקנים מראש?",
-  "preinstalls.confirmRestore": "האם אתה בטוח שברצונך לשחזר את כל אפליקציות הרשת, מעטפות TUI ויישומי שולחן העבודה המותקנים מראש?",
   "reminder.cleared": "כל התזכורות נוקו",
   "reminder.count": {
     "one": "תזכורת אחת",

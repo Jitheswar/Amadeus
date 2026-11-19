@@ -273,8 +273,6 @@
   "plugin.removeTitle": "プラグインを削除",
   "plugin.removeWhich": "どのプラグインを削除しますか？",
   "plugin.replacedByClone": "元のプラグインは複製に置き換えられました。",
-  "preinstalls.confirmRemove": "プリインストール済みの Web アプリ、TUI ラッパー、デスクトップアプリをすべて削除してもよろしいですか？",
-  "preinstalls.confirmRestore": "プリインストール済みの Web アプリ、TUI ラッパー、デスクトップアプリをすべて復元してもよろしいですか？",
   "reminder.cleared": "すべてのリマインダーを削除しました",
   "reminder.count": {
     "other": "%1 件のリマインダー"

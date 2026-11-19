@@ -275,8 +275,6 @@
   "plugin.removeTitle": "Alisin ang plugin",
   "plugin.removeWhich": "Aling plugin ang aalisin?",
   "plugin.replacedByClone": "Napalitan na ng clone ang orihinal na plugin.",
-  "preinstalls.confirmRemove": "Sigurado ka bang gusto mong alisin lahat ng preinstalled na web apps, TUI wrappers, at desktop applications?",
-  "preinstalls.confirmRestore": "Sigurado ka bang gusto mong ibalik lahat ng preinstalled na web apps, TUI wrappers, at desktop applications?",
   "reminder.cleared": "Nabura na lahat ng paalala",
   "reminder.count": {
     "one": "%1 paalala",

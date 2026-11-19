@@ -275,8 +275,6 @@
   "plugin.removeTitle": "Plaginni olib tashlash",
   "plugin.removeWhich": "Qaysi plagin olib tashlansin?",
   "plugin.replacedByClone": "Asl plagin klon bilan almashtirildi.",
-  "preinstalls.confirmRemove": "Barcha oldindan oʻrnatilgan veb ilovalar, TUI oʻramlari va ish stoli ilovalarini olib tashlashga ishonchingiz komilmi?",
-  "preinstalls.confirmRestore": "Barcha oldindan oʻrnatilgan veb ilovalar, TUI oʻramlari va ish stoli ilovalarini tiklashga ishonchingiz komilmi?",
   "reminder.cleared": "Barcha eslatmalar tozalandi",
   "reminder.count": {
     "one": "%1 ta eslatma",

@@ -277,8 +277,6 @@
   "plugin.removeTitle": "Retirer un plugin",
   "plugin.removeWhich": "Quel plugin supprimer ?",
   "plugin.replacedByClone": "Le plugin d'origine a été remplacé par le clone.",
-  "preinstalls.confirmRemove": "Voulez-vous vraiment supprimer toutes les applications web préinstallées, les wrappers TUI et les applications de bureau ?",
-  "preinstalls.confirmRestore": "Voulez-vous vraiment restaurer toutes les applications web préinstallées, les wrappers TUI et les applications de bureau ?",
   "reminder.cleared": "Tous les rappels ont été effacés",
   "reminder.count": {
     "many": "%1 de rappels",

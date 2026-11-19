@@ -277,8 +277,6 @@
   "plugin.removeTitle": "Noņemt spraudni",
   "plugin.removeWhich": "Kuru spraudni noņemt?",
   "plugin.replacedByClone": "Oriģinālais spraudnis ir aizstāts ar klonu.",
-  "preinstalls.confirmRemove": "Vai tiešām noņemt visas sākotnēji instalētās tīmekļa lietotnes, TUI apvalkus un darbvirsmas lietotnes?",
-  "preinstalls.confirmRestore": "Vai tiešām atjaunot visas sākotnēji instalētās tīmekļa lietotnes, TUI apvalkus un darbvirsmas lietotnes?",
   "reminder.cleared": "Visi atgādinājumi ir notīrīti",
   "reminder.count": {
     "one": "%1 atgādinājums",

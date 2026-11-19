@@ -111,8 +111,6 @@ done
 source "$AMADEUS_INSTALL/user/all.sh"
 
 amadeus-refresh-applications
-env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser google-chrome.desktop
-xdg-mime default HEY.desktop x-scheme-handler/mailto
 
 if (( first_install )); then
   mkdir -p "$state_dir/migrations"

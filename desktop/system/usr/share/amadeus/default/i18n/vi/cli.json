@@ -273,8 +273,6 @@
   "plugin.removeTitle": "Gỡ plugin",
   "plugin.removeWhich": "Gỡ plugin nào?",
   "plugin.replacedByClone": "Plugin gốc đã bị thay bằng bản nhân bản.",
-  "preinstalls.confirmRemove": "Bạn có chắc muốn gỡ mọi ứng dụng web, wrapper TUI và ứng dụng máy tính để bàn đã cài sẵn không?",
-  "preinstalls.confirmRestore": "Bạn có chắc muốn khôi phục mọi ứng dụng web, wrapper TUI và ứng dụng máy tính để bàn đã cài sẵn không?",
   "reminder.cleared": "Đã xóa mọi lời nhắc",
   "reminder.count": {
     "other": "%1 lời nhắc"

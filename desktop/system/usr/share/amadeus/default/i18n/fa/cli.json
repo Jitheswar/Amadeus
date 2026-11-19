@@ -275,8 +275,6 @@
   "plugin.removeTitle": "حذف افزونه",
   "plugin.removeWhich": "کدام افزونه حذف شود؟",
   "plugin.replacedByClone": "افزونهٔ اصلی با کپی جایگزین شد.",
-  "preinstalls.confirmRemove": "مطمئنید که می‌خواهید همهٔ وب‌اپ‌ها، روکش‌های TUI و برنامه‌های دسکتاپ از پیش نصب‌شده را حذف کنید؟",
-  "preinstalls.confirmRestore": "مطمئنید که می‌خواهید همهٔ وب‌اپ‌ها، روکش‌های TUI و برنامه‌های دسکتاپ از پیش نصب‌شده را بازیابی کنید؟",
   "reminder.cleared": "همهٔ یادآورها پاک شدند",
   "reminder.count": {
     "one": "%1 یادآور",

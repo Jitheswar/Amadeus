@@ -277,8 +277,6 @@
   "plugin.removeTitle": "Elimină pluginul",
   "plugin.removeWhich": "Pe care plugin îl elimini?",
   "plugin.replacedByClone": "Pluginul original a fost înlocuit de clonă.",
-  "preinstalls.confirmRemove": "Sigur vrei să elimini toate aplicațiile web preinstalate, wrapper-ele TUI și aplicațiile desktop?",
-  "preinstalls.confirmRestore": "Sigur vrei să restaurezi toate aplicațiile web preinstalate, wrapper-ele TUI și aplicațiile desktop?",
   "reminder.cleared": "Toate memento-urile au fost șterse",
   "reminder.count": {
     "few": "%1 memento-uri",

@@ -275,8 +275,6 @@
   "plugin.removeTitle": "Poista lisäosa",
   "plugin.removeWhich": "Mikä lisäosa poistetaan?",
   "plugin.replacedByClone": "Alkuperäinen lisäosa on korvattu kloonilla.",
-  "preinstalls.confirmRemove": "Haluatko varmasti poistaa kaikki valmiiksi asennetut verkkosovellukset, TUI-kääreet ja työpöytäsovellukset?",
-  "preinstalls.confirmRestore": "Haluatko varmasti palauttaa kaikki valmiiksi asennetut verkkosovellukset, TUI-kääreet ja työpöytäsovellukset?",
   "reminder.cleared": "Kaikki muistutukset tyhjennetty",
   "reminder.count": {
     "one": "%1 muistutus",

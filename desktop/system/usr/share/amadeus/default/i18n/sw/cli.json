@@ -275,8 +275,6 @@
   "plugin.removeTitle": "Ondoa programu-jalizi",
   "plugin.removeWhich": "Ondoa programu-jalizi gani?",
   "plugin.replacedByClone": "Programu-jalizi asilia imebadilishwa na nakala.",
-  "preinstalls.confirmRemove": "Una uhakika unataka kuondoa programu zote za wavuti, vifungashio vya TUI, na programu za eneo-kazi zilizosakinishwa awali?",
-  "preinstalls.confirmRestore": "Una uhakika unataka kurejesha programu zote za wavuti, vifungashio vya TUI, na programu za eneo-kazi zilizosakinishwa awali?",
   "reminder.cleared": "Vikumbusho vyote vimefutwa",
   "reminder.count": {
     "one": "%1 kikumbusho",

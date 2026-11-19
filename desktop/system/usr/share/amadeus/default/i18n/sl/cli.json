@@ -279,8 +279,6 @@
   "plugin.removeTitle": "Odstrani vtičnik",
   "plugin.removeWhich": "Kateri vtičnik odstraniti?",
   "plugin.replacedByClone": "Izvirni vtičnik je zamenjal klon.",
-  "preinstalls.confirmRemove": "Ali ste prepričani, da želite odstraniti vse prednameščene spletne aplikacije, ovojnike TUI in namizne aplikacije?",
-  "preinstalls.confirmRestore": "Ali ste prepričani, da želite obnoviti vse prednameščene spletne aplikacije, ovojnike TUI in namizne aplikacije?",
   "reminder.cleared": "Vsi opomniki so počiščeni",
   "reminder.count": {
     "few": "%1 opomniki",

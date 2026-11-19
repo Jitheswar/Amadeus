@@ -275,8 +275,6 @@
   "plugin.removeTitle": "پلگ ان ہٹائیں",
   "plugin.removeWhich": "کون سا پلگ ان ہٹائیں؟",
   "plugin.replacedByClone": "اصل پلگ ان کلون سے بدل گیا ہے۔",
-  "preinstalls.confirmRemove": "کیا آپ کو یقین ہے کہ آپ تمام پہلے سے نصب ویب ایپس، TUI ریپرز اور ڈیسک ٹاپ ایپلیکیشنز ہٹانا چاہتے ہیں؟",
-  "preinstalls.confirmRestore": "کیا آپ کو یقین ہے کہ آپ تمام پہلے سے نصب ویب ایپس، TUI ریپرز اور ڈیسک ٹاپ ایپلیکیشنز بحال کرنا چاہتے ہیں؟",
   "reminder.cleared": "تمام یاد دہانیاں صاف ہو گئیں",
   "reminder.count": {
     "one": "%1 یاد دہانی",

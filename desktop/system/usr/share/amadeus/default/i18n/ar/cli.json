@@ -283,8 +283,6 @@
   "plugin.removeTitle": "إزالة الإضافة",
   "plugin.removeWhich": "إزالة أي إضافة؟",
   "plugin.replacedByClone": "استُبدلت الإضافة الأصلية بالمستنسخة.",
-  "preinstalls.confirmRemove": "هل أنت متأكد من إزالة جميع تطبيقات الويب المثبَّتة مسبقًا وأدوات TUI وتطبيقات سطح المكتب؟",
-  "preinstalls.confirmRestore": "هل أنت متأكد من استعادة جميع تطبيقات الويب المثبَّتة مسبقًا وأدوات TUI وتطبيقات سطح المكتب؟",
   "reminder.cleared": "مُسحت جميع التذكيرات",
   "reminder.count": {
     "few": "%1 تذكيرات",

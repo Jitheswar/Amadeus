@@ -277,8 +277,6 @@
   "plugin.removeTitle": "Retirar el complement",
   "plugin.removeWhich": "Quin complement vols eliminar?",
   "plugin.replacedByClone": "El complement original s'ha substituït pel clon.",
-  "preinstalls.confirmRemove": "Segur que vols eliminar totes les aplicacions web, embolcalls TUI i aplicacions d'escriptori preinstal·lades?",
-  "preinstalls.confirmRestore": "Segur que vols restaurar totes les aplicacions web, embolcalls TUI i aplicacions d'escriptori preinstal·lades?",
   "reminder.cleared": "S'han esborrat tots els recordatoris",
   "reminder.count": {
     "many": "%1 recordatoris",

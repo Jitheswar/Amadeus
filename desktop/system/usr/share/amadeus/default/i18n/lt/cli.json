@@ -277,8 +277,6 @@
   "plugin.removeTitle": "Pašalinti įskiepį",
   "plugin.removeWhich": "Kurį įskiepį pašalinti?",
   "plugin.replacedByClone": "Originalus įskiepis pakeistas klonu.",
-  "preinstalls.confirmRemove": "Ar tikrai norite pašalinti visas iš anksto įdiegtas žiniatinklio programas, TUI apvalkalus ir darbalaukio programas?",
-  "preinstalls.confirmRestore": "Ar tikrai norite atkurti visas iš anksto įdiegtas žiniatinklio programas, TUI apvalkalus ir darbalaukio programas?",
   "reminder.cleared": "Visi priminimai išvalyti",
   "reminder.count": {
     "few": "%1 priminimai",

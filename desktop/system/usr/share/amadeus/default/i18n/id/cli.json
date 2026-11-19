@@ -273,8 +273,6 @@
   "plugin.removeTitle": "Hapus Plugin",
   "plugin.removeWhich": "Hapus plugin yang mana?",
   "plugin.replacedByClone": "Plugin asli telah digantikan oleh kloning.",
-  "preinstalls.confirmRemove": "Anda yakin ingin menghapus semua aplikasi web, pembungkus TUI, dan aplikasi desktop bawaan?",
-  "preinstalls.confirmRestore": "Anda yakin ingin memulihkan semua aplikasi web, pembungkus TUI, dan aplikasi desktop bawaan?",
   "reminder.cleared": "Semua pengingat telah dihapus",
   "reminder.count": {
     "other": "%1 pengingat"
